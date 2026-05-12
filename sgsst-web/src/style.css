@@ -19,6 +19,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: min(100%, 440px);
+  padding: 28px;
+  border-color: #d9e2e5 !important;
+}
+
+.login-brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
 .app-shell {
   display: flex;
   min-height: 100vh;
@@ -96,6 +115,12 @@ body {
   border-color: #d9e2e5 !important;
 }
 
+.session-card {
+  margin: 12px;
+  padding: 14px;
+  border-color: #d9e2e5 !important;
+}
+
 .content {
   flex-grow: 1;
   width: 100%;
@@ -114,6 +139,8 @@ body {
   height: 44px;
   place-items: center;
   border-radius: 8px;
+  background: #e7f0f2;
+  color: #1d4f5f;
 }
 
 .kpi-icon.primary {
@@ -155,12 +182,12 @@ body {
 
 @media (min-width: 1200px) {
   .topbar {
-    width: calc(100% - 292px) !important;
-    margin-left: 292px;
+    width: calc(100% - 284px) !important;
+    margin-left: 284px;
   }
 
   .content {
-    margin-left: 292px;
+    margin-left: 284px;
   }
 }
 
