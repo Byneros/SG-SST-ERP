@@ -1,0 +1,211 @@
+import { Business, Description, HealthAndSafety, History, Logout, ManageAccounts, Menu, Notifications, People, Refresh, SpaceDashboard } from '@mui/icons-material'
+import { AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, Paper, Stack, Toolbar, Tooltip, Typography, Alert } from '@mui/material'
+import { useState, type ReactNode } from 'react'
+import type { AppNotification, AuthUser, View } from '../types'
+import { initials } from '../utils'
+
+const drawerWidth = 284
+
+export function AppLayout({
+  user,
+  view,
+  selectedTitle,
+  mobileOpen,
+  loading,
+  error,
+  canViewUsers,
+  canViewDocuments,
+  canViewAudit,
+  canGenerateNotifications,
+  notifications,
+  notificationUnread,
+  children,
+  onMobileOpen,
+  onMobileClose,
+  onSelectView,
+  onPreloadView,
+  onRefresh,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  onGenerateNotifications,
+  onChangePassword,
+  onLogout,
+}: {
+  user: AuthUser
+  view: View
+  selectedTitle: string
+  mobileOpen: boolean
+  loading: boolean
+  error: string
+  canViewUsers: boolean
+  canViewDocuments: boolean
+  canViewAudit: boolean
+  canGenerateNotifications: boolean
+  notifications: AppNotification[]
+  notificationUnread: number
+  children: ReactNode
+  onMobileOpen: () => void
+  onMobileClose: () => void
+  onSelectView: (view: View) => void
+  onPreloadView: (view: View) => void
+  onRefresh: () => void
+  onMarkNotificationRead: (id: string) => void
+  onMarkAllNotificationsRead: () => void
+  onGenerateNotifications: () => void
+  onChangePassword: () => void
+  onLogout: () => void
+}) {
+  const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null)
+  const drawer = (
+    <Box className="sidebar">
+      <Box className="brand-block">
+        <Box className="brand-mark">
+          <HealthAndSafety fontSize="small" />
+        </Box>
+        <Box>
+          <Typography variant="h6">SG-SST ERP</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Seguridad y salud en el trabajo
+          </Typography>
+        </Box>
+      </Box>
+      <Divider />
+      <Box className="nav-scroll">
+        <NavButton active={view === 'dashboard'} icon={<SpaceDashboard />} label="Dashboard" onClick={() => onSelectView('dashboard')} onPreload={() => onPreloadView('dashboard')} />
+        <NavButton active={view === 'companies'} icon={<Business />} label="Empresas" onClick={() => onSelectView('companies')} onPreload={() => onPreloadView('companies')} />
+        <NavButton active={view === 'employees'} icon={<People />} label="Empleados" onClick={() => onSelectView('employees')} onPreload={() => onPreloadView('employees')} />
+        {canViewDocuments && <NavButton active={view === 'documents'} icon={<Description />} label="Documentos" onClick={() => onSelectView('documents')} onPreload={() => onPreloadView('documents')} />}
+        {canViewUsers && <NavButton active={view === 'users'} icon={<ManageAccounts />} label="Usuarios" onClick={() => onSelectView('users')} onPreload={() => onPreloadView('users')} />}
+        {canViewAudit && <NavButton active={view === 'audit'} icon={<History />} label="Auditoria" onClick={() => onSelectView('audit')} onPreload={() => onPreloadView('audit')} />}
+      </Box>
+      <Paper variant="outlined" className="session-card">
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar className="user-avatar">{initials(user.name)}</Avatar>
+          <Box>
+            <Typography variant="subtitle2">{user.name}</Typography>
+            <Chip size="small" label={user.role} color="primary" variant="outlined" />
+          </Box>
+        </Stack>
+        <Button startIcon={<Logout />} fullWidth sx={{ mt: 2 }} onClick={onLogout}>
+          Cerrar sesion
+        </Button>
+        <Button fullWidth sx={{ mt: 1 }} onClick={onChangePassword}>
+          Cambiar contrasena
+        </Button>
+      </Paper>
+    </Box>
+  )
+
+  return (
+    <Box className="app-shell">
+      <AppBar position="fixed" className="topbar">
+        <Toolbar>
+          <IconButton edge="start" onClick={onMobileOpen} className="mobile-menu">
+            <Menu />
+          </IconButton>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h6">{selectedTitle}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user.email} - {user.role}
+            </Typography>
+          </Box>
+          <Tooltip title="Recargar datos">
+            <IconButton onClick={onRefresh}>
+              <Refresh />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Notificaciones">
+            <IconButton onClick={(event) => setNotificationAnchor(event.currentTarget)}>
+              <Badge badgeContent={notificationUnread} color="error">
+                <Notifications />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+          <MuiMenu
+            anchorEl={notificationAnchor}
+            open={Boolean(notificationAnchor)}
+            onClose={() => setNotificationAnchor(null)}
+            PaperProps={{ sx: { width: 360, maxWidth: 'calc(100vw - 24px)' } }}
+          >
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="subtitle2">Notificaciones</Typography>
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button size="small" onClick={onMarkAllNotificationsRead}>Marcar leidas</Button>
+                {canGenerateNotifications && <Button size="small" onClick={onGenerateNotifications}>Generar alertas</Button>}
+              </Stack>
+            </Box>
+            <Divider />
+            <List dense disablePadding>
+              {notifications.length === 0 ? (
+                <ListItemButton disabled>
+                  <ListItemText primary="Sin notificaciones" />
+                </ListItemButton>
+              ) : (
+                notifications.map((notification) => (
+                  <ListItemButton key={notification.id} selected={!notification.read} onClick={() => onMarkNotificationRead(notification.id)}>
+                    <ListItemText
+                      primary={notification.title}
+                      secondary={`${notification.message} · ${notification.priority}`}
+                    />
+                  </ListItemButton>
+                ))
+              )}
+            </List>
+          </MuiMenu>
+        </Toolbar>
+      </AppBar>
+      <Box component="nav">
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={onMobileClose}
+          sx={{ display: { xs: 'block', lg: 'none' }, '& .MuiDrawer-paper': { width: drawerWidth } }}
+        >
+          {drawer}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          open
+          sx={{ display: { xs: 'none', lg: 'block' }, '& .MuiDrawer-paper': { width: drawerWidth } }}
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+      <Box component="main" className="content">
+        <Toolbar />
+        <Stack spacing={2}>
+          {loading && <LinearProgress />}
+          {error && <Alert severity="error">{error}</Alert>}
+          {children}
+        </Stack>
+      </Box>
+    </Box>
+  )
+}
+
+function NavButton({
+  active,
+  icon,
+  label,
+  onClick,
+  onPreload,
+}: {
+  active: boolean
+  icon: ReactNode
+  label: string
+  onClick: () => void
+  onPreload: () => void
+}) {
+  return (
+    <Button
+      fullWidth
+      startIcon={icon}
+      className={active ? 'nav-item active' : 'nav-item'}
+      onClick={onClick}
+      onFocus={onPreload}
+      onMouseEnter={onPreload}
+    >
+      {label}
+    </Button>
+  )
+}

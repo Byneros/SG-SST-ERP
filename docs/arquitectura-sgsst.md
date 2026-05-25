@@ -1,282 +1,264 @@
-# Arquitectura modular SG-SST
+# Arquitectura SaaS SG-SST ERP
 
-Este documento define una base modular y escalable para el sistema SG-SST. La implementacion actual usa NestJS, Prisma, PostgreSQL y un frontend Vue/Vite, por lo que la arquitectura propuesta mantiene esa direccion y separa el dominio en modulos independientes.
+Este documento deja aplicado el diseño objetivo del proyecto como SaaS empresarial modular, multiempresa y listo para crecer hacia producción. La implementación actual usa React/Vite en frontend, NestJS en backend, Prisma como capa de acceso a datos y PostgreSQL como base transaccional.
 
-## Objetivos
-
-- Separar responsabilidades por modulos de negocio.
-- Aplicar control de acceso por roles: admin, SST, empleado y auditor.
-- Exponer una API versionada, segura y facil de integrar.
-- Preparar la plataforma para despliegue en contenedores y crecimiento cloud.
-- Proteger datos sensibles laborales, medicos, documentales y de auditoria.
-
-## Modulos principales del sistema
-
-| Modulo | Responsabilidad | Entidades base |
-| --- | --- | --- |
-| Identidad y acceso | Login, sesiones, usuarios, roles, permisos y recuperacion de cuenta. | User, Role |
-| Empresas | Gestion multiempresa, sedes, configuracion SG-SST y parametros del cliente. | Company |
-| Empleados | Datos laborales, cargos, vinculacion a empresa, historial y estado. | Employee |
-| Riesgos | Matriz de peligros, evaluacion, controles, planes de mitigacion. | Risk |
-| Incidentes | Reporte, investigacion, seguimiento, acciones correctivas y cierre. | Incident |
-| Capacitaciones | Programacion, asistencia, evidencias, evaluaciones y certificados. | Training |
-| Auditorias | Planes de auditoria, hallazgos, evidencias, resultados y seguimiento. | Audit |
-| Documentos | Politicas, formatos, soportes, versiones, vencimientos y trazabilidad. | Document |
-| Indicadores | KPIs, tableros, metricas normativas, accidentalidad y cumplimiento. | Indicator |
-| Notificaciones | Alertas de vencimiento, asignaciones, cambios de estado y recordatorios. | Notification |
-| Integraciones | Conectores externos para ARL, firmas digitales, IoT y correo/SMS. | IntegrationEvent, Webhook |
-| Auditoria tecnica | Logs de acceso, cambios de datos, exportaciones y eventos sensibles. | AuditLog |
-
-Estructura recomendada para NestJS:
+## 1. Arquitectura del sistema
 
 ```text
-src/
-  common/
-    decorators/
-    filters/
-    guards/
-    interceptors/
-    pipes/
-  config/
-  database/
-  modules/
-    auth/
-    users/
-    companies/
-    employees/
-    risks/
-    incidents/
-    trainings/
-    audits/
-    documents/
-    indicators/
-    notifications/
-    integrations/
-    audit-logs/
+Usuario web
+  -> React/Vite + MUI
+  -> API REST NestJS /api/v1
+  -> Guards JWT + roles + alcance por companyId
+  -> Servicios de dominio
+  -> Repositorios Prisma
+  -> PostgreSQL
+  -> AuditLog
 ```
 
-## Modelo de roles
+Arquitectura actual:
+
+- `sgsst-web`: aplicación React con login, sidebar, dashboard, CRUD de empresas, empleados y usuarios, auditoría y carga diferida por módulo.
+- `sgsst-api`: monolito modular NestJS con módulos de dominio, DTOs, guards, auditoría, Swagger y Dockerfile.
+- `PostgreSQL`: fuente de verdad para tenants, usuarios, empleados, riesgos, incidentes, capacitaciones y logs de auditoría.
+- `Docker Compose`: entorno local productivo con web, API y PostgreSQL.
+
+Arquitectura evolutiva:
+
+- Mantener el backend como monolito modular mientras el equipo y el volumen sean manejables.
+- Extraer workers para notificaciones, reportes PDF, integraciones e importaciones masivas.
+- Separar microservicios solo cuando exista presión real de escala o independencia: documentos, integraciones, analytics o IoT.
+
+## 2. Tecnologías recomendadas
+
+| Capa | Tecnología aplicada | Motivo |
+| --- | --- | --- |
+| Frontend | React, Vite, TypeScript, MUI | UI empresarial rápida, modular y mantenible. |
+| Backend | NestJS, TypeScript | Arquitectura por módulos, guards, DTOs, Swagger y buenas prácticas enterprise. |
+| Datos | PostgreSQL, Prisma | Modelo relacional fuerte, migraciones y repositorios tipados. |
+| Auth | JWT, bcrypt, RBAC | Base segura para SaaS multiempresa. |
+| Contenedores | Docker, Docker Compose, Nginx | Entorno reproducible para local, QA y producción. |
+| Documentación API | Swagger/OpenAPI | Contrato navegable para frontend e integraciones. |
+
+Futuro recomendado:
+
+- Redis para cache, colas, rate limiting distribuido y jobs.
+- S3, Azure Blob o GCS para documentos y evidencias.
+- OpenTelemetry para trazas cuando existan workers o más servicios.
+- Next.js solo si se necesita SSR, SEO público o rutas híbridas; para este ERP interno React/Vite es suficiente.
+
+## 3. Diseño multi-tenant
+
+El tenant principal es `Company`. Los datos operativos deben pertenecer a una empresa mediante `companyId`.
+
+Reglas aplicadas o esperadas:
+
+- `ADMIN`: puede operar globalmente y crear empresas.
+- `SST`: queda limitado a su `companyId`.
+- `AUDITOR`: puede consultar según alcance asignado.
+- `EMPLOYEE`: debe consultar y operar sobre su propia información y tareas.
+- Toda consulta sensible debe filtrar por `companyId` desde backend.
+- El frontend puede enviar filtros, pero el backend siempre decide el alcance real.
+- Las eliminaciones operativas se manejan como soft delete con `isActive` y `deletedAt`.
+
+Mejora recomendada para la siguiente fase:
+
+- Crear una tabla de membresías o alcances si un usuario necesita operar varias empresas.
+- Agregar permisos finos por módulo cuando el SaaS tenga clientes grandes.
+- Implementar políticas ABAC para casos como "auditor asignado a auditoría X".
+
+## 4. Módulos principales
+
+Módulos ya presentes o previstos:
+
+- `auth`: login, bootstrap admin, JWT.
+- `users`: usuarios, roles y activación.
+- `companies`: tenants, NIT, ARL, clase de riesgo y datos empresariales.
+- `employees`: datos laborales, tipo de documento, centro de trabajo y estado.
+- `dashboard`: KPIs resumidos por alcance.
+- `audit`: trazabilidad de cambios.
+- `documents`: evidencias, versiones, vencimientos, carga local inicial y contrato preparado para almacenamiento externo.
+- `risks`: matriz de peligros y controles.
+- `incidents`: reporte e investigación de incidentes.
+- `trainings`: capacitaciones, asistencia y seguimiento.
+
+Módulos de producción a incorporar:
+
+- `notifications`: correos, recordatorios, tareas y alertas.
+- `audits`: auditorías SG-SST funcionales, hallazgos y planes.
+- `corrective-actions`: acciones, responsables, fechas y cierres.
+- `integrations`: ARL, firmas digitales, IoT y webhooks.
+- `reports`: PDF, exportaciones y tableros regulatorios.
+
+## 5. Modelo de roles
 
 | Rol | Alcance | Permisos principales |
 | --- | --- | --- |
-| ADMIN | Plataforma completa o tenant asignado, segun configuracion. | Gestionar empresas, usuarios, roles, parametros globales, integraciones, auditoria tecnica y reportes consolidados. |
-| SST | Empresa asignada. | Gestionar riesgos, incidentes, capacitaciones, documentos, indicadores, acciones correctivas y evidencias SG-SST. |
-| EMPLOYEE | Propia informacion y flujos asignados. | Reportar incidentes, consultar capacitaciones, cargar evidencias solicitadas, ver documentos publicados y responder actividades asignadas. |
-| AUDITOR | Empresa, periodo o auditoria asignada. | Consultar informacion, registrar hallazgos, revisar evidencias, generar informes y cerrar auditorias autorizadas. |
+| ADMIN | Plataforma completa | Gestiona empresas, usuarios, configuración, auditoría técnica e integraciones. |
+| SST | Empresa asignada | Gestiona empleados, riesgos, incidentes, capacitaciones, documentos e indicadores. |
+| EMPLOYEE | Propio perfil | Reporta incidentes, consulta tareas/capacitaciones y carga evidencias asignadas. |
+| AUDITOR | Empresas o procesos asignados | Consulta, revisa evidencias, registra hallazgos y genera informes. |
 
-Reglas de autorizacion:
+Modelo recomendado:
 
-- Todo usuario debe pertenecer a una empresa, salvo un admin global.
-- Las consultas deben filtrar por `companyId` para aislamiento multiempresa.
-- Los permisos deben evaluarse por rol y, cuando aplique, por propiedad del recurso.
-- Las acciones sensibles deben generar `AuditLog`.
-- Las rutas administrativas deben usar guardias NestJS: `JwtAuthGuard`, `RolesGuard` y validacion de tenant.
+- RBAC para rutas y acciones generales.
+- ABAC para `companyId`, propietario del recurso, estado del proceso y asignaciones.
+- Auditoría obligatoria en cambios de rol, exportaciones, bajas, reactivaciones y cambios de estado.
 
-## Flujo de datos entre modulos
+## 6. Flujo de datos entre módulos
 
 ```text
-Frontend Vue
-  -> API Gateway / NestJS REST
-    -> Auth Module valida JWT y tenant
-      -> Modulo de negocio ejecuta reglas
-        -> Prisma Repository
-          -> PostgreSQL
-        -> Document Storage, si hay archivos
-        -> Event Bus / Queue, si hay notificaciones o integraciones
-          -> Notifications / Integrations
+Login
+  -> AuthService valida email/password
+  -> JWT contiene sub, role y companyId
+  -> Frontend guarda sesión
+
+CRUD multiempresa
+  -> React llama /api/v1/*
+  -> JwtAuthGuard valida token
+  -> RolesGuard valida rol
+  -> Servicio aplica alcance por companyId
+  -> Repositorio Prisma persiste
+  -> AuditService registra antes/después
+
+Dashboard
+  -> Frontend solicita resumen
+  -> Backend agrega datos filtrados por tenant
+  -> React muestra KPIs y estados
 ```
 
-Flujos clave:
+Cuando se agreguen notificaciones e integraciones, los cambios de dominio deben publicar eventos internos para procesarse de forma asíncrona.
 
-1. Autenticacion: el usuario inicia sesion, el API valida credenciales, emite JWT y retorna rol, permisos y empresa.
-2. Operacion SG-SST: el frontend consume endpoints versionados; el backend valida rol, tenant, DTOs y reglas del modulo.
-3. Evidencias y documentos: el backend registra metadata en PostgreSQL y guarda archivos en almacenamiento externo.
-4. Notificaciones: cambios de estado o vencimientos publican eventos asincronos para correo, app o integraciones.
-5. Auditoria: toda accion critica registra quien, cuando, desde donde y que cambio realizo.
+## 7. Diseño de API REST
 
-## Diseno de API REST
-
-REST es la opcion base recomendada para esta etapa porque encaja bien con NestJS, DTOs, guardias, versionado y Swagger/OpenAPI. GraphQL puede agregarse despues para tableros analiticos o vistas muy agregadas.
+La API principal debe seguir en REST porque es simple, auditable y compatible con Swagger.
 
 Convenciones:
 
-- Versionado: `/api/v1`.
-- Autenticacion: `Authorization: Bearer <token>`.
-- Formato de respuesta consistente con `data`, `meta` y `errors`.
-- Paginacion: `page`, `limit`, `sort`, `order`.
-- Filtros por empresa aplicados desde el backend, no confiados al cliente.
-- Validacion con `class-validator` y transformacion con DTOs.
+- Base URL: `/api/v1`.
+- Autenticación: `Authorization: Bearer <token>`.
+- Paginación: `page`, `pageSize`.
+- Filtros comunes: `search`, `isActive`, `companyId`.
+- Respuestas listadas: `{ data, meta }`.
+- Validación estricta con DTOs, `whitelist` y `forbidNonWhitelisted`.
+- Errores con códigos HTTP estándar.
 
-Endpoints propuestos:
+Endpoints base:
 
 ```text
+GET    /api/v1/health
 POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/me
-
-GET    /api/v1/users
-POST   /api/v1/users
-GET    /api/v1/users/:id
-PATCH  /api/v1/users/:id
-PATCH  /api/v1/users/:id/role
-
+POST   /api/v1/auth/bootstrap-admin
+GET    /api/v1/dashboard/summary
 GET    /api/v1/companies
 POST   /api/v1/companies
-GET    /api/v1/companies/:id
 PATCH  /api/v1/companies/:id
-
+DELETE /api/v1/companies/:id
 GET    /api/v1/employees
 POST   /api/v1/employees
-GET    /api/v1/employees/:id
 PATCH  /api/v1/employees/:id
-
-GET    /api/v1/risks
-POST   /api/v1/risks
-GET    /api/v1/risks/:id
-PATCH  /api/v1/risks/:id
-
-GET    /api/v1/incidents
-POST   /api/v1/incidents
-GET    /api/v1/incidents/:id
-PATCH  /api/v1/incidents/:id
-POST   /api/v1/incidents/:id/actions
-
-GET    /api/v1/trainings
-POST   /api/v1/trainings
-GET    /api/v1/trainings/:id
-POST   /api/v1/trainings/:id/attendance
-
-GET    /api/v1/audits
-POST   /api/v1/audits
-GET    /api/v1/audits/:id
-POST   /api/v1/audits/:id/findings
-PATCH  /api/v1/audits/:id/close
-
-GET    /api/v1/documents
-POST   /api/v1/documents
-GET    /api/v1/documents/:id
-POST   /api/v1/documents/:id/versions
-
-GET    /api/v1/indicators
-POST   /api/v1/indicators
-GET    /api/v1/indicators/dashboard
-
-GET    /api/v1/notifications
-PATCH  /api/v1/notifications/:id/read
-
-POST   /api/v1/integrations/webhooks/:provider
+DELETE /api/v1/employees/:id
+GET    /api/v1/users
+POST   /api/v1/users
+PATCH  /api/v1/users/:id
+DELETE /api/v1/users/:id
 GET    /api/v1/audit-logs
 ```
 
-GraphQL opcional:
+GraphQL puede añadirse después para dashboards compuestos, pero las mutaciones críticas deben conservar trazabilidad clara.
 
-- Usarlo para dashboards con multiples agregaciones.
-- Mantener mutations criticas en REST si se requiere trazabilidad operacional clara.
-- Proteger resolvers con los mismos guards y filtros de tenant.
+## 8. Estrategia de escalabilidad
 
-## Estrategia de escalabilidad
+Etapa 1, aplicada:
 
-Arquitectura inicial:
+- Monolito modular NestJS.
+- Frontend estático servido por Nginx.
+- PostgreSQL en contenedor local.
+- Dockerfiles por aplicación.
+- Health check HTTP para API.
 
-- Frontend Vue servido como estatico desde CDN o bucket.
-- API NestJS en contenedor Docker.
+Etapa 2:
+
 - PostgreSQL administrado.
-- Almacenamiento de documentos en S3, Azure Blob o equivalente.
-- Cola asincrona para notificaciones, reportes e integraciones.
+- API con múltiples réplicas detrás de balanceador.
+- Redis para cache/rate limit distribuido.
+- Storage externo para archivos.
+- Workers para notificaciones, reportes e integraciones.
 
-Evolucion por etapas:
+Etapa 3:
 
-1. Monolito modular: un solo backend NestJS con modulos bien separados.
-2. Workers asincronos: separar tareas pesadas como PDFs, correos, vencimientos e integraciones.
-3. Escalado horizontal: multiples replicas del API detras de balanceador.
-4. Cache y lectura: Redis para sesiones, rate limiting, cache de dashboards y colas.
-5. Servicios separados: extraer documentos, integraciones o analytics solo cuando el volumen lo justifique.
+- Kubernetes, ECS, Azure Container Apps, Cloud Run o App Service for Containers.
+- CI/CD con `lint`, `test`, `build`, migraciones Prisma y despliegue por ambiente.
+- Observabilidad con logs estructurados, métricas y trazas.
+- Réplica de lectura o base analítica para BI.
 
-Contenedores:
+## 9. Seguridad
 
-- Crear `Dockerfile` para API y frontend.
-- Usar `docker-compose` local con API, PostgreSQL, Redis y worker.
-- En cloud, desplegar en Kubernetes, ECS, Azure Container Apps, Cloud Run o App Service for Containers.
-- Usar migraciones Prisma en pipeline controlado, no en cada arranque de replica.
+Ya aplicado:
 
-Observabilidad:
+- JWT.
+- Bcrypt.
+- Guards por autenticación y roles.
+- Alcance por `companyId`.
+- DTO validation estricta.
+- CORS configurable.
+- Cabeceras básicas de seguridad.
+- Rate limit en memoria.
+- Soft delete.
+- Audit logs.
+- Rechazo de `JWT_SECRET` inseguro en producción.
 
-- Logs estructurados por requestId, userId, companyId y modulo.
-- Metricas: latencia, errores, throughput, tareas pendientes y uso de almacenamiento.
-- Trazas distribuidas si se separan workers o servicios.
+Mejoras pendientes para producción:
 
-## Seguridad
-
-Autenticacion:
-
-- JWT de corta duracion y refresh token rotativo.
-- Passwords con bcrypt y politica de complejidad.
-- MFA opcional para ADMIN, SST y AUDITOR.
+- Refresh tokens rotativos.
+- MFA para `ADMIN`, `SST` y `AUDITOR`.
+- Rate limiting distribuido con Redis.
+- Gestor de secretos cloud.
+- Encriptación de documentos en storage externo.
+- Mascaramiento de datos sensibles en logs.
+- Política de backups y pruebas de restauración.
+- Auditoría de exportaciones y descargas.
 - Bloqueo temporal por intentos fallidos.
 
-Autorizacion:
-
-- RBAC por rol.
-- ABAC complementario por `companyId`, propietario del recurso, estado del flujo y alcance de auditoria.
-- Guards por ruta y validacion centralizada de permisos.
-- Principio de minimo privilegio.
-
-Proteccion de datos sensibles:
-
-- TLS obligatorio.
-- Cifrado en reposo para base de datos y almacenamiento documental.
-- No guardar archivos sensibles en el contenedor.
-- Variables secretas en gestor de secretos cloud.
-- Enmascarar identificaciones, telefonos y correos en logs.
-- Retencion documental configurable por empresa y normativa.
-- Backups cifrados y pruebas periodicas de restauracion.
-
-Seguridad de API:
-
-- CORS restringido por ambiente.
-- Rate limiting por IP, usuario y ruta.
-- Validacion de DTOs con whitelist.
-- Sanitizacion de entradas de texto.
-- Limites de tamano y tipo para archivos.
-- Cabeceras de seguridad HTTP.
-- Auditoria de exportaciones, cambios de rol, cambios de estado y eliminaciones.
-
-## Integraciones futuras
+## 10. Integraciones futuras
 
 ARL:
 
-- Sincronizacion de empresas, empleados, accidentalidad y reportes.
-- Conector por proveedor con adaptadores independientes.
-- Webhooks o jobs programados segun disponibilidad de la ARL.
-- Tabla de eventos para trazabilidad de envios, respuestas y errores.
+- Sincronizar empresas, empleados, reportes de accidentalidad y soportes.
+- Crear adaptadores por proveedor.
+- Registrar cada envío/respuesta en `IntegrationEvent`.
 
 Firmas digitales:
 
-- Integracion con proveedor de firma electronica/digital.
-- Flujo: generar documento, enviar a firmantes, recibir callback, almacenar evidencia y hash.
-- Validar identidad del firmante y conservar certificado/transaccion.
+- Generar documento, enviar a firma, recibir callback, guardar evidencia, hash y certificado.
+- Integrar con proveedores como servicio externo desacoplado.
 
 IoT:
 
-- Recepcion de telemetria desde sensores de ambiente, EPP, ubicacion o maquinaria.
-- Ingestion por MQTT/HTTP hacia un modulo de integraciones.
-- Normalizacion de eventos y reglas para alertas preventivas.
-- Almacenamiento separado para series de tiempo si el volumen crece.
+- Recibir telemetría vía HTTP/MQTT.
+- Normalizar eventos de sensores.
+- Generar alertas preventivas.
+- Usar almacenamiento de series de tiempo si el volumen crece.
 
-Otros conectores:
+Otros:
 
-- Correo transaccional y SMS/WhatsApp para notificaciones.
-- BI externo mediante endpoints de solo lectura o replicas analiticas.
-- SSO empresarial con OIDC/SAML en clientes grandes.
+- Correo transaccional.
+- WhatsApp/SMS.
+- SSO OIDC/SAML para clientes grandes.
+- BI externo por vistas o endpoints de solo lectura.
 
-## Recomendaciones de implementacion inmediata
+## Decisiones de arquitectura
 
-1. Crear `common`, `config`, `database` y `modules` en el API.
-2. Implementar Auth primero: JWT, bcrypt, guards, decorators y roles.
-3. Agregar `companyId` obligatorio en recursos multiempresa y filtros globales por tenant.
-4. Incorporar Swagger/OpenAPI para documentar `/api/v1`.
-5. Agregar `AuditLog`, `DocumentVersion`, `Finding`, `CorrectiveAction` e `IntegrationEvent` al modelo Prisma.
-6. Separar cargas de archivos del API usando almacenamiento externo.
-7. Preparar Dockerfile y pipeline con lint, test, build y migraciones controladas.
+- Mantener REST como API principal.
+- Mantener monolito modular hasta que haya motivos reales para separar servicios.
+- Filtrar multi-tenant en backend, no confiar en el cliente.
+- Usar `AuditLog` como requisito transversal.
+- No almacenar documentos en el filesystem efímero del contenedor; usar volumen local en desarrollo y storage externo en producción.
+- Ejecutar migraciones en pipeline o tarea controlada en producción.
 
+## Próximos pasos recomendados
+
+1. Cambiar el driver local de `documents` por S3, Azure Blob o GCS.
+2. Mover rate limit a Redis para producción.
+3. Agregar MFA para roles críticos.
+4. Agregar pipeline CI/CD con pruebas, build y migraciones.
+5. Conectar proveedor de correo transaccional para enviar notificaciones fuera de la app.
