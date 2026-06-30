@@ -4,8 +4,10 @@ import type {
   DocumentFormValues,
   EmployeeFormValues,
   PageMeta,
+  SgsstAuditFormValues,
   TableState,
   UserFormValues,
+  ReportExportMetrics,
 } from '../types'
 
 export const emptyCompany: CompanyFormValues = {
@@ -19,6 +21,12 @@ export const emptyCompany: CompanyFormValues = {
   address: '',
   phone: '',
   email: '',
+  reportExportExpirationDays: '',
+  reportExportRetentionDays: '',
+  reportFailureRateAlertPercent: '',
+  reportStorageAlertBytes: '',
+  whatsappAlertsEnabled: false,
+  whatsappAlertPhone: '',
 }
 
 export const emptyEmployee: EmployeeFormValues = {
@@ -56,6 +64,17 @@ export const emptyDocument: DocumentFormValues = {
   companyId: '',
 }
 
+export const emptySgsstAudit: SgsstAuditFormValues = {
+  title: '',
+  description: '',
+  status: 'PLANNED',
+  scope: '',
+  auditorName: '',
+  scheduledAt: '',
+  result: '',
+  companyId: '',
+}
+
 export const initialTableState: TableState = {
   page: 1,
   pageSize: 10,
@@ -83,4 +102,19 @@ export const emptySummary: DashboardSummary = {
   inactiveEmployees: 0,
   inactiveUsers: 0,
   activeRate: 0,
+}
+
+export const emptyReportMetrics: ReportExportMetrics = {
+  totals: {
+    total: 0,
+    queued: 0,
+    processing: 0,
+    ready: 0,
+    failed: 0,
+    expired: 0,
+    storageBytes: 0,
+    averageGenerationSeconds: 0,
+  },
+  byCompany: [],
+  failuresByKind: [],
 }

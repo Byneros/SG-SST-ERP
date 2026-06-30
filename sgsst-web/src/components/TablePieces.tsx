@@ -4,6 +4,7 @@ import {
   Button,
   Chip,
   MenuItem,
+  Paper,
   Stack,
   TablePagination,
   TextField,
@@ -115,5 +116,27 @@ export function ActiveChip({ active }: { active: boolean }) {
       color={active ? 'success' : 'default'}
       variant={active ? 'filled' : 'outlined'}
     />
+  )
+}
+
+export function ActiveCompanyBanner({ name }: { name?: string }) {
+  if (!name) return null
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        mb: 2,
+        p: { xs: 1.5, md: 2 },
+        borderColor: 'primary.main',
+        bgcolor: 'rgba(219, 234, 254, 0.55)',
+        borderRadius: 2,
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.06)',
+      }}
+    >
+      <Typography variant="subtitle2" color="primary">
+        Empresa activa
+      </Typography>
+      <Typography variant="h6">{name}</Typography>
+    </Paper>
   )
 }

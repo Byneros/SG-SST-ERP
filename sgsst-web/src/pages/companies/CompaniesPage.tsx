@@ -1,7 +1,7 @@
-import { Delete, Edit, RestoreFromTrash } from '@mui/icons-material'
-import { IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
+import { Delete, DeleteForever, Edit, RestoreFromTrash } from '@mui/icons-material'
+import { IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip } from '@mui/material'
 import { riskClassLabels } from '../../constants/catalogs'
-import { ActiveChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { Company, PageMeta, TableState } from '../../types'
 
 export function CompaniesPage(props: {
@@ -14,10 +14,13 @@ export function CompaniesPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: Company) => void
   onDelete: (id: string) => void
+  onDeletePermanent: (id: string) => void
   onRestore: (id: string) => void
+  activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
+      <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="CRUD Empresas" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por empresa, NIT o correo" />
       <TableContainer>
@@ -47,17 +50,30 @@ export function CompaniesPage(props: {
                   <ActiveChip active={company.isActive} />
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton disabled={!props.canManage} onClick={() => props.onEdit(company)}>
-                    <Edit />
-                  </IconButton>
+                  <Tooltip title="Editar empresa">
+                    <IconButton disabled={!props.canManage} onClick={() => props.onEdit(company)}>
+                      <Edit />
+                    </IconButton>
+                  </Tooltip>
                   {company.isActive ? (
-                    <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDelete(company.id)}>
-                      <Delete />
-                    </IconButton>
+                    <Tooltip title="Desactivar empresa">
+                      <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDelete(company.id)}>
+                        <Delete />
+                      </IconButton>
+                    </Tooltip>
                   ) : (
-                    <IconButton disabled={!props.canManage} color="success" onClick={() => props.onRestore(company.id)}>
-                      <RestoreFromTrash />
-                    </IconButton>
+                    <>
+                      <Tooltip title="Restaurar empresa">
+                        <IconButton disabled={!props.canManage} color="success" onClick={() => props.onRestore(company.id)}>
+                          <RestoreFromTrash />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar permanentemente">
+                        <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDeletePermanent(company.id)}>
+                          <DeleteForever />
+                        </IconButton>
+                      </Tooltip>
+                    </>
                   )}
                 </TableCell>
               </TableRow>

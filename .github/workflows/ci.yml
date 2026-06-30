@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sgsst-api
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sgsst
+      JWT_SECRET: ci-secret-change-in-production
+      JWT_EXPIRES_IN: 1h
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+      PASSWORD_RESET_EXPIRES_MINUTES: 30
+      CORS_ORIGINS: http://localhost:5173
+      PUBLIC_BASE_URL: http://localhost:3001
+      UPLOADS_PATH: uploads
+      DOCUMENT_STORAGE_DRIVER: local
+      MAX_UPLOAD_BYTES: 10485760
+      REDIS_URL: redis://localhost:6379
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX_REQUESTS: 120
+      DASHBOARD_CACHE_TTL_SECONDS: 30
+      NOTIFICATIONS_QUEUE_ENABLED: false
+      NOTIFICATIONS_CRON: "0 7 * * *"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sgsst-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Unit tests
+        run: npm run test -- --cacheDirectory=.jest-cache
+
+      - name: E2E tests
+        run: npm run test:e2e -- --cacheDirectory=.jest-cache
+
+      - name: Build
+        run: npm run build
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sgsst-web
+    env:
+      VITE_API_URL: http://localhost:3001/api/v1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sgsst-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate compose file
+        run: docker compose config

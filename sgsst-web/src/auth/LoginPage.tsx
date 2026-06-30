@@ -2,31 +2,40 @@ import { HealthAndSafety } from '@mui/icons-material'
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, TextField, Typography } from '@mui/material'
 
 type LoginValues = { email: string; password: string }
+type MfaValues = { code: string }
 type BootstrapValues = { name: string; email: string; password: string }
 
 export function LoginPage({
   login,
   bootstrap,
   bootstrapOpen,
+  mfaRequired,
+  mfa,
   error,
   loading,
   onLoginChange,
   onBootstrapChange,
+  onMfaChange,
   onBootstrapOpen,
   onBootstrapClose,
   onLogin,
+  onVerifyMfa,
   onBootstrap,
 }: {
   login: LoginValues
+  mfa: MfaValues
   bootstrap: BootstrapValues
   bootstrapOpen: boolean
+  mfaRequired: boolean
   error: string
   loading: boolean
   onLoginChange: (values: LoginValues) => void
+  onMfaChange: (values: MfaValues) => void
   onBootstrapChange: (values: BootstrapValues) => void
   onBootstrapOpen: () => void
   onBootstrapClose: () => void
   onLogin: () => void
+  onVerifyMfa: () => void
   onBootstrap: () => void
 }) {
   return (
@@ -43,11 +52,23 @@ export function LoginPage({
             </Box>
           </Box>
           {error && <Alert severity="error">{error}</Alert>}
-          <TextField label="Correo" type="email" value={login.email} onChange={(event) => onLoginChange({ ...login, email: event.target.value })} />
-          <TextField label="Contrasena" type="password" value={login.password} onChange={(event) => onLoginChange({ ...login, password: event.target.value })} />
-          <Button variant="contained" size="large" onClick={onLogin} disabled={loading || !login.email || !login.password}>
-            Iniciar sesion
-          </Button>
+          {mfaRequired ? (
+            <>
+              <Typography color="text.secondary">Ingresa el codigo de tu aplicacion autenticadora.</Typography>
+              <TextField label="Codigo MFA" value={mfa.code} onChange={(event) => onMfaChange({ code: event.target.value })} inputProps={{ maxLength: 6 }} />
+              <Button variant="contained" size="large" onClick={onVerifyMfa} disabled={loading || mfa.code.length !== 6}>
+                Verificar codigo
+              </Button>
+            </>
+          ) : (
+            <>
+              <TextField label="Correo" type="email" value={login.email} onChange={(event) => onLoginChange({ ...login, email: event.target.value })} />
+              <TextField label="Contrasena" type="password" value={login.password} onChange={(event) => onLoginChange({ ...login, password: event.target.value })} />
+              <Button variant="contained" size="large" onClick={onLogin} disabled={loading || !login.email || !login.password}>
+                Iniciar sesion
+              </Button>
+            </>
+          )}
           <Button onClick={onBootstrapOpen}>Crear primer administrador</Button>
         </Stack>
       </Paper>

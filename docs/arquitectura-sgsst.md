@@ -25,7 +25,7 @@ Arquitectura actual:
 Arquitectura evolutiva:
 
 - Mantener el backend como monolito modular mientras el equipo y el volumen sean manejables.
-- Extraer workers para notificaciones, reportes PDF, integraciones e importaciones masivas.
+- Extraer workers para notificaciones, reportes programados, integraciones e importaciones masivas.
 - Separar microservicios solo cuando exista presión real de escala o independencia: documentos, integraciones, analytics o IoT.
 
 ## 2. Tecnologías recomendadas
@@ -87,7 +87,7 @@ Módulos de producción a incorporar:
 - `audits`: auditorías SG-SST funcionales, hallazgos y planes.
 - `corrective-actions`: acciones, responsables, fechas y cierres.
 - `integrations`: ARL, firmas digitales, IoT y webhooks.
-- `reports`: PDF, exportaciones y tableros regulatorios.
+- `reports`: PDF, exportaciones CSV y tableros regulatorios.
 
 ## 5. Modelo de roles
 
@@ -182,7 +182,7 @@ Etapa 2:
 - API con múltiples réplicas detrás de balanceador.
 - Redis para cache/rate limit distribuido.
 - Storage externo para archivos.
-- Workers para notificaciones, reportes e integraciones.
+- Workers para notificaciones, reportes programados e integraciones.
 
 Etapa 3:
 
@@ -216,7 +216,7 @@ Mejoras pendientes para producción:
 - Encriptación de documentos en storage externo.
 - Mascaramiento de datos sensibles en logs.
 - Política de backups y pruebas de restauración.
-- Auditoría de exportaciones y descargas.
+- Auditoría funcional de exportaciones y descargas.
 - Bloqueo temporal por intentos fallidos.
 
 ## 10. Integraciones futuras
@@ -257,8 +257,8 @@ Otros:
 
 ## Próximos pasos recomendados
 
-1. Cambiar el driver local de `documents` por S3, Azure Blob o GCS.
-2. Mover rate limit a Redis para producción.
-3. Agregar MFA para roles críticos.
-4. Agregar pipeline CI/CD con pruebas, build y migraciones.
-5. Conectar proveedor de correo transaccional para enviar notificaciones fuera de la app.
+1. Agregar pipeline de despliegue por ambiente.
+2. Sincronizar backups a bucket cifrado externo.
+3. Agregar observabilidad con logs estructurados y métricas.
+4. Implementar SSO OIDC/SAML para clientes empresariales.
+5. Registrar entregas externas de alertas con reintentos y trazabilidad.

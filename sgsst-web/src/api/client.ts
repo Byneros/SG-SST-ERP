@@ -1,6 +1,9 @@
 import axios from 'axios'
 import type { AuthUser } from '../types'
 
+export type ReportKind = 'employees' | 'expired-documents' | 'audits' | 'summary'
+export type ReportFormat = 'csv' | 'pdf'
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api/v1',
 })
@@ -45,6 +48,31 @@ export function readApiError(error: unknown) {
     return Array.isArray(message) ? message.join(', ') : message || error.message
   }
   return 'Ocurrio un error inesperado'
+}
+
+export async function downloadReport(kind: ReportKind, format: ReportFormat, companyId?: string) {
+  const response = await api.get(`/reports/${kind}.${format}`, {
+    params: companyId ? { companyId } : undefined,
+    responseType: 'blob',
+  })
+  const blob = new Blob([response.data], {
+    type: format === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8',
+  })
+  const href = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = href
+  link.download = `${kind}.${format}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(href)
+}
+
+export async function scheduleReport(kind: ReportKind, format: ReportFormat, companyId?: string) {
+  const response = await api.post(`/reports/${kind}.${format}/schedule`, undefined, {
+    params: companyId ? { companyId } : undefined,
+  })
+  return response.data as { success: boolean; queued: boolean; jobId?: string; fileUrl?: string }
 }
 
 api.interceptors.request.use((config) => {

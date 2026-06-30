@@ -1,8 +1,10 @@
 import { Delete, Edit, OpenInNew, RestoreFromTrash } from '@mui/icons-material'
 import {
   Chip,
+  Button,
   IconButton,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -11,7 +13,8 @@ import {
   TableRow,
   Tooltip,
 } from '@mui/material'
-import { ActiveChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import type { ReportFormat } from '../../api/client'
+import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import { documentCategoryLabels, documentStatusLabels } from '../../constants/catalogs'
 import type { PageMeta, SgsstDocument, TableState } from '../../types'
 
@@ -26,10 +29,25 @@ export function DocumentsPage(props: {
   onEdit: (item: SgsstDocument) => void
   onDelete: (id: string) => void
   onRestore: (id: string) => void
+  onDownloadReport: (format: ReportFormat) => void
+  onScheduleReport: (format: ReportFormat) => void
+  activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
+      <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="Documentos y evidencias" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
+        <Button variant="outlined" onClick={() => props.onDownloadReport('pdf')}>
+          Vencidos PDF
+        </Button>
+        <Button variant="outlined" onClick={() => props.onDownloadReport('csv')}>
+          Vencidos CSV
+        </Button>
+        <Button variant="contained" onClick={() => props.onScheduleReport('pdf')}>
+          Programar PDF
+        </Button>
+      </Stack>
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por documento, archivo o empresa" />
       <TableContainer>
         <Table>

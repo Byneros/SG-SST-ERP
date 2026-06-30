@@ -1,6 +1,6 @@
 import { Delete, Edit, RestoreFromTrash } from '@mui/icons-material'
 import { Chip, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
-import { ActiveChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { PageMeta, SystemUser, TableState } from '../../types'
 
 export function UsersPage(props: {
@@ -15,9 +15,11 @@ export function UsersPage(props: {
   onEdit: (item: SystemUser) => void
   onDelete: (id: string) => void
   onRestore: (id: string) => void
+  activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
+      <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="CRUD Usuarios" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por nombre o correo" />
       <TableContainer>

@@ -11,7 +11,7 @@ export function UserDialog(props: {
   onClose: () => void
   onSave: () => void
 }) {
-  const needsCompany = props.values.role !== 'ADMIN'
+  const needsCompany = props.values.role !== 'SUPER_ADMIN'
 
   return (
     <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
@@ -31,18 +31,26 @@ export function UserDialog(props: {
               props.onChange({
                 ...props.values,
                 role: event.target.value as Role,
-                companyId: event.target.value === 'ADMIN' ? '' : props.values.companyId,
+                companyId: event.target.value === 'SUPER_ADMIN' ? '' : props.values.companyId,
               })
             }
             required
           >
-            {(['ADMIN', 'SST', 'EMPLOYEE', 'AUDITOR'] as Role[]).map((role) => (
+            {(['SUPER_ADMIN', 'ADMIN', 'SST', 'EMPLOYEE', 'AUDITOR'] as Role[]).map((role) => (
               <MenuItem key={role} value={role}>
                 {role}
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Empresa" value={props.values.companyId} disabled={!needsCompany} onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })} required={needsCompany}>
+          <TextField
+            select
+            label="Empresa"
+            value={props.values.companyId}
+            disabled={!needsCompany || props.companies.length === 0}
+            onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+            required={needsCompany}
+            helperText={needsCompany ? (props.companies.length === 0 ? 'Crea una empresa antes de asignar este usuario.' : 'Selecciona la empresa a la que pertenece este usuario.') : ''}
+          >
             {props.companies.map((company) => (
               <MenuItem key={company.id} value={company.id}>
                 {company.name}

@@ -33,6 +33,8 @@ CREATE TYPE finding_type AS ENUM ('CONFORMITY', 'OBSERVATION', 'OPPORTUNITY', 'M
 CREATE TYPE training_status AS ENUM ('PLANNED', 'OPEN_REGISTRATION', 'COMPLETED', 'CANCELLED');
 CREATE TYPE attendance_status AS ENUM ('INVITED', 'ATTENDED', 'ABSENT', 'EXCUSED', 'APPROVED', 'FAILED');
 CREATE TYPE evaluation_status AS ENUM ('DRAFT', 'IN_PROGRESS', 'COMPLETED', 'APPROVED');
+CREATE TYPE external_delivery_provider AS ENUM ('WHATSAPP', 'EMAIL', 'TEAMS', 'SLACK');
+CREATE TYPE external_delivery_status AS ENUM ('PENDING', 'SENT', 'FAILED', 'SKIPPED');
 
 -- ============================================================================
 -- Shared audit columns pattern
@@ -55,6 +57,12 @@ CREATE TABLE companies (
   address VARCHAR(240),
   phone VARCHAR(40),
   email CITEXT,
+  report_export_expiration_days INTEGER CHECK (report_export_expiration_days BETWEEN 1 AND 365),
+  report_export_retention_days INTEGER CHECK (report_export_retention_days BETWEEN 0 AND 365),
+  report_failure_rate_alert_percent INTEGER CHECK (report_failure_rate_alert_percent BETWEEN 1 AND 100),
+  report_storage_alert_bytes INTEGER CHECK (report_storage_alert_bytes >= 0),
+  whatsapp_alerts_enabled BOOLEAN NOT NULL DEFAULT false,
+  whatsapp_alert_phone VARCHAR(20),
   status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -75,6 +83,34 @@ CREATE TABLE sites (
   deleted_at TIMESTAMPTZ,
   UNIQUE (company_id, code)
 );
+
+CREATE TABLE external_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+  provider external_delivery_provider NOT NULL,
+  status external_delivery_status NOT NULL DEFAULT 'PENDING',
+  target VARCHAR(180),
+  subject VARCHAR(240),
+  payload JSONB,
+  response JSONB,
+  error TEXT,
+  entity VARCHAR(120),
+  entity_id VARCHAR(120),
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 3,
+  next_attempt_at TIMESTAMPTZ,
+  attempted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  delivered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_external_deliveries_provider_status
+  ON external_deliveries(provider, status, attempted_at);
+CREATE INDEX idx_external_deliveries_retry
+  ON external_deliveries(status, next_attempt_at);
+CREATE INDEX idx_external_deliveries_company
+  ON external_deliveries(company_id, attempted_at);
 
 CREATE TABLE work_centers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

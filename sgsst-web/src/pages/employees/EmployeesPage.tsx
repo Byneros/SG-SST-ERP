@@ -1,7 +1,8 @@
 import { Delete, Edit, RestoreFromTrash } from '@mui/icons-material'
-import { IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
+import { Button, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
+import type { ReportFormat } from '../../api/client'
 import { contractTypeLabels } from '../../constants/catalogs'
-import { ActiveChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { Employee, PageMeta, TableState } from '../../types'
 
 export function EmployeesPage(props: {
@@ -16,10 +17,25 @@ export function EmployeesPage(props: {
   onEdit: (item: Employee) => void
   onDelete: (id: string) => void
   onRestore: (id: string) => void
+  onDownloadReport: (format: ReportFormat) => void
+  onScheduleReport: (format: ReportFormat) => void
+  activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
+      <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="CRUD Empleados" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
+        <Button variant="outlined" onClick={() => props.onDownloadReport('pdf')}>
+          Empleados PDF
+        </Button>
+        <Button variant="outlined" onClick={() => props.onDownloadReport('csv')}>
+          Empleados CSV
+        </Button>
+        <Button variant="contained" onClick={() => props.onScheduleReport('pdf')}>
+          Programar PDF
+        </Button>
+      </Stack>
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por nombre, documento, cargo o correo" />
       <TableContainer>
         <Table>

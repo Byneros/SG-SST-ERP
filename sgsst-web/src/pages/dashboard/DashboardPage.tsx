@@ -1,18 +1,38 @@
-import { Box, Grid, Paper, Stack, Typography } from '@mui/material'
+import { Box, Button, Grid, Paper, Stack, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
+import type { ReportFormat } from '../../api/client'
+import { ActiveCompanyBanner } from '../../components/TablePieces'
 import type { Company, Employee } from '../../types'
 
 export function DashboardPage({
   stats,
   companies,
   employees,
+  activeCompanyName,
+  onDownloadReport,
+  onScheduleReport,
 }: {
   stats: Array<{ label: string; value: string | number; icon: ReactNode }>
   companies: Company[]
   employees: Employee[]
+  activeCompanyName?: string
+  onDownloadReport: (format: ReportFormat) => void
+  onScheduleReport: (format: ReportFormat) => void
 }) {
   return (
     <>
+      <ActiveCompanyBanner name={activeCompanyName} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
+        <Button variant="outlined" onClick={() => onDownloadReport('pdf')}>
+          Resumen PDF
+        </Button>
+        <Button variant="outlined" onClick={() => onDownloadReport('csv')}>
+          Resumen CSV
+        </Button>
+        <Button variant="contained" onClick={() => onScheduleReport('pdf')}>
+          Programar PDF
+        </Button>
+      </Stack>
       <Grid container spacing={2}>
         {stats.map((stat) => (
           <Grid key={stat.label} size={{ xs: 12, md: 4 }}>

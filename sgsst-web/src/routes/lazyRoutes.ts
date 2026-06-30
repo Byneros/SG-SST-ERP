@@ -6,7 +6,11 @@ const pageLoaders = {
   companies: () => import('../pages/companies/CompaniesPage'),
   employees: () => import('../pages/employees/EmployeesPage'),
   documents: () => import('../pages/documents/DocumentsPage'),
+  sgsstAudits: () => import('../pages/sgsst-audits/SgsstAuditsPage'),
+  legalCompliance: () => import('../pages/legal-compliance/LegalCompliancePage'),
+  reports: () => import('../pages/reports/ReportExportsPage'),
   users: () => import('../pages/users/UsersPage'),
+  externalDeliveries: () => import('../pages/external-deliveries/ExternalDeliveriesPage'),
   audit: () => import('../pages/audit/AuditPage'),
 }
 
@@ -14,6 +18,7 @@ const dialogLoaders = {
   company: () => import('../pages/companies/CompanyDialog'),
   employee: () => import('../pages/employees/EmployeeDialog'),
   document: () => import('../pages/documents/DocumentDialog'),
+  sgsstAudit: () => import('../pages/sgsst-audits/SgsstAuditDialog'),
   user: () => import('../pages/users/UserDialog'),
 }
 
@@ -29,8 +34,20 @@ export const EmployeesPage = lazy(() =>
 export const DocumentsPage = lazy(() =>
   pageLoaders.documents().then((module) => ({ default: module.DocumentsPage })),
 )
+export const SgsstAuditsPage = lazy(() =>
+  pageLoaders.sgsstAudits().then((module) => ({ default: module.SgsstAuditsPage })),
+)
+export const LegalCompliancePage = lazy(() =>
+  pageLoaders.legalCompliance().then((module) => ({ default: module.LegalCompliancePage })),
+)
+export const ReportExportsPage = lazy(() =>
+  pageLoaders.reports().then((module) => ({ default: module.ReportExportsPage })),
+)
 export const UsersPage = lazy(() =>
   pageLoaders.users().then((module) => ({ default: module.UsersPage })),
+)
+export const ExternalDeliveriesPage = lazy(() =>
+  pageLoaders.externalDeliveries().then((module) => ({ default: module.ExternalDeliveriesPage })),
 )
 export const AuditPage = lazy(() =>
   pageLoaders.audit().then((module) => ({ default: module.AuditPage })),
@@ -44,6 +61,9 @@ export const EmployeeDialog = lazy(() =>
 )
 export const DocumentDialog = lazy(() =>
   dialogLoaders.document().then((module) => ({ default: module.DocumentDialog })),
+)
+export const SgsstAuditDialog = lazy(() =>
+  dialogLoaders.sgsstAudit().then((module) => ({ default: module.SgsstAuditDialog })),
 )
 export const UserDialog = lazy(() =>
   dialogLoaders.user().then((module) => ({ default: module.UserDialog })),
@@ -63,6 +83,10 @@ export function preloadEmployeeDialog() {
 
 export function preloadDocumentDialog() {
   void dialogLoaders.document()
+}
+
+export function preloadSgsstAuditDialog() {
+  void dialogLoaders.sgsstAudit()
 }
 
 export function preloadUserDialog() {

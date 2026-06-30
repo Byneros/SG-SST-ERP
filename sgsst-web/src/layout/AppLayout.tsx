@@ -1,13 +1,15 @@
-import { Business, Description, HealthAndSafety, History, Logout, ManageAccounts, Menu, Notifications, People, Refresh, SpaceDashboard } from '@mui/icons-material'
-import { AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, Paper, Stack, Toolbar, Tooltip, Typography, Alert } from '@mui/material'
+import { Assessment, AssignmentTurnedIn, Business, Description, Gavel, HealthAndSafety, History, Logout, ManageAccounts, Menu, Notifications, People, Refresh, SpaceDashboard } from '@mui/icons-material'
+import { Alert, AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, FormControl, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, MenuItem, Paper, Select, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
 import { useState, type ReactNode } from 'react'
-import type { AppNotification, AuthUser, View } from '../types'
+import type { AppNotification, AuthUser, Company, View } from '../types'
 import { initials } from '../utils'
 
 const drawerWidth = 284
 
 export function AppLayout({
   user,
+  companies,
+  activeCompanyId,
   view,
   selectedTitle,
   mobileOpen,
@@ -15,6 +17,7 @@ export function AppLayout({
   error,
   canViewUsers,
   canViewDocuments,
+  canViewReports,
   canViewAudit,
   canGenerateNotifications,
   notifications,
@@ -25,13 +28,17 @@ export function AppLayout({
   onSelectView,
   onPreloadView,
   onRefresh,
+  onSwitchCompany,
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
   onGenerateNotifications,
   onChangePassword,
+  onMfaSettings,
   onLogout,
 }: {
   user: AuthUser
+  companies: Company[]
+  activeCompanyId?: string
   view: View
   selectedTitle: string
   mobileOpen: boolean
@@ -39,6 +46,7 @@ export function AppLayout({
   error: string
   canViewUsers: boolean
   canViewDocuments: boolean
+  canViewReports: boolean
   canViewAudit: boolean
   canGenerateNotifications: boolean
   notifications: AppNotification[]
@@ -49,10 +57,12 @@ export function AppLayout({
   onSelectView: (view: View) => void
   onPreloadView: (view: View) => void
   onRefresh: () => void
+  onSwitchCompany: (companyId: string | null) => void
   onMarkNotificationRead: (id: string) => void
   onMarkAllNotificationsRead: () => void
   onGenerateNotifications: () => void
   onChangePassword: () => void
+  onMfaSettings: () => void
   onLogout: () => void
 }) {
   const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null)
@@ -75,6 +85,9 @@ export function AppLayout({
         <NavButton active={view === 'companies'} icon={<Business />} label="Empresas" onClick={() => onSelectView('companies')} onPreload={() => onPreloadView('companies')} />
         <NavButton active={view === 'employees'} icon={<People />} label="Empleados" onClick={() => onSelectView('employees')} onPreload={() => onPreloadView('employees')} />
         {canViewDocuments && <NavButton active={view === 'documents'} icon={<Description />} label="Documentos" onClick={() => onSelectView('documents')} onPreload={() => onPreloadView('documents')} />}
+        {canViewDocuments && <NavButton active={view === 'sgsstAudits'} icon={<AssignmentTurnedIn />} label="Auditorias SG-SST" onClick={() => onSelectView('sgsstAudits')} onPreload={() => onPreloadView('sgsstAudits')} />}
+        {canViewDocuments && <NavButton active={view === 'legalCompliance'} icon={<Gavel />} label="Mapa normativo" onClick={() => onSelectView('legalCompliance')} onPreload={() => onPreloadView('legalCompliance')} />}
+        {canViewReports && <NavButton active={view === 'reports'} icon={<Assessment />} label="Mis reportes" onClick={() => onSelectView('reports')} onPreload={() => onPreloadView('reports')} />}
         {canViewUsers && <NavButton active={view === 'users'} icon={<ManageAccounts />} label="Usuarios" onClick={() => onSelectView('users')} onPreload={() => onPreloadView('users')} />}
         {canViewAudit && <NavButton active={view === 'audit'} icon={<History />} label="Auditoria" onClick={() => onSelectView('audit')} onPreload={() => onPreloadView('audit')} />}
       </Box>
@@ -91,6 +104,9 @@ export function AppLayout({
         </Button>
         <Button fullWidth sx={{ mt: 1 }} onClick={onChangePassword}>
           Cambiar contrasena
+        </Button>
+        <Button fullWidth sx={{ mt: 1 }} onClick={onMfaSettings}>
+          MFA {user.mfaEnabled ? 'activo' : 'inactivo'}
         </Button>
       </Paper>
     </Box>
@@ -109,6 +125,30 @@ export function AppLayout({
               {user.email} - {user.role}
             </Typography>
           </Box>
+          <FormControl size="small" sx={{ minWidth: 220, mr: 1 }}>
+            <Select
+              value={activeCompanyId ?? ''}
+              onChange={(event) => onSwitchCompany(event.target.value || null)}
+              displayEmpty
+              disabled={companies.length === 0}
+              renderValue={(value) => {
+                if (!value) {
+                  return 'Sin empresa activa'
+                }
+                const selectedCompany = companies.find((company) => company.id === value)
+                return selectedCompany ? `Empresa: ${selectedCompany.name}` : 'Empresa: seleccionada'
+              }}
+            >
+              <MenuItem value="">
+                <em>Sin empresa activa</em>
+              </MenuItem>
+              {companies.map((company) => (
+                <MenuItem key={company.id} value={company.id}>
+                  {company.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <Tooltip title="Recargar datos">
             <IconButton onClick={onRefresh}>
               <Refresh />

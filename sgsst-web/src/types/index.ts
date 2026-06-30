@@ -1,5 +1,5 @@
-export type Role = 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
-export type View = 'dashboard' | 'companies' | 'employees' | 'documents' | 'users' | 'audit'
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
+export type View = 'dashboard' | 'companies' | 'employees' | 'documents' | 'sgsstAudits' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -14,6 +14,14 @@ export type DocumentCategory =
   | 'MEDICAL'
   | 'OTHER'
 export type DocumentStatus = 'DRAFT' | 'PUBLISHED' | 'EXPIRED' | 'ARCHIVED'
+export type AuditStatus = 'PLANNED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED'
+export type FindingSeverity = 'MINOR' | 'MAJOR' | 'CRITICAL'
+export type FindingStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED'
+export type CorrectiveActionStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE'
+export type LegalNormStatus = 'ACTIVE' | 'INACTIVE' | 'SUPERSEDED'
+export type LegalObligationFrequency = 'ONCE' | 'ANNUAL' | 'SEMIANNUAL' | 'QUARTERLY' | 'MONTHLY' | 'EVENT_BASED' | 'CONTINUOUS'
+export type LegalRequirementStatus = 'PENDING' | 'COMPLIES' | 'PARTIAL' | 'NON_COMPLIANT' | 'NOT_APPLICABLE'
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 
 export type AuthUser = {
   id: string
@@ -21,6 +29,8 @@ export type AuthUser = {
   email: string
   role: Role
   companyId?: string
+  activeCompanyId?: string
+  mfaEnabled?: boolean
 }
 
 export type Company = {
@@ -35,6 +45,12 @@ export type Company = {
   address?: string
   phone?: string
   email?: string
+  reportExportExpirationDays?: number
+  reportExportRetentionDays?: number
+  reportFailureRateAlertPercent?: number
+  reportStorageAlertBytes?: number
+  whatsappAlertsEnabled: boolean
+  whatsappAlertPhone?: string
   isActive: boolean
   deletedAt?: string
 }
@@ -119,6 +135,252 @@ export type AppNotification = {
   createdAt: string
 }
 
+export type ExternalDeliveryProvider = 'WHATSAPP' | 'EMAIL' | 'TEAMS' | 'SLACK'
+export type ExternalDeliveryStatus = 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED'
+
+export type ExternalDelivery = {
+  id: string
+  provider: ExternalDeliveryProvider
+  status: ExternalDeliveryStatus
+  target?: string
+  subject?: string
+  payload?: unknown
+  response?: unknown
+  error?: string
+  entity?: string
+  entityId?: string
+  attemptCount: number
+  maxAttempts: number
+  nextAttemptAt?: string
+  attemptedAt: string
+  deliveredAt?: string
+  createdAt: string
+  updatedAt: string
+  companyId?: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+}
+
+export type ReportExportStatus = 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED' | 'EXPIRED'
+
+export type ReportExport = {
+  id: string
+  kind: string
+  format: 'csv' | 'pdf'
+  status: ReportExportStatus
+  requestedCompanyId?: string
+  fileUrl?: string
+  fileName?: string
+  mimeType?: string
+  size?: number
+  jobId?: string
+  error?: string
+  requestedAt: string
+  startedAt?: string
+  completedAt?: string
+  expiresAt?: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  requestedBy?: Pick<SystemUser, 'id' | 'name' | 'email' | 'role'>
+}
+
+export type ReportExportMetrics = {
+  totals: {
+    total: number
+    queued: number
+    processing: number
+    ready: number
+    failed: number
+    expired: number
+    storageBytes: number
+    averageGenerationSeconds: number
+  }
+  byCompany: Array<{
+    companyId: string | null
+    companyName: string
+    total: number
+    storageBytes: number
+  }>
+  failuresByKind: Array<{
+    kind: string
+    failed: number
+  }>
+}
+
+export type ReportExportMetricSnapshot = {
+  id: string
+  date: string
+  scopeKey: string
+  total: number
+  queued: number
+  processing: number
+  ready: number
+  failed: number
+  expired: number
+  storageBytes: number
+  averageGenerationSeconds: number
+  companyId?: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+}
+
+export type CorrectiveAction = {
+  id: string
+  title: string
+  responsible: string
+  dueDate: string
+  status: CorrectiveActionStatus
+}
+
+export type AuditFinding = {
+  id: string
+  title: string
+  severity: FindingSeverity
+  status: FindingStatus
+  actions?: CorrectiveAction[]
+}
+
+export type SgsstAudit = {
+  id: string
+  title: string
+  description?: string
+  status: AuditStatus
+  scope?: string
+  auditorName?: string
+  scheduledAt: string
+  closedAt?: string
+  result?: string
+  companyId: string
+  isActive: boolean
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  findings?: AuditFinding[]
+}
+
+export type LegalNorm = {
+  id: string
+  code: string
+  name: string
+  type: string
+  issuingEntity?: string
+  status: LegalNormStatus
+}
+
+export type LegalRequirementMapping = {
+  id: string
+  moduleKey: string
+  entityName?: string
+  evidenceType?: string
+  kpiKey?: string
+  reportKey?: string
+}
+
+export type LegalEvidenceRequirement = {
+  id: string
+  evidenceName: string
+  evidenceType: string
+  mandatory: boolean
+  frequency: LegalObligationFrequency
+  retentionYears?: number
+}
+
+export type LegalRequirement = {
+  id: string
+  article?: string
+  numeral?: string
+  title: string
+  description: string
+  obligationType?: string
+  frequency: LegalObligationFrequency
+  appliesTo?: string
+  riskLevel: RiskLevel
+  active: boolean
+  norm: LegalNorm
+  mappings: LegalRequirementMapping[]
+  evidenceRequirements: LegalEvidenceRequirement[]
+}
+
+export type LegalEvidenceLink = {
+  id: string
+  entity: string
+  entityId: string
+  status: LegalRequirementStatus
+  comments?: string
+  reviewedAt?: string
+}
+
+export type CompanyLegalRequirement = {
+  id: string
+  applies: boolean
+  status: LegalRequirementStatus
+  ownerId?: string
+  dueDate?: string
+  nextReviewAt?: string
+  lastReviewedAt?: string
+  score?: number
+  notes?: string
+  companyId: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  requirement: LegalRequirement
+  evidences: LegalEvidenceLink[]
+}
+
+export type LegalComplianceSummary = {
+  companyId: string
+  total: number
+  applicable: number
+  byStatus: Partial<Record<LegalRequirementStatus, number>>
+  overdue: number
+  complianceRate: number
+  averageScore: number
+}
+
+export type LegalComplianceReports = {
+  byNorm: Array<{
+    normCode: string
+    normName: string
+    total: number
+    complies: number
+    partial: number
+    nonCompliant: number
+    pending: number
+    overdue: number
+    missingEvidence: number
+    complianceRate: number
+  }>
+  openGaps: Array<{
+    id: string
+    normCode: string
+    requirementTitle: string
+    status: LegalRequirementStatus
+    riskLevel: RiskLevel
+    dueDate?: string
+    modules: string[]
+    notes?: string
+  }>
+  missingEvidence: Array<{
+    id: string
+    normCode: string
+    requirementTitle: string
+    riskLevel: RiskLevel
+    missingCount: number
+    requiredEvidence: string[]
+    modules: string[]
+    dueDate?: string
+  }>
+  criticalDeadlines: Array<{
+    id: string
+    normCode: string
+    requirementTitle: string
+    status: LegalRequirementStatus
+    riskLevel: RiskLevel
+    dueDate?: string
+    overdue: boolean
+  }>
+  totals: {
+    norms: number
+    openGaps: number
+    missingEvidence: number
+    criticalDeadlines: number
+  }
+}
+
 export type PageMeta = {
   page: number
   pageSize: number
@@ -137,6 +399,26 @@ export type TableState = {
   pageSize: number
   search: string
   isActive: 'all' | 'active' | 'inactive'
+}
+
+export type ReportExportFilters = {
+  status: 'all' | ReportExportStatus
+  companyId: string
+  requestedById: string
+  dateFrom: string
+  dateTo: string
+}
+
+export type ExternalDeliveryFilters = {
+  provider: 'all' | ExternalDeliveryProvider
+  status: 'all' | ExternalDeliveryStatus
+  companyId: string
+}
+
+export type LegalComplianceFilters = {
+  companyId: string
+  status: 'all' | LegalRequirementStatus
+  applies: 'all' | 'yes' | 'no'
 }
 
 export type DashboardSummary = {
@@ -165,6 +447,12 @@ export type CompanyFormValues = {
   address: string
   phone: string
   email: string
+  reportExportExpirationDays: string
+  reportExportRetentionDays: string
+  reportFailureRateAlertPercent: string
+  reportStorageAlertBytes: string
+  whatsappAlertsEnabled: boolean
+  whatsappAlertPhone: string
 }
 
 export type EmployeeFormValues = {
@@ -199,5 +487,16 @@ export type DocumentFormValues = {
   fileName: string
   mimeType: string
   expiresAt: string
+  companyId: string
+}
+
+export type SgsstAuditFormValues = {
+  title: string
+  description: string
+  status: AuditStatus
+  scope: string
+  auditorName: string
+  scheduledAt: string
+  result: string
   companyId: string
 }

@@ -9,16 +9,30 @@ import {
   SpaceDashboard,
   WarningAmber,
 } from '@mui/icons-material'
-import { CssBaseline, ThemeProvider } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CssBaseline, ThemeProvider } from '@mui/material'
 import { Suspense, useEffect, useMemo, useState } from 'react'
-import { api, clearSession, getStoredSession, readApiError, saveSession, setUnauthorizedHandler } from './api/client'
+import {
+  api,
+  clearSession,
+  downloadReport,
+  getStoredSession,
+  readApiError,
+  scheduleReport,
+  saveSession,
+  setUnauthorizedHandler,
+  type ReportFormat,
+  type ReportKind,
+} from './api/client'
 import { ChangePasswordDialog, type ChangePasswordValues } from './auth/ChangePasswordDialog'
 import { LoginPage } from './auth/LoginPage'
+import { MfaSettingsDialog } from './auth/MfaSettingsDialog'
 import {
   emptyCompany,
   emptyDocument,
   emptyEmployee,
   emptyMeta,
+  emptyReportMetrics,
+  emptySgsstAudit,
   emptySummary,
   emptyUser,
   initialTableState,
@@ -33,6 +47,11 @@ import {
   DocumentsPage,
   EmployeeDialog,
   EmployeesPage,
+  LegalCompliancePage,
+  ReportExportsPage,
+  SgsstAuditDialog,
+  SgsstAuditsPage,
+  preloadSgsstAuditDialog,
   preloadCompanyDialog,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -51,10 +70,15 @@ import type {
   SgsstDocument,
   Employee,
   Paginated,
+  ReportExport,
+  ReportExportFilters,
+  ReportExportMetricSnapshot,
+  ReportExportMetrics,
+  SgsstAudit,
   SystemUser,
   View,
 } from './types'
-import { isPaginated, sanitize, tableParams } from './utils'
+import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
 
 function App() {
   const [token, setToken] = useState(() => getStoredSession().token)
@@ -64,6 +88,10 @@ function App() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [documents, setDocuments] = useState<SgsstDocument[]>([])
+  const [sgsstAudits, setSgsstAudits] = useState<SgsstAudit[]>([])
+  const [reportExports, setReportExports] = useState<ReportExport[]>([])
+  const [reportMetrics, setReportMetrics] = useState<ReportExportMetrics>(emptyReportMetrics)
+  const [reportMetricHistory, setReportMetricHistory] = useState<ReportExportMetricSnapshot[]>([])
   const [users, setUsers] = useState<SystemUser[]>([])
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [notificationUnread, setNotificationUnread] = useState(0)
@@ -72,19 +100,42 @@ function App() {
   const [companyMeta, setCompanyMeta] = useState(emptyMeta)
   const [employeeMeta, setEmployeeMeta] = useState(emptyMeta)
   const [documentMeta, setDocumentMeta] = useState(emptyMeta)
+  const [sgsstAuditMeta, setSgsstAuditMeta] = useState(emptyMeta)
+  const [reportExportMeta, setReportExportMeta] = useState(emptyMeta)
   const [userMeta, setUserMeta] = useState(emptyMeta)
   const [auditMeta, setAuditMeta] = useState(emptyMeta)
   const [companyTable, setCompanyTable] = useState(initialTableState)
   const [employeeTable, setEmployeeTable] = useState(initialTableState)
   const [documentTable, setDocumentTable] = useState(initialTableState)
+  const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
+  const [reportExportTable, setReportExportTable] = useState(initialTableState)
+  const [reportExportFilters, setReportExportFilters] = useState<ReportExportFilters>({
+    status: 'all',
+    companyId: '',
+    requestedById: '',
+    dateFrom: '',
+    dateTo: '',
+  })
   const [userTable, setUserTable] = useState(initialTableState)
   const [auditTable, setAuditTable] = useState(initialTableState)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [login, setLogin] = useState({ email: '', password: '' })
+  const [mfaToken, setMfaToken] = useState('')
+  const [mfa, setMfa] = useState({ code: '' })
+  const [mfaSettingsOpen, setMfaSettingsOpen] = useState(false)
+  const [mfaSetup, setMfaSetup] = useState({ secret: '', otpauthUrl: '', code: '' })
   const [bootstrapOpen, setBootstrapOpen] = useState(false)
   const [bootstrap, setBootstrap] = useState({ name: '', email: '', password: '' })
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Aceptar',
+    confirmColor: 'primary' as 'error' | 'success' | 'primary',
+    onConfirm: () => {},
+  })
   const [passwordForm, setPasswordForm] = useState<ChangePasswordValues>({
     currentPassword: '',
     newPassword: '',
@@ -93,20 +144,26 @@ function App() {
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; item?: Company }>({ open: false })
   const [employeeDialog, setEmployeeDialog] = useState<{ open: boolean; item?: Employee }>({ open: false })
   const [documentDialog, setDocumentDialog] = useState<{ open: boolean; item?: SgsstDocument }>({ open: false })
+  const [sgsstAuditDialog, setSgsstAuditDialog] = useState<{ open: boolean; item?: SgsstAudit }>({ open: false })
   const [userDialog, setUserDialog] = useState<{ open: boolean; item?: SystemUser }>({ open: false })
   const [companyForm, setCompanyForm] = useState(emptyCompany)
   const [employeeForm, setEmployeeForm] = useState(emptyEmployee)
   const [documentForm, setDocumentForm] = useState(emptyDocument)
+  const [sgsstAuditForm, setSgsstAuditForm] = useState(emptySgsstAudit)
   const [userForm, setUserForm] = useState(emptyUser)
 
-  const canManageCompanies = user?.role === 'ADMIN'
-  const canManageEmployees = user?.role === 'ADMIN' || user?.role === 'SST'
-  const canViewDocuments = user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
-  const canManageDocuments = user?.role === 'ADMIN' || user?.role === 'SST'
-  const canDeleteEmployees = user?.role === 'ADMIN'
-  const canViewUsers = user?.role === 'ADMIN' || user?.role === 'SST'
-  const canManageUsers = user?.role === 'ADMIN'
-  const canViewAudit = user?.role === 'ADMIN' || user?.role === 'AUDITOR'
+  const isPlatformAdmin = user?.role === 'SUPER_ADMIN'
+  const activeCompanyId = user?.activeCompanyId ?? user?.companyId
+  const canManageCompanies = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canManageEmployees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canViewDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canViewReports = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canViewReportHistory = isPlatformAdmin
+  const canManageDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canDeleteEmployees = isPlatformAdmin || user?.role === 'ADMIN'
+  const canViewUsers = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canManageUsers = isPlatformAdmin || user?.role === 'ADMIN'
+  const canViewAudit = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
 
   const selectedTitle =
     view === 'dashboard'
@@ -117,9 +174,15 @@ function App() {
           ? 'Empleados'
           : view === 'documents'
             ? 'Documentos'
-            : view === 'users'
-              ? 'Usuarios'
-              : 'Auditoria'
+            : view === 'sgsstAudits'
+              ? 'Auditorias SG-SST'
+              : view === 'legalCompliance'
+                ? 'Mapa normativo'
+                : view === 'reports'
+                  ? 'Mis reportes'
+                  : view === 'users'
+                    ? 'Usuarios'
+                    : 'Auditoria'
 
   const stats = useMemo(
     () => [
@@ -149,49 +212,104 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, employeeTable, documentTable, userTable, auditTable])
+  }, [token, companyTable, employeeTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
-  async function loadData() {
+  async function loadData(refreshDashboard = false) {
     setLoading(true)
     setError('')
     try {
+      const hasCompanyScope = isPlatformAdmin || Boolean(activeCompanyId)
       const companyRequest =
-        user?.role === 'ADMIN'
+        canManageCompanies
           ? api.get<Paginated<Company>>('/companies', { params: tableParams(companyTable) })
-          : user?.companyId
-            ? api.get<Company>(`/companies/${user.companyId}`)
+          : hasCompanyScope
+            ? api.get<Company>(`/companies/${activeCompanyId}`)
             : Promise.resolve({ data: [] as Company[] })
-      const employeeRequest = api.get<Paginated<Employee>>('/employees', {
-        params: {
-          ...tableParams(employeeTable),
-          ...(user?.role === 'ADMIN' ? {} : { companyId: user?.companyId }),
-        },
-      })
-      const userRequest = canViewUsers
+      const employeeRequest = hasCompanyScope
+        ? api.get<Paginated<Employee>>('/employees', {
+            params: {
+              ...tableParams(employeeTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Employee[], meta: emptyMeta } })
+      const userRequest = canViewUsers && hasCompanyScope
         ? api.get<Paginated<SystemUser>>('/users', {
             params: {
               ...tableParams(userTable),
-              ...(user?.role === 'ADMIN' ? {} : { companyId: user?.companyId }),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
             },
           })
         : Promise.resolve({ data: { data: [] as SystemUser[], meta: emptyMeta } })
-      const documentRequest = canViewDocuments
+      const documentRequest = canViewDocuments && hasCompanyScope
         ? api.get<Paginated<SgsstDocument>>('/documents', {
             params: {
               ...tableParams(documentTable),
-              ...(user?.role === 'ADMIN' ? {} : { companyId: user?.companyId }),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
             },
           })
         : Promise.resolve({ data: { data: [] as SgsstDocument[], meta: emptyMeta } })
       const auditRequest = canViewAudit
         ? api.get<Paginated<AuditLog>>('/audit-logs', { params: tableParams(auditTable) })
         : Promise.resolve({ data: { data: [] as AuditLog[], meta: emptyMeta } })
-      const notificationRequest = api.get<Paginated<AppNotification>>('/notifications', {
-        params: { page: 1, pageSize: 8 },
-      })
-      const summaryRequest = api.get<DashboardSummary>('/dashboard/summary')
-      const [companyResponse, employeeResponse, documentResponse, userResponse, auditResponse, notificationResponse, summaryResponse] =
-        await Promise.all([companyRequest, employeeRequest, documentRequest, userRequest, auditRequest, notificationRequest, summaryRequest])
+      const sgsstAuditRequest = canViewDocuments && hasCompanyScope
+        ? api.get<Paginated<SgsstAudit>>('/sgsst-audits', {
+            params: {
+              ...tableParams(sgsstAuditTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as SgsstAudit[], meta: emptyMeta } })
+      const reportExportsRequest = canViewReports && hasCompanyScope
+        ? api.get<Paginated<ReportExport>>('/reports/exports', {
+            params: reportExportParams(reportExportTable, reportExportFilters),
+          })
+        : Promise.resolve({ data: { data: [] as ReportExport[], meta: emptyMeta } })
+      const reportMetricsRequest = canViewReports && hasCompanyScope
+        ? api.get<ReportExportMetrics>('/reports/metrics', {
+            params: reportExportParams(reportExportTable, reportExportFilters),
+          })
+        : Promise.resolve({ data: emptyReportMetrics })
+      const reportMetricHistoryRequest = canViewReportHistory && hasCompanyScope
+        ? api.get<ReportExportMetricSnapshot[]>('/reports/metrics/history', {
+            params: reportExportParams(reportExportTable, reportExportFilters),
+          })
+        : Promise.resolve({ data: [] as ReportExportMetricSnapshot[] })
+      const notificationRequest = hasCompanyScope
+        ? api.get<Paginated<AppNotification>>('/notifications', {
+            params: { page: 1, pageSize: 8 },
+          })
+        : Promise.resolve({ data: { data: [] as AppNotification[], meta: { unread: 0 } } })
+      const summaryRequest = hasCompanyScope
+        ? api.get<DashboardSummary>('/dashboard/summary', {
+            params: { refresh: refreshDashboard || undefined },
+          })
+        : Promise.resolve({ data: emptySummary })
+      const [
+        companyResponse,
+        employeeResponse,
+        documentResponse,
+        sgsstAuditResponse,
+        reportExportsResponse,
+        reportMetricsResponse,
+        reportMetricHistoryResponse,
+        userResponse,
+        auditResponse,
+        notificationResponse,
+        summaryResponse,
+      ] = await Promise.all([
+        companyRequest,
+        employeeRequest,
+        documentRequest,
+        sgsstAuditRequest,
+        reportExportsRequest,
+        reportMetricsRequest,
+        reportMetricHistoryRequest,
+        userRequest,
+        auditRequest,
+        notificationRequest,
+        summaryRequest,
+      ])
 
       if (isPaginated<Company>(companyResponse.data)) {
         setCompanies(companyResponse.data.data)
@@ -205,6 +323,12 @@ function App() {
       setEmployeeMeta(employeeResponse.data.meta)
       setDocuments(documentResponse.data.data)
       setDocumentMeta(documentResponse.data.meta)
+      setSgsstAudits(sgsstAuditResponse.data.data)
+      setSgsstAuditMeta(sgsstAuditResponse.data.meta)
+      setReportExports(reportExportsResponse.data.data)
+      setReportExportMeta(reportExportsResponse.data.meta)
+      setReportMetrics(reportMetricsResponse.data)
+      setReportMetricHistory(reportMetricHistoryResponse.data)
       setUsers(userResponse.data.data)
       setUserMeta(userResponse.data.meta)
       setAuditLogs(auditResponse.data.data)
@@ -224,9 +348,31 @@ function App() {
     setError('')
     try {
       const response = await api.post('/auth/login', login)
+      if (response.data.mfaRequired) {
+        setMfaToken(response.data.mfaToken)
+        setMfa({ code: '' })
+        return
+      }
       saveSession(response.data.accessToken, response.data.user, response.data.refreshToken)
       setToken(response.data.accessToken)
       setUser(response.data.user)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleVerifyMfa() {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await api.post('/auth/verify-mfa', { mfaToken, code: mfa.code })
+      saveSession(response.data.accessToken, response.data.user, response.data.refreshToken)
+      setToken(response.data.accessToken)
+      setUser(response.data.user)
+      setMfaToken('')
+      setMfa({ code: '' })
     } catch (currentError) {
       setError(readApiError(currentError))
     } finally {
@@ -253,7 +399,39 @@ function App() {
     clearSession()
     setToken('')
     setUser(null)
+    setMfaToken('')
     resetWorkspace()
+  }
+
+  async function setupMfa() {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await api.post('/auth/mfa/setup')
+      setMfaSetup({ secret: response.data.secret, otpauthUrl: response.data.otpauthUrl, code: '' })
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function enableMfa() {
+    await saveRecord(async () => {
+      await api.post('/auth/mfa/enable', { code: mfaSetup.code })
+      setUser((current) => (current ? { ...current, mfaEnabled: true } : current))
+      setMfaSettingsOpen(false)
+      setMfaSetup({ secret: '', otpauthUrl: '', code: '' })
+    })
+  }
+
+  async function disableMfa() {
+    await saveRecord(async () => {
+      await api.post('/auth/mfa/disable', { code: mfaSetup.code })
+      setUser((current) => (current ? { ...current, mfaEnabled: false } : current))
+      setMfaSettingsOpen(false)
+      setMfaSetup({ secret: '', otpauthUrl: '', code: '' })
+    })
   }
 
   async function changePassword() {
@@ -279,6 +457,10 @@ function App() {
     setCompanies([])
     setEmployees([])
     setDocuments([])
+    setSgsstAudits([])
+    setReportExports([])
+    setReportMetrics(emptyReportMetrics)
+    setReportMetricHistory([])
     setUsers([])
     setNotifications([])
     setNotificationUnread(0)
@@ -301,6 +483,12 @@ function App() {
             address: item.address ?? '',
             phone: item.phone ?? '',
             email: item.email ?? '',
+            reportExportExpirationDays: item.reportExportExpirationDays?.toString() ?? '',
+            reportExportRetentionDays: item.reportExportRetentionDays?.toString() ?? '',
+            reportFailureRateAlertPercent: item.reportFailureRateAlertPercent?.toString() ?? '',
+            reportStorageAlertBytes: item.reportStorageAlertBytes?.toString() ?? '',
+            whatsappAlertsEnabled: item.whatsappAlertsEnabled,
+            whatsappAlertPhone: item.whatsappAlertPhone ?? '',
           }
         : emptyCompany,
     )
@@ -325,7 +513,7 @@ function App() {
             phone: item.phone ?? '',
             companyId: item.companyId,
           }
-        : { ...emptyEmployee, companyId: user?.companyId ?? companies[0]?.id ?? '' },
+        : { ...emptyEmployee, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
     setEmployeeDialog({ open: true, item })
     preloadEmployeeDialog()
@@ -361,24 +549,74 @@ function App() {
             expiresAt: item.expiresAt?.slice(0, 10) ?? '',
             companyId: item.companyId,
           }
-        : { ...emptyDocument, companyId: user?.companyId ?? companies[0]?.id ?? '' },
+        : { ...emptyDocument, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
     setDocumentDialog({ open: true, item })
     preloadDocumentDialog()
   }
 
+  function openSgsstAuditForm(item?: SgsstAudit) {
+    setSgsstAuditForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description ?? '',
+            status: item.status,
+            scope: item.scope ?? '',
+            auditorName: item.auditorName ?? '',
+            scheduledAt: item.scheduledAt.slice(0, 10),
+            result: item.result ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptySgsstAudit, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setSgsstAuditDialog({ open: true, item })
+    preloadSgsstAuditDialog()
+  }
+
   async function saveCompany() {
     await saveRecord(async () => {
       if (companyDialog.item) {
-        await api.patch(`/companies/${companyDialog.item.id}`, sanitize(companyForm))
+        await api.patch(`/companies/${companyDialog.item.id}`, normalizeCompanyForm())
       } else {
-        await api.post('/companies', sanitize(companyForm))
+        await api.post('/companies', normalizeCompanyForm())
       }
       setCompanyDialog({ open: false })
     })
   }
 
+  function normalizeCompanyForm() {
+    const payload = sanitize(companyForm) as Record<string, unknown>
+    ;[
+      'reportExportExpirationDays',
+      'reportExportRetentionDays',
+      'reportFailureRateAlertPercent',
+      'reportStorageAlertBytes',
+    ].forEach((field) => {
+      const value = companyForm[field as keyof typeof companyForm]
+      payload[field] = value ? Number(value) : null
+    })
+    payload.whatsappAlertsEnabled = companyForm.whatsappAlertsEnabled
+    payload.whatsappAlertPhone = companyForm.whatsappAlertPhone.trim() || null
+    return payload
+  }
+
+  const duplicateEmployeeDocument =
+    employeeForm.document.trim().length > 0 &&
+    employees.some(
+      (employee) =>
+        employee.document.trim().toLowerCase() === employeeForm.document.trim().toLowerCase() &&
+        employee.id !== employeeDialog.item?.id,
+    )
+
+  const employeeDocumentError = duplicateEmployeeDocument ? 'Este documento ya está registrado para otro empleado.' : ''
+
   async function saveEmployee() {
+    if (employeeDocumentError) {
+      setError(employeeDocumentError)
+      return
+    }
+
     await saveRecord(async () => {
       if (employeeDialog.item) {
         await api.patch(`/employees/${employeeDialog.item.id}`, sanitize(employeeForm))
@@ -413,6 +651,17 @@ function App() {
     })
   }
 
+  async function saveSgsstAudit() {
+    await saveRecord(async () => {
+      if (sgsstAuditDialog.item) {
+        await api.patch(`/sgsst-audits/${sgsstAuditDialog.item.id}`, sanitize(sgsstAuditForm))
+      } else {
+        await api.post('/sgsst-audits', sanitize(sgsstAuditForm))
+      }
+      setSgsstAuditDialog({ open: false })
+    })
+  }
+
   async function uploadDocumentFile(file: File) {
     setLoading(true)
     setError('')
@@ -438,7 +687,7 @@ function App() {
     setError('')
     try {
       await action()
-      await loadData()
+      await loadData(true)
     } catch (currentError) {
       setError(readApiError(currentError))
     } finally {
@@ -446,32 +695,184 @@ function App() {
     }
   }
 
+  function openConfirmDialog(
+    title: string,
+    message: string,
+    confirmLabel = 'Aceptar',
+    confirmColor: 'error' | 'success' | 'primary' = 'primary',
+    onConfirm: () => void | Promise<void> = () => {},
+  ) {
+    setConfirmDialog({ open: true, title, message, confirmLabel, confirmColor, onConfirm })
+  }
+
+  async function handleConfirmDialog() {
+    const action = confirmDialog.onConfirm
+    setConfirmDialog((current) => ({ ...current, open: false }))
+    await action()
+  }
+
+  function confirmDeleteCompany(company: Company) {
+    openConfirmDialog(
+      'Eliminar empresa',
+      `¿Seguro que deseas eliminar la empresa ${company.name}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeCompany(company.id) },
+    )
+  }
+
   async function removeCompany(id: string) {
     await saveRecord(() => api.delete(`/companies/${id}`).then())
+  }
+
+  function confirmRestoreCompany(company: Company) {
+    openConfirmDialog(
+      'Restaurar empresa',
+      `¿Seguro que deseas restaurar la empresa ${company.name}?`,
+      'Restaurar',
+      'success',
+      () => { void restoreCompany(company.id) },
+    )
+  }
+
+  function confirmHardDeleteCompany(company: Company) {
+    openConfirmDialog(
+      'Eliminar empresa permanentemente',
+      `¿Seguro que deseas eliminar permanentemente la empresa ${company.name}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void hardRemoveCompany(company.id) },
+    )
   }
 
   async function restoreCompany(id: string) {
     await saveRecord(() => api.patch(`/companies/${id}`, { isActive: true }).then())
   }
 
+  async function hardRemoveCompany(id: string) {
+    await saveRecord(() => api.delete(`/companies/${id}/permanent`).then())
+  }
+
+  function confirmDeleteEmployee(employee: Employee) {
+    openConfirmDialog(
+      'Eliminar empleado',
+      `¿Seguro que deseas eliminar a ${employee.firstName} ${employee.lastName}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeEmployee(employee.id) },
+    )
+  }
+
   async function removeEmployee(id: string) {
     await saveRecord(() => api.delete(`/employees/${id}`).then())
+  }
+
+  function confirmRestoreEmployee(employee: Employee) {
+    openConfirmDialog(
+      'Restaurar empleado',
+      `¿Seguro que deseas restaurar a ${employee.firstName} ${employee.lastName}?`,
+      'Restaurar',
+      'success',
+      () => { void restoreEmployee(employee.id) },
+    )
   }
 
   async function restoreEmployee(id: string) {
     await saveRecord(() => api.patch(`/employees/${id}`, { isActive: true }).then())
   }
 
+  function confirmDeleteDocument(documentItem: SgsstDocument) {
+    openConfirmDialog(
+      'Eliminar documento',
+      `¿Seguro que deseas eliminar el documento ${documentItem.name}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeDocument(documentItem.id) },
+    )
+  }
+
   async function removeDocument(id: string) {
     await saveRecord(() => api.delete(`/documents/${id}`).then())
+  }
+
+  function confirmRestoreDocument(documentItem: SgsstDocument) {
+    openConfirmDialog(
+      'Restaurar documento',
+      `¿Seguro que deseas restaurar el documento ${documentItem.name}?`,
+      'Restaurar',
+      'success',
+      () => { void restoreDocument(documentItem.id) },
+    )
   }
 
   async function restoreDocument(id: string) {
     await saveRecord(() => api.patch(`/documents/${id}`, { isActive: true }).then())
   }
 
+  function confirmDeleteSgsstAudit(audit: SgsstAudit) {
+    openConfirmDialog(
+      'Eliminar auditoría',
+      `¿Seguro que deseas eliminar la auditoría ${audit.title || audit.id}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeSgsstAudit(audit.id) },
+    )
+  }
+
+  async function removeSgsstAudit(id: string) {
+    await saveRecord(() => api.delete(`/sgsst-audits/${id}`).then())
+  }
+
+  async function addFinding(auditId: string) {
+    const title = window.prompt('Titulo del hallazgo')
+    if (!title) return
+    await saveRecord(() => api.post(`/sgsst-audits/${auditId}/findings`, { title, severity: 'MINOR' }).then())
+  }
+
+  async function addAction(findingId: string) {
+    const title = window.prompt('Titulo de la accion correctiva')
+    if (!title) return
+    const responsible = window.prompt('Responsable') || 'Responsable SST'
+    const dueDate = window.prompt('Fecha compromiso (YYYY-MM-DD)') || new Date().toISOString().slice(0, 10)
+    await saveRecord(() => api.post(`/sgsst-audits/findings/${findingId}/actions`, { title, responsible, dueDate }).then())
+  }
+
+  function confirmCloseSgsstAudit(audit: SgsstAudit) {
+    openConfirmDialog(
+      'Cerrar auditoría',
+      `¿Seguro que deseas cerrar la auditoría ${audit.title || audit.id}?`,
+      'Cerrar',
+      'success',
+      () => { void closeSgsstAudit(audit) },
+    )
+  }
+
+  async function closeSgsstAudit(item: SgsstAudit) {
+    await saveRecord(() => api.patch(`/sgsst-audits/${item.id}`, { status: 'CLOSED', closedAt: new Date().toISOString() }).then())
+  }
+
+  function confirmDeleteUser(userItem: SystemUser) {
+    openConfirmDialog(
+      'Eliminar usuario',
+      `¿Seguro que deseas eliminar al usuario ${userItem.name}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeUser(userItem.id) },
+    )
+  }
+
   async function removeUser(id: string) {
     await saveRecord(() => api.delete(`/users/${id}`).then())
+  }
+
+  function confirmRestoreUser(userItem: SystemUser) {
+    openConfirmDialog(
+      'Restaurar usuario',
+      `¿Seguro que deseas restaurar al usuario ${userItem.name}?`,
+      'Restaurar',
+      'success',
+      () => { void restoreUser(userItem.id) },
+    )
   }
 
   async function restoreUser(id: string) {
@@ -490,6 +891,51 @@ function App() {
     await saveRecord(() => api.post('/notifications/generate-due-alerts').then())
   }
 
+  async function handleDownloadReport(kind: ReportKind, format: ReportFormat) {
+    setLoading(true)
+    setError('')
+    try {
+      await downloadReport(kind, format, isPlatformAdmin ? undefined : activeCompanyId)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleScheduleReport(kind: ReportKind, format: ReportFormat) {
+    setLoading(true)
+    setError('')
+    try {
+      await scheduleReport(kind, format, isPlatformAdmin ? undefined : activeCompanyId)
+      await loadData(true)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function retryReportExport(id: string) {
+    await saveRecord(() => api.post(`/reports/exports/${id}/retry`).then())
+  }
+
+  async function handleSwitchCompany(companyId: string | null) {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await api.post('/auth/active-company', { companyId })
+      saveSession(response.data.accessToken, response.data.user, response.data.refreshToken)
+      setToken(response.data.accessToken)
+      setUser(response.data.user)
+      await loadData(true)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function selectView(nextView: View) {
     setView(nextView)
     setMobileOpen(false)
@@ -498,23 +944,41 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog((current) => ({ ...current, open: false }))}>
+        <DialogTitle>{confirmDialog.title}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{confirmDialog.message}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog((current) => ({ ...current, open: false }))}>Cancelar</Button>
+          <Button color={confirmDialog.confirmColor} variant="contained" onClick={() => { void handleConfirmDialog() }}>
+            {confirmDialog.confirmLabel}
+          </Button>
+        </DialogActions>
+      </Dialog>
       {!user || !token ? (
         <LoginPage
           login={login}
+          mfa={mfa}
+          mfaRequired={Boolean(mfaToken)}
           bootstrap={bootstrap}
           bootstrapOpen={bootstrapOpen}
           error={error}
           loading={loading}
           onLoginChange={setLogin}
+          onMfaChange={setMfa}
           onBootstrapChange={setBootstrap}
           onBootstrapOpen={() => setBootstrapOpen(true)}
           onBootstrapClose={() => setBootstrapOpen(false)}
           onLogin={handleLogin}
+          onVerifyMfa={handleVerifyMfa}
           onBootstrap={handleBootstrap}
         />
       ) : (
         <AppLayout
           user={user}
+          companies={companies}
+          activeCompanyId={activeCompanyId}
           view={view}
           selectedTitle={selectedTitle}
           mobileOpen={mobileOpen}
@@ -522,6 +986,7 @@ function App() {
           error={error}
           canViewUsers={canViewUsers}
           canViewDocuments={canViewDocuments}
+          canViewReports={canViewReports}
           canViewAudit={canViewAudit}
           canGenerateNotifications={canManageDocuments}
           notifications={notifications}
@@ -530,27 +995,58 @@ function App() {
           onMobileClose={() => setMobileOpen(false)}
           onSelectView={selectView}
           onPreloadView={preloadView}
-          onRefresh={loadData}
+          onRefresh={() => loadData(true)}
+          onSwitchCompany={handleSwitchCompany}
           onMarkNotificationRead={markNotificationRead}
           onMarkAllNotificationsRead={markAllNotificationsRead}
           onGenerateNotifications={generateNotifications}
           onChangePassword={() => setPasswordDialogOpen(true)}
+          onMfaSettings={() => {
+            setMfaSettingsOpen(true)
+            if (!mfaSetup.secret) void setupMfa()
+          }}
           onLogout={logout}
         >
           <Suspense fallback={null}>
-            {view === 'dashboard' && <DashboardPage stats={stats} companies={companies} employees={employees} />}
+            {view === 'dashboard' && (
+              <DashboardPage
+                stats={stats}
+                companies={companies}
+                employees={employees}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+                onDownloadReport={(format) => handleDownloadReport('summary', format)}
+                onScheduleReport={(format) => handleScheduleReport('summary', format)}
+              />
+            )}
             {view === 'companies' && (
               <CompaniesPage
                 companies={companies}
                 meta={companyMeta}
                 tableState={companyTable}
                 canManage={canManageCompanies}
-              onTableChange={setCompanyTable}
-              onCreate={() => openCompanyForm()}
-              onPreloadCreate={preloadCompanyDialog}
-              onEdit={openCompanyForm}
-                onDelete={removeCompany}
-                onRestore={restoreCompany}
+                onTableChange={setCompanyTable}
+                onCreate={() => openCompanyForm()}
+                onPreloadCreate={preloadCompanyDialog}
+                onEdit={openCompanyForm}
+                onDelete={(id) => {
+                  const company = companies.find((item) => item.id === id)
+                  if (company) {
+                    confirmDeleteCompany(company)
+                  }
+                }}
+                onRestore={(id) => {
+                  const company = companies.find((item) => item.id === id)
+                  if (company) {
+                    confirmRestoreCompany(company)
+                  }
+                }}
+                onDeletePermanent={(id) => {
+                  const company = companies.find((item) => item.id === id)
+                  if (company) {
+                    confirmHardDeleteCompany(company)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
             {view === 'employees' && (
@@ -560,12 +1056,25 @@ function App() {
                 tableState={employeeTable}
                 canManage={canManageEmployees}
                 canDelete={canDeleteEmployees}
-              onTableChange={setEmployeeTable}
-              onCreate={() => openEmployeeForm()}
-              onPreloadCreate={preloadEmployeeDialog}
-              onEdit={openEmployeeForm}
-                onDelete={removeEmployee}
-                onRestore={restoreEmployee}
+                onTableChange={setEmployeeTable}
+                onCreate={() => openEmployeeForm()}
+                onPreloadCreate={preloadEmployeeDialog}
+                onEdit={openEmployeeForm}
+                onDelete={(id) => {
+                  const employee = employees.find((item) => item.id === id)
+                  if (employee) {
+                    confirmDeleteEmployee(employee)
+                  }
+                }}
+                onRestore={(id) => {
+                  const employee = employees.find((item) => item.id === id)
+                  if (employee) {
+                    confirmRestoreEmployee(employee)
+                  }
+                }}
+                onDownloadReport={(format) => handleDownloadReport('employees', format)}
+                onScheduleReport={(format) => handleScheduleReport('employees', format)}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
             {view === 'documents' && (
@@ -578,8 +1087,71 @@ function App() {
                 onCreate={() => openDocumentForm()}
                 onPreloadCreate={preloadDocumentDialog}
                 onEdit={openDocumentForm}
-                onDelete={removeDocument}
-                onRestore={restoreDocument}
+                onDelete={(id) => {
+                  const documentItem = documents.find((item) => item.id === id)
+                  if (documentItem) {
+                    confirmDeleteDocument(documentItem)
+                  }
+                }}
+                onRestore={(id) => {
+                  const documentItem = documents.find((item) => item.id === id)
+                  if (documentItem) {
+                    confirmRestoreDocument(documentItem)
+                  }
+                }}
+                onDownloadReport={(format) => handleDownloadReport('expired-documents', format)}
+                onScheduleReport={(format) => handleScheduleReport('expired-documents', format)}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'sgsstAudits' && (
+              <SgsstAuditsPage
+                audits={sgsstAudits}
+                meta={sgsstAuditMeta}
+                tableState={sgsstAuditTable}
+                canManage={canManageDocuments}
+                onTableChange={setSgsstAuditTable}
+                onCreate={() => openSgsstAuditForm()}
+                onPreloadCreate={preloadSgsstAuditDialog}
+                onEdit={openSgsstAuditForm}
+                onDelete={(id) => {
+                  const audit = sgsstAudits.find((item) => item.id === id)
+                  if (audit) {
+                    confirmDeleteSgsstAudit(audit)
+                  }
+                }}
+                onAddFinding={addFinding}
+                onAddAction={addAction}
+                onCloseAudit={(item) => confirmCloseSgsstAudit(item)}
+                onDownloadReport={(format) => handleDownloadReport('audits', format)}
+                onScheduleReport={(format) => handleScheduleReport('audits', format)}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'legalCompliance' && canViewDocuments && (
+              <LegalCompliancePage
+                user={user}
+                companies={companies}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'reports' && (
+              <ReportExportsPage
+                exports={reportExports}
+                meta={reportExportMeta}
+                tableState={reportExportTable}
+                filters={reportExportFilters}
+                metrics={reportMetrics}
+                history={reportMetricHistory}
+                companies={companies}
+                users={users}
+                onTableChange={setReportExportTable}
+                onFiltersChange={(filters) => {
+                  setReportExportTable((current) => ({ ...current, page: 1 }))
+                  setReportExportFilters(filters)
+                }}
+                onRetry={retryReportExport}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
             {view === 'users' && (
@@ -589,12 +1161,23 @@ function App() {
                 tableState={userTable}
                 canManage={canManageUsers}
                 currentUserId={user.id}
-              onTableChange={setUserTable}
-              onCreate={() => openUserForm()}
-              onPreloadCreate={preloadUserDialog}
-              onEdit={openUserForm}
-                onDelete={removeUser}
-                onRestore={restoreUser}
+                onTableChange={setUserTable}
+                onCreate={() => openUserForm()}
+                onPreloadCreate={preloadUserDialog}
+                onEdit={openUserForm}
+                onDelete={(id) => {
+                  const userItem = users.find((item) => item.id === id)
+                  if (userItem) {
+                    confirmDeleteUser(userItem)
+                  }
+                }}
+                onRestore={(id) => {
+                  const userItem = users.find((item) => item.id === id)
+                  if (userItem) {
+                    confirmRestoreUser(userItem)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
             {view === 'audit' && (
@@ -615,7 +1198,8 @@ function App() {
               values={employeeForm}
               companies={companies}
               loading={loading}
-              canPickCompany={user.role === 'ADMIN'}
+              canPickCompany={isPlatformAdmin}
+              documentError={employeeDocumentError}
               onChange={setEmployeeForm}
               onClose={() => setEmployeeDialog({ open: false })}
               onSave={saveEmployee}
@@ -636,11 +1220,22 @@ function App() {
               values={documentForm}
               companies={companies}
               loading={loading}
-              canPickCompany={user.role === 'ADMIN'}
+              canPickCompany={isPlatformAdmin}
               onChange={setDocumentForm}
               onUpload={uploadDocumentFile}
               onClose={() => setDocumentDialog({ open: false })}
               onSave={saveDocument}
+            />
+            <SgsstAuditDialog
+              open={sgsstAuditDialog.open}
+              editing={Boolean(sgsstAuditDialog.item)}
+              values={sgsstAuditForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setSgsstAuditForm}
+              onClose={() => setSgsstAuditDialog({ open: false })}
+              onSave={saveSgsstAudit}
             />
             <ChangePasswordDialog
               open={passwordDialogOpen}
@@ -649,6 +1244,19 @@ function App() {
               onChange={setPasswordForm}
               onClose={() => setPasswordDialogOpen(false)}
               onSave={changePassword}
+            />
+            <MfaSettingsDialog
+              open={mfaSettingsOpen}
+              enabled={Boolean(user.mfaEnabled)}
+              secret={mfaSetup.secret}
+              otpauthUrl={mfaSetup.otpauthUrl}
+              code={mfaSetup.code}
+              loading={loading}
+              onCodeChange={(code) => setMfaSetup((current) => ({ ...current, code }))}
+              onSetup={setupMfa}
+              onEnable={enableMfa}
+              onDisable={disableMfa}
+              onClose={() => setMfaSettingsOpen(false)}
             />
           </Suspense>
         </AppLayout>

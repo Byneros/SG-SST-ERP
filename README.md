@@ -8,6 +8,7 @@ SaaS empresarial para gestion SG-SST multiempresa. El proyecto esta organizado c
 - `sgsst-api`: API REST NestJS con JWT, roles, alcance multiempresa, Prisma, Swagger y auditoria.
 - `docs`: arquitectura, modelo de datos y documentacion funcional.
 - `docker-compose.yml`: entorno local con PostgreSQL, API y web.
+- `worker`: proceso separado para jobs de notificaciones con Redis/BullMQ.
 
 ## Inicio rapido
 
@@ -38,6 +39,7 @@ docker compose up --build
 
 ```bash
 cd sgsst-api
+npx prisma generate
 npm run test
 npm run test:e2e
 npm run build
@@ -55,13 +57,19 @@ En PowerShell puede ser necesario usar `npm.cmd` por la politica de ejecucion lo
 La arquitectura SaaS aplicada esta documentada en:
 
 - `docs/arquitectura-sgsst.md`
+- `docs/backups-postgresql.md`
+- `docs/correo-transaccional.md`
+- `docs/fase-2-inventario-modulos-sgsst.md`
+- `docs/reportes-exportaciones.md`
+- `docs/storage-externo.md`
+- `docs/whatsapp-alertas.md`
 - `docs/schema-sgsst-postgresql.sql`
 - `docs/backend-sgsst-nestjs.md`
 
 ## Roadmap tecnico inmediato
 
-1. Cambiar el driver local de documentos por S3, Azure Blob o GCS.
-2. MFA para roles criticos.
-3. Redis para rate limit distribuido y cache de dashboard.
-4. MFA para roles criticos.
-5. CI/CD con pruebas, build, migraciones y despliegue por ambiente.
+1. Pipeline de despliegue por ambiente.
+2. Sincronizacion externa de backups a bucket cifrado.
+3. Observabilidad con logs estructurados y metricas.
+4. SSO OIDC/SAML para clientes empresariales.
+5. Consola administrativa para consultar entregas externas y reintentar casos puntuales.
