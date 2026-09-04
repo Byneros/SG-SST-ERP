@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosHeaders } from 'axios'
 import type { AuthUser } from '../types'
 
 export type ReportKind = 'employees' | 'expired-documents' | 'audits' | 'summary'
@@ -83,13 +83,27 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+function asAxiosHeaders(raw: unknown): AxiosHeaders {
+  const headers = new AxiosHeaders()
+  if (raw && typeof raw === 'object') {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (value !== undefined && value !== null) {
+        headers.set(key, String(value))
+      }
+    }
+  }
+  return headers
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const originalRequest = error.config
       const refreshToken = localStorage.getItem(refreshTokenKey)
-      if (refreshToken && originalRequest && !originalRequest.headers?.['x-retry-refresh']) {
+      const headers = originalRequest ? asAxiosHeaders(originalRequest.headers) : new AxiosHeaders()
+      const alreadyRetried = headers?.get('x-retry-refresh') === 'true'
+      if (refreshToken && originalRequest && !alreadyRetried) {
         try {
           refreshPromise =
             refreshPromise ??
@@ -103,12 +117,17 @@ api.interceptors.response.use(
                 refreshPromise = undefined
               })
           const accessToken = await refreshPromise
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`
-          originalRequest.headers['x-retry-refresh'] = 'true'
+          headers.set('Authorization', `Bearer ${accessToken}`)
+          headers.set('x-retry-refresh', 'true')
+          originalRequest.headers = headers
           return api(originalRequest)
         } catch {
-          clearSession()
-          unauthorizedHandler?.()
+          // Only the request that observes the settled failed refresh clears the
+          // session, so concurrent 401s don't fire the handler multiple times.
+          if (!refreshPromise) {
+            clearSession()
+            unauthorizedHandler?.()
+          }
         }
       } else {
         clearSession()
