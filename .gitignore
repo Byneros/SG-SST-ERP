@@ -1,0 +1,24 @@
+# Dependencies and generated builds
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/.nyc_output/
+
+# Environment files and runtime data
+**/.env
+**/.env.*
+!**/.env.example
+**/uploads/
+**/logs/
+**/*.log
+**/*.pid
+
+# Tooling and operating system files
+**/.DS_Store
+**/.idea/
+**/.vscode/*
+!**/.vscode/settings.json
+!**/.vscode/tasks.json
+!**/.vscode/launch.json
+!**/.vscode/extensions.json

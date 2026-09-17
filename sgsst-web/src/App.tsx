@@ -14,7 +14,9 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import {
   api,
   clearSession,
+  downloadDocument,
   downloadReport,
+  downloadReportExport,
   getStoredSession,
   readApiError,
   scheduleReport,
@@ -903,6 +905,18 @@ function App() {
     }
   }
 
+  async function handleDownloadDocument(documentItem: SgsstDocument) {
+    setLoading(true)
+    setError('')
+    try {
+      await downloadDocument(documentItem.id, documentItem.fileName ?? documentItem.name)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleScheduleReport(kind: ReportKind, format: ReportFormat) {
     setLoading(true)
     setError('')
@@ -918,6 +932,18 @@ function App() {
 
   async function retryReportExport(id: string) {
     await saveRecord(() => api.post(`/reports/exports/${id}/retry`).then())
+  }
+
+  async function handleDownloadReportExport(reportExport: ReportExport) {
+    setLoading(true)
+    setError('')
+    try {
+      await downloadReportExport(reportExport.id, reportExport.fileName ?? 'reporte')
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleSwitchCompany(companyId: string | null) {
@@ -1099,6 +1125,7 @@ function App() {
                     confirmRestoreDocument(documentItem)
                   }
                 }}
+                onDownload={handleDownloadDocument}
                 onDownloadReport={(format) => handleDownloadReport('expired-documents', format)}
                 onScheduleReport={(format) => handleScheduleReport('expired-documents', format)}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
@@ -1151,6 +1178,7 @@ function App() {
                   setReportExportFilters(filters)
                 }}
                 onRetry={retryReportExport}
+                onDownload={handleDownloadReportExport}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}

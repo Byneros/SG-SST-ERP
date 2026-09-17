@@ -1,0 +1,54 @@
+name: Post-deploy smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployed environment to verify
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Verify deployed API
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.target }}
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+    steps:
+      - name: Validate endpoint configuration
+        run: |
+          test -n "$API_BASE_URL"
+          test -n "$METRICS_TOKEN"
+          case "$API_BASE_URL" in
+            https://*) ;;
+            *) echo "API_BASE_URL must use HTTPS"; exit 1 ;;
+          esac
+          case "$API_BASE_URL" in
+            *localhost*|*127.0.0.1*) echo "API_BASE_URL cannot target localhost"; exit 1 ;;
+          esac
+
+      - name: Check liveness and readiness
+        run: |
+          base_url="${API_BASE_URL%/}"
+          curl --fail-with-body --retry 5 --retry-delay 5 "$base_url/api/v1/health"
+          curl --fail-with-body --retry 5 --retry-delay 5 "$base_url/api/v1/ready"
+
+      - name: Check protected metrics
+        run: |
+          base_url="${API_BASE_URL%/}"
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -H "X-Metrics-Token: $METRICS_TOKEN" \
+            "$base_url/api/v1/metrics" | grep -F "sgsst_process_uptime_seconds"

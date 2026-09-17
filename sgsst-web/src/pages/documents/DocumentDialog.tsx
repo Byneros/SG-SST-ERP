@@ -56,9 +56,8 @@ export function DocumentDialog(props: {
               }}
             />
           </Button>
-          <TextField label="URL del archivo" value={props.values.fileUrl} onChange={(event) => props.onChange({ ...props.values, fileUrl: event.target.value })} required />
-          <TextField label="Nombre del archivo" value={props.values.fileName} onChange={(event) => props.onChange({ ...props.values, fileName: event.target.value })} />
-          <TextField label="Tipo MIME" value={props.values.mimeType} onChange={(event) => props.onChange({ ...props.values, mimeType: event.target.value })} placeholder="application/pdf" />
+          <TextField label="Archivo seleccionado" value={props.values.fileName} InputProps={{ readOnly: true }} required />
+          <TextField label="Tipo MIME" value={props.values.mimeType} InputProps={{ readOnly: true }} placeholder="application/pdf" />
           <TextField type="date" label="Fecha de vencimiento" InputLabelProps={{ shrink: true }} value={props.values.expiresAt} onChange={(event) => props.onChange({ ...props.values, expiresAt: event.target.value })} />
           <TextField select label="Empresa" value={props.values.companyId} disabled={!props.canPickCompany} onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })} required>
             {props.companies.map((company) => (

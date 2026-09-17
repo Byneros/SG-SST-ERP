@@ -29,6 +29,7 @@ export function DocumentsPage(props: {
   onEdit: (item: SgsstDocument) => void
   onDelete: (id: string) => void
   onRestore: (id: string) => void
+  onDownload: (document: SgsstDocument) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
   activeCompanyName?: string
@@ -80,7 +81,7 @@ export function DocumentsPage(props: {
                 <TableCell align="right">
                   <Tooltip title="Abrir archivo">
                     <span>
-                      <IconButton href={document.fileUrl} target="_blank" rel="noreferrer" disabled={!document.fileUrl}>
+                      <IconButton onClick={() => props.onDownload(document)} disabled={!document.fileUrl}>
                         <OpenInNew />
                       </IconButton>
                     </span>

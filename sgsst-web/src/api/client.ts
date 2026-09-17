@@ -68,6 +68,40 @@ export async function downloadReport(kind: ReportKind, format: ReportFormat, com
   URL.revokeObjectURL(href)
 }
 
+export async function downloadDocument(documentId: string, fileName = 'documento') {
+  const response = await api.get(`/documents/${documentId}/download`, {
+    responseType: 'blob',
+  })
+  const blob = new Blob([response.data], {
+    type: String(response.headers['content-type'] ?? 'application/octet-stream'),
+  })
+  const href = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = href
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(href)
+}
+
+export async function downloadReportExport(exportId: string, fileName = 'reporte') {
+  const response = await api.get(`/reports/exports/${exportId}/download`, {
+    responseType: 'blob',
+  })
+  const blob = new Blob([response.data], {
+    type: String(response.headers['content-type'] ?? 'application/octet-stream'),
+  })
+  const href = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = href
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(href)
+}
+
 export async function scheduleReport(kind: ReportKind, format: ReportFormat, companyId?: string) {
   const response = await api.post(`/reports/${kind}.${format}/schedule`, undefined, {
     params: companyId ? { companyId } : undefined,

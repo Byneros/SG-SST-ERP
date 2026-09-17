@@ -23,6 +23,7 @@ export function ReportExportsPage(props: {
   onTableChange: (state: TableState) => void
   onFiltersChange: (filters: ReportExportFilters) => void
   onRetry: (id: string) => void
+  onDownload: (item: ReportExport) => void
   activeCompanyName?: string
 }) {
   const failureRate = props.metrics.totals.total
@@ -201,7 +202,7 @@ export function ReportExportsPage(props: {
                 <TableCell align="right">
                   <Tooltip title="Descargar">
                     <span>
-                      <IconButton href={item.fileUrl ?? ''} target="_blank" rel="noreferrer" disabled={item.status !== 'READY' || !item.fileUrl}>
+                      <IconButton onClick={() => props.onDownload(item)} disabled={item.status !== 'READY' || !item.fileUrl}>
                         <Download />
                       </IconButton>
                     </span>

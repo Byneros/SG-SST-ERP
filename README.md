@@ -20,6 +20,8 @@ cp sgsst-api/.env.example sgsst-api/.env
 cp sgsst-web/.env.example sgsst-web/.env
 ```
 
+Antes de iniciar, reemplazar `JWT_SECRET` en `.env` por un secreto unico de al menos 32 caracteres. La API rechaza el valor de ejemplo cuando se ejecuta en produccion.
+
 2. Levantar el entorno:
 
 ```bash
@@ -31,8 +33,9 @@ docker compose up --build
 - Web: `http://localhost:5173`
 - API: `http://localhost:3001/api/v1`
 - Health: `http://localhost:3001/api/v1/health`
+- Ready: `http://localhost:3001/api/v1/ready`
 - Swagger: `http://localhost:3001/docs`
-- Archivos subidos: `http://localhost:3001/uploads`
+- Los documentos y exportaciones requieren autenticacion y autorizacion en la API.
 - Redis: `localhost:6379`
 
 ## Verificacion local sin Docker
@@ -40,6 +43,7 @@ docker compose up --build
 ```bash
 cd sgsst-api
 npx prisma generate
+npx prisma migrate status
 npm run test
 npm run test:e2e
 npm run build
@@ -58,6 +62,8 @@ La arquitectura SaaS aplicada esta documentada en:
 
 - `docs/arquitectura-sgsst.md`
 - `docs/backups-postgresql.md`
+- `docs/operacion-produccion.md`
+- `docs/despliegue-por-ambientes.md`
 - `docs/correo-transaccional.md`
 - `docs/fase-2-inventario-modulos-sgsst.md`
 - `docs/reportes-exportaciones.md`
@@ -68,8 +74,7 @@ La arquitectura SaaS aplicada esta documentada en:
 
 ## Roadmap tecnico inmediato
 
-1. Pipeline de despliegue por ambiente.
+1. Configurar el proveedor cloud para consumir imagenes GHCR por etiqueta SHA.
 2. Sincronizacion externa de backups a bucket cifrado.
-3. Observabilidad con logs estructurados y metricas.
-4. SSO OIDC/SAML para clientes empresariales.
-5. Consola administrativa para consultar entregas externas y reintentar casos puntuales.
+3. SSO OIDC/SAML para clientes empresariales.
+4. Consola administrativa para consultar entregas externas y reintentar casos puntuales.

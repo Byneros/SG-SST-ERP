@@ -1,0 +1,591 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                     String         @id @default(uuid())
+  name                   String
+  email                  String         @unique
+  password               String
+  role                   Role           @default(EMPLOYEE)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  companyId              String?
+  isActive               Boolean        @default(true)
+  deletedAt              DateTime?
+  refreshTokenHash       String?
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
+  mfaSecret              String?
+  mfaEnabled             Boolean        @default(false)
+  auditLogs              AuditLog[]
+  notifications          Notification[]
+  reportExports          ReportExport[]
+  company                Company?       @relation(fields: [companyId], references: [id])
+}
+
+model Company {
+  id                            String                       @id @default(uuid())
+  name                          String
+  nit                           String                       @unique
+  address                       String?
+  phone                         String?
+  email                         String?
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  isActive                      Boolean                      @default(true)
+  deletedAt                     DateTime?
+  arl                           String?
+  riskClass                     CompanyRiskClass             @default(CLASS_I)
+  economicActivity              String?
+  city                          String?
+  department                    String?
+  reportExportExpirationDays    Int?
+  reportExportRetentionDays     Int?
+  reportFailureRateAlertPercent Int?
+  reportStorageAlertBytes       Int?
+  whatsappAlertsEnabled         Boolean                      @default(false)
+  whatsappAlertPhone            String?
+  audits                        Audit[]
+  legalRequirements             CompanyLegalRequirement[]
+  documents                     Document[]
+  employees                     Employee[]
+  externalDeliveries            ExternalDelivery[]
+  incidents                     Incident[]
+  indicators                    Indicator[]
+  legalComplianceReviews        LegalComplianceReview[]
+  notifications                 Notification[]
+  reportExports                 ReportExport[]
+  reportMetricSnapshots         ReportExportMetricSnapshot[]
+  risks                         Risk[]
+  trainings                     Training[]
+  users                         User[]
+}
+
+model Employee {
+  id               String           @id @default(uuid())
+  firstName        String
+  lastName         String
+  document         String           @unique
+  position         String
+  email            String?
+  phone            String?
+  createdAt        DateTime         @default(now())
+  companyId        String
+  isActive         Boolean          @default(true)
+  deletedAt        DateTime?
+  updatedAt        DateTime         @updatedAt
+  documentType     DocumentType     @default(CC)
+  workCenter       String?
+  contractType     ContractType     @default(INDEFINITE)
+  employmentStatus EmploymentStatus @default(ACTIVE)
+  hireDate         DateTime?
+  company          Company          @relation(fields: [companyId], references: [id])
+}
+
+model Risk {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  level       RiskLevel
+  createdAt   DateTime  @default(now())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+}
+
+model Incident {
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  date        DateTime
+  status      IncidentStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id])
+}
+
+model Training {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  createdAt   DateTime @default(now())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+}
+
+model Audit {
+  id          String         @id @default(uuid())
+  title       String
+  description String?
+  scheduledAt DateTime
+  result      String?
+  createdAt   DateTime       @default(now())
+  companyId   String
+  status      AuditStatus    @default(PLANNED)
+  scope       String?
+  auditorName String?
+  closedAt    DateTime?
+  isActive    Boolean        @default(true)
+  deletedAt   DateTime?
+  updatedAt   DateTime       @updatedAt
+  company     Company        @relation(fields: [companyId], references: [id])
+  findings    AuditFinding[]
+}
+
+model AuditFinding {
+  id          String             @id @default(uuid())
+  title       String
+  description String?
+  severity    FindingSeverity    @default(MINOR)
+  status      FindingStatus      @default(OPEN)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  auditId     String
+  audit       Audit              @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  actions     CorrectiveAction[]
+}
+
+model CorrectiveAction {
+  id          String                 @id @default(uuid())
+  title       String
+  description String?
+  responsible String
+  dueDate     DateTime
+  status      CorrectiveActionStatus @default(PENDING)
+  closedAt    DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  findingId   String
+  finding     AuditFinding           @relation(fields: [findingId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id          String            @id @default(uuid())
+  name        String
+  fileUrl     String
+  createdAt   DateTime          @default(now())
+  companyId   String
+  description String?
+  category    DocumentCategory  @default(OTHER)
+  status      DocumentStatus    @default(DRAFT)
+  fileName    String?
+  mimeType    String?
+  version     Int               @default(1)
+  expiresAt   DateTime?
+  isActive    Boolean           @default(true)
+  deletedAt   DateTime?
+  updatedAt   DateTime          @updatedAt
+  company     Company           @relation(fields: [companyId], references: [id])
+  versions    DocumentVersion[]
+}
+
+model DocumentVersion {
+  id         String   @id @default(uuid())
+  version    Int
+  fileUrl    String
+  fileName   String?
+  mimeType   String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model Indicator {
+  id        String   @id @default(uuid())
+  name      String
+  value     Float
+  createdAt DateTime @default(now())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+}
+
+model Notification {
+  id                 String               @id @default(uuid())
+  title              String
+  message            String
+  read               Boolean              @default(false)
+  createdAt          DateTime             @default(now())
+  userId             String
+  type               NotificationType     @default(INFO)
+  priority           NotificationPriority @default(MEDIUM)
+  entity             String?
+  entityId           String?
+  readAt             DateTime?
+  companyId          String?
+  externalDeliveries ExternalDelivery[]
+  company            Company?             @relation(fields: [companyId], references: [id])
+  user               User                 @relation(fields: [userId], references: [id])
+}
+
+model ExternalDelivery {
+  id             String                   @id @default(uuid())
+  provider       ExternalDeliveryProvider
+  status         ExternalDeliveryStatus   @default(PENDING)
+  target         String?
+  subject        String?
+  payload        Json?
+  response       Json?
+  error          String?
+  entity         String?
+  entityId       String?
+  attemptedAt    DateTime                 @default(now())
+  deliveredAt    DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  companyId      String?
+  notificationId String?
+  attemptCount   Int                      @default(0)
+  maxAttempts    Int                      @default(3)
+  nextAttemptAt  DateTime?
+  company        Company?                 @relation(fields: [companyId], references: [id])
+  notification   Notification?            @relation(fields: [notificationId], references: [id])
+
+  @@index([provider, status, attemptedAt])
+  @@index([status, nextAttemptAt])
+  @@index([companyId, attemptedAt])
+  @@index([entity, entityId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+}
+
+model ReportExport {
+  id                 String             @id @default(uuid())
+  kind               String
+  format             String
+  status             ReportExportStatus @default(QUEUED)
+  requestedCompanyId String?
+  fileUrl            String?
+  fileName           String?
+  mimeType           String?
+  storageKey         String?
+  size               Int?
+  jobId              String?
+  error              String?
+  requestedAt        DateTime           @default(now())
+  startedAt          DateTime?
+  completedAt        DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  requestedById      String
+  companyId          String?
+  company            Company?           @relation(fields: [companyId], references: [id])
+  requestedBy        User               @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([requestedById, createdAt])
+  @@index([companyId, createdAt])
+  @@index([status, expiresAt])
+}
+
+model ReportExportMetricSnapshot {
+  id                       String   @id @default(uuid())
+  date                     DateTime
+  scopeKey                 String
+  total                    Int      @default(0)
+  queued                   Int      @default(0)
+  processing               Int      @default(0)
+  ready                    Int      @default(0)
+  failed                   Int      @default(0)
+  expired                  Int      @default(0)
+  storageBytes             Int      @default(0)
+  averageGenerationSeconds Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  companyId                String?
+  company                  Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([date, scopeKey])
+  @@index([companyId, date])
+}
+
+model LegalNorm {
+  id            String             @id @default(uuid())
+  code          String             @unique
+  name          String
+  type          String
+  issuingEntity String?
+  issuedAt      DateTime?
+  effectiveFrom DateTime?
+  status        LegalNormStatus    @default(ACTIVE)
+  url           String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  requirements  LegalRequirement[]
+}
+
+model LegalRequirement {
+  id                   String                     @id @default(uuid())
+  article              String?
+  numeral              String?
+  title                String
+  description          String
+  obligationType       String?
+  frequency            LegalObligationFrequency   @default(ANNUAL)
+  appliesTo            String?
+  riskLevel            RiskLevel                  @default(MEDIUM)
+  active               Boolean                    @default(true)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  normId               String
+  companyRequirements  CompanyLegalRequirement[]
+  evidenceRequirements LegalEvidenceRequirement[]
+  norm                 LegalNorm                  @relation(fields: [normId], references: [id], onDelete: Cascade)
+  mappings             LegalRequirementMapping[]
+
+  @@index([normId])
+  @@index([active, riskLevel])
+}
+
+model CompanyLegalRequirement {
+  id             String                 @id @default(uuid())
+  applies        Boolean                @default(true)
+  status         LegalRequirementStatus @default(PENDING)
+  ownerId        String?
+  dueDate        DateTime?
+  nextReviewAt   DateTime?
+  lastReviewedAt DateTime?
+  score          Int?
+  notes          String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  companyId      String
+  requirementId  String
+  company        Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requirement    LegalRequirement       @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  evidences      LegalEvidenceLink[]
+
+  @@unique([companyId, requirementId])
+  @@index([companyId, status])
+  @@index([dueDate])
+}
+
+model LegalRequirementMapping {
+  id            String           @id @default(uuid())
+  moduleKey     String
+  entityName    String?
+  entityId      String?
+  evidenceType  String?
+  kpiKey        String?
+  reportKey     String?
+  createdAt     DateTime         @default(now())
+  requirementId String
+  requirement   LegalRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@index([moduleKey])
+}
+
+model LegalEvidenceRequirement {
+  id             String                   @id @default(uuid())
+  evidenceName   String
+  evidenceType   String
+  mandatory      Boolean                  @default(true)
+  frequency      LegalObligationFrequency @default(ANNUAL)
+  retentionYears Int?
+  createdAt      DateTime                 @default(now())
+  requirementId  String
+  requirement    LegalRequirement         @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+}
+
+model LegalEvidenceLink {
+  id                   String                  @id @default(uuid())
+  entity               String
+  entityId             String
+  status               LegalRequirementStatus  @default(PENDING)
+  reviewedById         String?
+  reviewedAt           DateTime?
+  comments             String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  companyRequirementId String
+  companyRequirement   CompanyLegalRequirement @relation(fields: [companyRequirementId], references: [id], onDelete: Cascade)
+
+  @@index([entity, entityId])
+}
+
+model LegalComplianceReview {
+  id             String   @id @default(uuid())
+  period         String
+  score          Int      @default(0)
+  status         String   @default("DRAFT")
+  reviewedById   String?
+  reportExportId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, period])
+}
+
+enum Role {
+  ADMIN
+  SST
+  EMPLOYEE
+  AUDITOR
+  SUPER_ADMIN
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum LegalNormStatus {
+  ACTIVE
+  INACTIVE
+  SUPERSEDED
+}
+
+enum LegalObligationFrequency {
+  ONCE
+  ANNUAL
+  SEMIANNUAL
+  QUARTERLY
+  MONTHLY
+  EVENT_BASED
+  CONTINUOUS
+}
+
+enum LegalRequirementStatus {
+  PENDING
+  COMPLIES
+  PARTIAL
+  NON_COMPLIANT
+  NOT_APPLICABLE
+}
+
+enum IncidentStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum CompanyRiskClass {
+  CLASS_I
+  CLASS_II
+  CLASS_III
+  CLASS_IV
+  CLASS_V
+}
+
+enum DocumentType {
+  CC
+  CE
+  TI
+  PASSPORT
+  NIT
+}
+
+enum ContractType {
+  INDEFINITE
+  FIXED_TERM
+  SERVICE
+  APPRENTICESHIP
+  TEMPORARY
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  RETIRED
+}
+
+enum DocumentCategory {
+  POLICY
+  PROCEDURE
+  CERTIFICATE
+  TRAINING_EVIDENCE
+  INCIDENT_EVIDENCE
+  AUDIT_EVIDENCE
+  MEDICAL
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  EXPIRED
+  ARCHIVED
+}
+
+enum NotificationType {
+  INFO
+  DOCUMENT_EXPIRING
+  TRAINING_OVERDUE
+  INCIDENT_OPEN
+  TASK
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ExternalDeliveryProvider {
+  WHATSAPP
+  EMAIL
+  TEAMS
+  SLACK
+}
+
+enum ExternalDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum AuditStatus {
+  PLANNED
+  IN_PROGRESS
+  CLOSED
+  CANCELLED
+}
+
+enum FindingSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum FindingStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum CorrectiveActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum ReportExportStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  EXPIRED
+}

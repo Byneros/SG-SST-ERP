@@ -21,7 +21,7 @@ Los archivos se guardan en:
 backups/postgres/*.dump
 ```
 
-El formato es `custom` de PostgreSQL, restaurable con `pg_restore`.
+El formato es `custom` de PostgreSQL, restaurable con `pg_restore`. Cada backup se valida con `pg_restore --list` antes de copiarlo al host.
 
 ## Backup manual en Windows
 
@@ -32,7 +32,7 @@ El formato es `custom` de PostgreSQL, restaurable con `pg_restore`.
 ## Restauracion manual en Windows
 
 ```powershell
-.\scripts\restore-postgres.ps1 -BackupFile .\backups\postgres\sgsst_YYYYMMDD_HHMMSS.dump
+.\scripts\restore-postgres.ps1 -BackupFile .\backups\postgres\sgsst_YYYYMMDD_HHMMSS.dump -ConfirmRestore
 ```
 
 La restauracion elimina y recrea la base `sgsst`, luego aplica el dump. Usar solo sobre ambientes controlados.
