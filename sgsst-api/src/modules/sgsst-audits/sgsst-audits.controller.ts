@@ -30,7 +30,7 @@ export class SgsstAuditsController {
   constructor(private readonly service: SgsstAuditsService) {}
 
   @Get()
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListQueryDto,
@@ -40,7 +40,7 @@ export class SgsstAuditsController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

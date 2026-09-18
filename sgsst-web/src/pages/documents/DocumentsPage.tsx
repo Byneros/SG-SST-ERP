@@ -23,6 +23,7 @@ export function DocumentsPage(props: {
   meta: PageMeta
   tableState: TableState
   canManage: boolean
+  canExport: boolean
   onTableChange: (state: TableState) => void
   onCreate: () => void
   onPreloadCreate?: () => void
@@ -38,17 +39,19 @@ export function DocumentsPage(props: {
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="Documentos y evidencias" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
-        <Button variant="outlined" onClick={() => props.onDownloadReport('pdf')}>
-          Vencidos PDF
-        </Button>
-        <Button variant="outlined" onClick={() => props.onDownloadReport('csv')}>
-          Vencidos CSV
-        </Button>
-        <Button variant="contained" onClick={() => props.onScheduleReport('pdf')}>
-          Programar PDF
-        </Button>
-      </Stack>
+      {props.canExport && (
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
+          <Button variant="outlined" onClick={() => props.onDownloadReport('pdf')}>
+            Vencidos PDF
+          </Button>
+          <Button variant="outlined" onClick={() => props.onDownloadReport('csv')}>
+            Vencidos CSV
+          </Button>
+          <Button variant="contained" onClick={() => props.onScheduleReport('pdf')}>
+            Programar PDF
+          </Button>
+        </Stack>
+      )}
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por documento, archivo o empresa" />
       <TableContainer>
         <Table>

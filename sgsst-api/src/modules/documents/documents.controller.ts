@@ -37,7 +37,7 @@ export class DocumentsController {
   ) {}
 
   @Get()
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListQueryDto,
@@ -50,7 +50,7 @@ export class DocumentsController {
   }
 
   @Get(':id/download')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   async download(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -73,7 +73,7 @@ export class DocumentsController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

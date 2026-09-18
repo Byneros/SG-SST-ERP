@@ -12,7 +12,7 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('summary')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   summary(
     @CurrentUser() user: AuthenticatedUser,
     @Query('refresh') refresh?: string,

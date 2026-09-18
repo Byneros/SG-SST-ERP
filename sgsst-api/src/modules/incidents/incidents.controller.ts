@@ -25,7 +25,7 @@ export class IncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
 
   @Get()
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('companyId') companyId?: string,
@@ -34,7 +34,7 @@ export class IncidentsController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

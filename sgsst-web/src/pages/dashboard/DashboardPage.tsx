@@ -9,6 +9,7 @@ export function DashboardPage({
   companies,
   employees,
   activeCompanyName,
+  canExport,
   onDownloadReport,
   onScheduleReport,
 }: {
@@ -16,23 +17,26 @@ export function DashboardPage({
   companies: Company[]
   employees: Employee[]
   activeCompanyName?: string
+  canExport: boolean
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
 }) {
   return (
     <>
       <ActiveCompanyBanner name={activeCompanyName} />
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
-        <Button variant="outlined" onClick={() => onDownloadReport('pdf')}>
-          Resumen PDF
-        </Button>
-        <Button variant="outlined" onClick={() => onDownloadReport('csv')}>
-          Resumen CSV
-        </Button>
-        <Button variant="contained" onClick={() => onScheduleReport('pdf')}>
-          Programar PDF
-        </Button>
-      </Stack>
+      {canExport && (
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
+          <Button variant="outlined" onClick={() => onDownloadReport('pdf')}>
+            Resumen PDF
+          </Button>
+          <Button variant="outlined" onClick={() => onDownloadReport('csv')}>
+            Resumen CSV
+          </Button>
+          <Button variant="contained" onClick={() => onScheduleReport('pdf')}>
+            Programar PDF
+          </Button>
+        </Stack>
+      )}
       <Grid container spacing={2}>
         {stats.map((stat) => (
           <Grid key={stat.label} size={{ xs: 12, md: 4 }}>

@@ -27,7 +27,7 @@ export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
   @Get()
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListQueryDto,
@@ -40,7 +40,7 @@ export class EmployeesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

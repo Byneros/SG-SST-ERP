@@ -155,11 +155,14 @@ function App() {
   const [userForm, setUserForm] = useState(emptyUser)
 
   const isPlatformAdmin = user?.role === 'SUPER_ADMIN'
+  const isEmployee = user?.role === 'EMPLOYEE'
   const activeCompanyId = user?.activeCompanyId ?? user?.companyId
   const canManageCompanies = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canManageEmployees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canViewReports = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  // EMPLOYEE consulta datos y dashboard, pero no genera exports (solo-backoffice).
+  const canExportReports = canViewReports
   const canViewReportHistory = isPlatformAdmin
   const canManageDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canDeleteEmployees = isPlatformAdmin || user?.role === 'ADMIN'
@@ -963,6 +966,12 @@ function App() {
   }
 
   function selectView(nextView: View) {
+    // Defensa en profundidad: el backend es la autoridad, aqui solo evitamos
+    // navegaciones que producirian 403 para roles sin permisos.
+    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'legalCompliance', 'reports', 'users', 'externalDeliveries', 'audit']
+    if (isEmployee && employeeBlocked.includes(nextView)) {
+      return
+    }
     setView(nextView)
     setMobileOpen(false)
   }
@@ -1040,6 +1049,7 @@ function App() {
                 companies={companies}
                 employees={employees}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+                canExport={canExportReports}
                 onDownloadReport={(format) => handleDownloadReport('summary', format)}
                 onScheduleReport={(format) => handleScheduleReport('summary', format)}
               />
@@ -1082,6 +1092,7 @@ function App() {
                 tableState={employeeTable}
                 canManage={canManageEmployees}
                 canDelete={canDeleteEmployees}
+                canExport={canExportReports}
                 onTableChange={setEmployeeTable}
                 onCreate={() => openEmployeeForm()}
                 onPreloadCreate={preloadEmployeeDialog}
@@ -1109,6 +1120,7 @@ function App() {
                 meta={documentMeta}
                 tableState={documentTable}
                 canManage={canManageDocuments}
+                canExport={canExportReports}
                 onTableChange={setDocumentTable}
                 onCreate={() => openDocumentForm()}
                 onPreloadCreate={preloadDocumentDialog}
@@ -1137,6 +1149,7 @@ function App() {
                 meta={sgsstAuditMeta}
                 tableState={sgsstAuditTable}
                 canManage={canManageDocuments}
+                canExport={canExportReports}
                 onTableChange={setSgsstAuditTable}
                 onCreate={() => openSgsstAuditForm()}
                 onPreloadCreate={preloadSgsstAuditDialog}

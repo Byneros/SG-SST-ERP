@@ -58,6 +58,8 @@ type Tenant = {
   adminId: string;
   adminEmail: string;
   token: string;
+  /** Token de un usuario EMPLOYEE de la empresa (solo companyA lo usa). */
+  employeeToken?: string;
   employeeId: string;
   documentId: string;
   riskId: string;
@@ -1333,6 +1335,30 @@ describe('multi-tenant isolation (e2e)', () => {
     jwtService = moduleFixture.get(JwtService);
     companyA = await bootstrapTenant(companyARecord, 'admin-a@test.com');
     companyB = await bootstrapTenant(companyBRecord, 'admin-b@test.com');
+
+    // Usuario EMPLOYEE de la empresa A (rol operativo de solo lectura).
+    const employeeUser = {
+      id: randomUUID(),
+      name: 'Empleado A',
+      email: 'empleado-a@test.com',
+      password: passwordHash,
+      role: 'EMPLOYEE',
+      companyId: companyARecord.id,
+      refreshTokenHash: null,
+      isActive: true,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    store.users.push(employeeUser);
+    companyA.employeeToken = await jwtService.signAsync({
+      sub: employeeUser.id,
+      email: employeeUser.email,
+      role: employeeUser.role,
+      companyId: employeeUser.companyId,
+      activeCompanyId: null,
+      type: 'access',
+    });
   });
 
   afterAll(async () => {
@@ -1758,6 +1784,106 @@ describe('multi-tenant isolation (e2e)', () => {
       .delete(`/api/v1/users/${companyB.adminId}`)
       .set('Authorization', tokenFor(companyA))
       .expect(404);
+  });
+
+  // -------------------------------------------------------------------------
+  // EMPLOYEE: lectura de su empresa, bloqueo de mutaciones y de datos ajenos
+  // -------------------------------------------------------------------------
+
+  it('allows Employee A to read its own company data', async () => {
+    const token = `Bearer ${companyA.employeeToken}`;
+
+    await request(app.getHttpServer())
+      .get('/api/v1/employees')
+      .set('Authorization', token)
+      .expect(200)
+      .then((response) => {
+        const companyIds = (
+          response.body.data as Array<{ companyId: string }>
+        ).map((employee) => employee.companyId);
+        expect(companyIds.length).toBeGreaterThan(0);
+        for (const companyId of companyIds) {
+          expect(companyId).toBe(companyA.companyId);
+        }
+      });
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/employees/${companyA.employeeId}`)
+      .set('Authorization', token)
+      .expect(200);
+  });
+
+  it('blocks Employee A from other company data', async () => {
+    const token = `Bearer ${companyA.employeeToken}`;
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/employees/${companyB.employeeId}`)
+      .set('Authorization', token)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/incidents')
+      .query({ companyId: companyB.companyId })
+      .set('Authorization', token)
+      .expect(403);
+  });
+
+  it('restricts Employee A to read-only endpoints (mutations require SST/ADMIN)', async () => {
+    const token = `Bearer ${companyA.employeeToken}`;
+
+    await request(app.getHttpServer())
+      .post('/api/v1/employees')
+      .set('Authorization', token)
+      .send({
+        firstName: 'No',
+        lastName: 'Autorizado',
+        document: 'DOC-A-403',
+        position: 'Operario',
+      })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/employees/${companyA.employeeId}`)
+      .set('Authorization', token)
+      .send({ position: 'Hacked' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/employees/${companyA.employeeId}`)
+      .set('Authorization', token)
+      .expect(403);
+
+    // Los reportes/exports siguen siendo solo-backoffice.
+    await request(app.getHttpServer())
+      .get('/api/v1/reports/exports')
+      .set('Authorization', token)
+      .expect(403);
+  });
+
+  it('allows Employee A to report an incident that lands only in its own company', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/incidents')
+      .set('Authorization', `Bearer ${companyA.employeeToken}`)
+      .send({
+        title: 'Incidente reportado por empleado',
+        description: 'Reporte desde el rol EMPLOYEE',
+        date: new Date().toISOString(),
+      })
+      .expect(201);
+
+    expect(response.body.companyId).toBe(companyA.companyId);
+
+    // Intento de manipulacion: companyId ajeno del cliente se rechaza (403).
+    await request(app.getHttpServer())
+      .post('/api/v1/incidents')
+      .set('Authorization', `Bearer ${companyA.employeeToken}`)
+      .send({
+        title: 'Incidente infiltrado',
+        description: 'Debe ser rechazado',
+        date: new Date().toISOString(),
+        companyId: companyB.companyId,
+      })
+      .expect(403);
   });
 
   // -------------------------------------------------------------------------
