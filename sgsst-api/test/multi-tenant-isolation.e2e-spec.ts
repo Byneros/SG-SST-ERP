@@ -10,6 +10,9 @@ import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { PrismaService } from '../src/database/prisma.service';
 import { AuthController } from '../src/modules/auth/auth.controller';
+import { ReportsController } from '../src/modules/reports/reports.controller';
+import { ReportsQueueService } from '../src/modules/reports/reports-queue.service';
+import { ReportsService } from '../src/modules/reports/reports.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { TotpService } from '../src/modules/auth/totp.service';
 import { AuditService } from '../src/modules/audit/audit.service';
@@ -1247,6 +1250,7 @@ describe('multi-tenant isolation (e2e)', () => {
         AuthController,
         CompaniesController,
         UsersController,
+        ReportsController,
         EmployeesController,
         DocumentsController,
         RisksController,
@@ -1304,6 +1308,19 @@ describe('multi-tenant isolation (e2e)', () => {
           useValue: new MemorySgsstAuditsRepository(store),
         },
         { provide: AuditService, useValue: new MemoryAuditService(store) },
+        {
+          provide: ReportsService,
+          useValue: {
+            // El harness valida el RBAC del guard (403), no la logica del servicio.
+            findExports: jest.fn().mockResolvedValue({ data: [], meta: { page: 1, pageSize: 10, total: 0, totalPages: 0 } }),
+            metrics: jest.fn(),
+            metricHistory: jest.fn(),
+          },
+        },
+        {
+          provide: ReportsQueueService,
+          useValue: { enqueue: jest.fn() },
+        },
         {
           provide: PrismaService,
           useValue: {
@@ -1884,6 +1901,78 @@ describe('multi-tenant isolation (e2e)', () => {
         companyId: companyB.companyId,
       })
       .expect(403);
+  });
+
+  it('allows Employee A to read incidents/risks/trainings of its own company only', async () => {
+    const token = `Bearer ${companyA.employeeToken}`;
+
+    // Listados de operaciones: visibles para el trabajador, siempre su empresa.
+    for (const resource of ['incidents', 'risks', 'trainings'] as const) {
+      await request(app.getHttpServer())
+        .get(`/api/v1/${resource}`)
+        .set('Authorization', token)
+        .expect(200)
+        .then((response) => {
+          const companyIds = (
+            response.body as Array<{ companyId: string }>
+          ).map((row) => row.companyId);
+          expect(companyIds.length).toBeGreaterThan(0);
+          for (const companyId of companyIds) {
+            expect(companyId).toBe(companyA.companyId);
+          }
+        });
+    }
+
+    // Detalle cross-tenant: un recurso de Empresa B no existe para el empleado.
+    await request(app.getHttpServer())
+      .get(`/api/v1/incidents/${companyB.incidentId}`)
+      .set('Authorization', token)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/risks/${companyB.riskId}`)
+      .set('Authorization', token)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/trainings/${companyB.trainingId}`)
+      .set('Authorization', token)
+      .expect(404);
+  });
+
+  it('denies Employee A cross-tenant manipulation of incidents/risks/trainings', async () => {
+    const token = `Bearer ${companyA.employeeToken}`;
+
+    // RBAC: EMPLOYEE nunca muta recursos (403 antes de llegar al scope).
+    await request(app.getHttpServer())
+      .patch(`/api/v1/risks/${companyA.riskId}`)
+      .set('Authorization', token)
+      .send({ title: 'Hacked' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/risks/${companyA.riskId}`)
+      .set('Authorization', token)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/v1/risks')
+      .set('Authorization', token)
+      .send({ title: 'Riesgo no autorizado', level: 'HIGH' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/v1/trainings')
+      .set('Authorization', token)
+      .send({ title: 'Capacitacion no autorizada', date: new Date().toISOString() })
+      .expect(403);
+
+    // Defensa en profundidad: aun con RBAC sorteado, el scope devuelve 404
+    // para recursos de otra empresa (aqui lo ejercita el rol ADMIN de A).
+    await request(app.getHttpServer())
+      .patch(`/api/v1/risks/${companyB.riskId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ title: 'Hacked' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/trainings/${companyB.trainingId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
   });
 
   // -------------------------------------------------------------------------

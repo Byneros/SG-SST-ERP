@@ -1,4 +1,4 @@
-import { Assessment, AssignmentTurnedIn, Business, Description, Gavel, HealthAndSafety, History, Logout, ManageAccounts, Menu, Notifications, People, Refresh, SpaceDashboard } from '@mui/icons-material'
+import { Assessment, AssignmentTurnedIn, Business, Description, Gavel, HealthAndSafety, History, Logout, ManageAccounts, Menu, Notifications, People, Refresh, ReportProblem, School, SpaceDashboard, WarningAmber } from '@mui/icons-material'
 import { Alert, AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, FormControl, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, MenuItem, Paper, Select, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
 import { useState, type ReactNode } from 'react'
 import type { AppNotification, AuthUser, Company, View } from '../types'
@@ -84,6 +84,9 @@ export function AppLayout({
         <NavButton active={view === 'dashboard'} icon={<SpaceDashboard />} label="Dashboard" onClick={() => onSelectView('dashboard')} onPreload={() => onPreloadView('dashboard')} />
         <NavButton active={view === 'companies'} icon={<Business />} label="Empresas" onClick={() => onSelectView('companies')} onPreload={() => onPreloadView('companies')} />
         <NavButton active={view === 'employees'} icon={<People />} label="Empleados" onClick={() => onSelectView('employees')} onPreload={() => onPreloadView('employees')} />
+        <NavButton active={view === 'incidents'} icon={<ReportProblem />} label="Incidentes" onClick={() => onSelectView('incidents')} onPreload={() => onPreloadView('incidents')} />
+        <NavButton active={view === 'risks'} icon={<WarningAmber />} label="Riesgos" onClick={() => onSelectView('risks')} onPreload={() => onPreloadView('risks')} />
+        <NavButton active={view === 'trainings'} icon={<School />} label="Capacitaciones" onClick={() => onSelectView('trainings')} onPreload={() => onPreloadView('trainings')} />
         {canViewDocuments && <NavButton active={view === 'documents'} icon={<Description />} label="Documentos" onClick={() => onSelectView('documents')} onPreload={() => onPreloadView('documents')} />}
         {canViewDocuments && <NavButton active={view === 'sgsstAudits'} icon={<AssignmentTurnedIn />} label="Auditorias SG-SST" onClick={() => onSelectView('sgsstAudits')} onPreload={() => onPreloadView('sgsstAudits')} />}
         {canViewDocuments && <NavButton active={view === 'legalCompliance'} icon={<Gavel />} label="Mapa normativo" onClick={() => onSelectView('legalCompliance')} onPreload={() => onPreloadView('legalCompliance')} />}

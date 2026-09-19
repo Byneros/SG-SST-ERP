@@ -5,6 +5,8 @@ import type {
   DocumentStatus,
   DocumentType,
   EmploymentStatus,
+  IncidentStatus,
+  RiskLevel,
 } from '../types'
 
 export const riskClassOptions: CompanyRiskClass[] = [
@@ -78,6 +80,23 @@ export const documentCategoryLabels: Record<DocumentCategory, string> = {
   AUDIT_EVIDENCE: 'Evidencia de auditoria',
   MEDICAL: 'Medico ocupacional',
   OTHER: 'Otro',
+}
+
+export const incidentStatusOptions: IncidentStatus[] = ['PENDING', 'IN_PROGRESS', 'RESOLVED']
+
+export const incidentStatusLabels: Record<IncidentStatus, string> = {
+  PENDING: 'Pendiente',
+  IN_PROGRESS: 'En progreso',
+  RESOLVED: 'Resuelto',
+}
+
+export const riskLevelOptions: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+
+export const riskLevelLabels: Record<RiskLevel, string> = {
+  LOW: 'Bajo',
+  MEDIUM: 'Medio',
+  HIGH: 'Alto',
+  CRITICAL: 'Critico',
 }
 
 export const documentStatusOptions: DocumentStatus[] = ['DRAFT', 'PUBLISHED', 'EXPIRED', 'ARCHIVED']

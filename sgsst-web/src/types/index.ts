@@ -1,5 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
-export type View = 'dashboard' | 'companies' | 'employees' | 'documents' | 'sgsstAudits' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
+export type View = 'dashboard' | 'companies' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -218,6 +219,37 @@ export type ReportExportMetricSnapshot = {
   storageBytes: number
   averageGenerationSeconds: number
   companyId?: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+}
+
+export type Incident = {
+  id: string
+  title: string
+  description: string
+  date: string
+  status: IncidentStatus
+  createdAt: string
+  companyId: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+}
+
+export type Risk = {
+  id: string
+  title: string
+  description?: string
+  level: RiskLevel
+  createdAt: string
+  companyId: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+}
+
+export type Training = {
+  id: string
+  title: string
+  description?: string
+  date: string
+  createdAt: string
+  companyId: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
 }
 
@@ -498,5 +530,27 @@ export type SgsstAuditFormValues = {
   auditorName: string
   scheduledAt: string
   result: string
+  companyId: string
+}
+
+export type IncidentFormValues = {
+  title: string
+  description: string
+  date: string
+  status: IncidentStatus
+  companyId: string
+}
+
+export type RiskFormValues = {
+  title: string
+  description: string
+  level: RiskLevel
+  companyId: string
+}
+
+export type TrainingFormValues = {
+  title: string
+  description: string
+  date: string
   companyId: string
 }

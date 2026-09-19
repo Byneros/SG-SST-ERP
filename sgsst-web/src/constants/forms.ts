@@ -3,9 +3,12 @@ import type {
   DashboardSummary,
   DocumentFormValues,
   EmployeeFormValues,
+  IncidentFormValues,
   PageMeta,
+  RiskFormValues,
   SgsstAuditFormValues,
   TableState,
+  TrainingFormValues,
   UserFormValues,
   ReportExportMetrics,
 } from '../types'
@@ -72,6 +75,28 @@ export const emptySgsstAudit: SgsstAuditFormValues = {
   auditorName: '',
   scheduledAt: '',
   result: '',
+  companyId: '',
+}
+
+export const emptyIncident: IncidentFormValues = {
+  title: '',
+  description: '',
+  date: '',
+  status: 'PENDING',
+  companyId: '',
+}
+
+export const emptyRisk: RiskFormValues = {
+  title: '',
+  description: '',
+  level: 'LOW',
+  companyId: '',
+}
+
+export const emptyTraining: TrainingFormValues = {
+  title: '',
+  description: '',
+  date: '',
   companyId: '',
 }
 

@@ -32,10 +32,13 @@ import {
   emptyCompany,
   emptyDocument,
   emptyEmployee,
+  emptyIncident,
   emptyMeta,
   emptyReportMetrics,
+  emptyRisk,
   emptySgsstAudit,
   emptySummary,
+  emptyTraining,
   emptyUser,
   initialTableState,
 } from './constants/forms'
@@ -49,16 +52,25 @@ import {
   DocumentsPage,
   EmployeeDialog,
   EmployeesPage,
+  IncidentDialog,
+  IncidentsPage,
   LegalCompliancePage,
   ReportExportsPage,
+  RiskDialog,
+  RisksPage,
   SgsstAuditDialog,
   SgsstAuditsPage,
   preloadSgsstAuditDialog,
   preloadCompanyDialog,
   preloadDocumentDialog,
   preloadEmployeeDialog,
+  preloadIncidentDialog,
+  preloadRiskDialog,
+  preloadTrainingDialog,
   preloadUserDialog,
   preloadView,
+  TrainingDialog,
+  TrainingsPage,
   UserDialog,
   UsersPage,
 } from './routes/lazyRoutes'
@@ -71,13 +83,16 @@ import type {
   DashboardSummary,
   SgsstDocument,
   Employee,
+  Incident,
   Paginated,
   ReportExport,
   ReportExportFilters,
   ReportExportMetricSnapshot,
   ReportExportMetrics,
+  Risk,
   SgsstAudit,
   SystemUser,
+  Training,
   View,
 } from './types'
 import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
@@ -89,6 +104,9 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [risks, setRisks] = useState<Risk[]>([])
+  const [trainings, setTrainings] = useState<Training[]>([])
   const [documents, setDocuments] = useState<SgsstDocument[]>([])
   const [sgsstAudits, setSgsstAudits] = useState<SgsstAudit[]>([])
   const [reportExports, setReportExports] = useState<ReportExport[]>([])
@@ -101,6 +119,9 @@ function App() {
   const [dashboardSummary, setDashboardSummary] = useState(emptySummary)
   const [companyMeta, setCompanyMeta] = useState(emptyMeta)
   const [employeeMeta, setEmployeeMeta] = useState(emptyMeta)
+  const [incidentMeta, setIncidentMeta] = useState(emptyMeta)
+  const [riskMeta, setRiskMeta] = useState(emptyMeta)
+  const [trainingMeta, setTrainingMeta] = useState(emptyMeta)
   const [documentMeta, setDocumentMeta] = useState(emptyMeta)
   const [sgsstAuditMeta, setSgsstAuditMeta] = useState(emptyMeta)
   const [reportExportMeta, setReportExportMeta] = useState(emptyMeta)
@@ -108,6 +129,9 @@ function App() {
   const [auditMeta, setAuditMeta] = useState(emptyMeta)
   const [companyTable, setCompanyTable] = useState(initialTableState)
   const [employeeTable, setEmployeeTable] = useState(initialTableState)
+  const [incidentTable, setIncidentTable] = useState(initialTableState)
+  const [riskTable, setRiskTable] = useState(initialTableState)
+  const [trainingTable, setTrainingTable] = useState(initialTableState)
   const [documentTable, setDocumentTable] = useState(initialTableState)
   const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
   const [reportExportTable, setReportExportTable] = useState(initialTableState)
@@ -145,11 +169,17 @@ function App() {
   })
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; item?: Company }>({ open: false })
   const [employeeDialog, setEmployeeDialog] = useState<{ open: boolean; item?: Employee }>({ open: false })
+  const [incidentDialog, setIncidentDialog] = useState<{ open: boolean; item?: Incident }>({ open: false })
+  const [riskDialog, setRiskDialog] = useState<{ open: boolean; item?: Risk }>({ open: false })
+  const [trainingDialog, setTrainingDialog] = useState<{ open: boolean; item?: Training }>({ open: false })
   const [documentDialog, setDocumentDialog] = useState<{ open: boolean; item?: SgsstDocument }>({ open: false })
   const [sgsstAuditDialog, setSgsstAuditDialog] = useState<{ open: boolean; item?: SgsstAudit }>({ open: false })
   const [userDialog, setUserDialog] = useState<{ open: boolean; item?: SystemUser }>({ open: false })
   const [companyForm, setCompanyForm] = useState(emptyCompany)
   const [employeeForm, setEmployeeForm] = useState(emptyEmployee)
+  const [incidentForm, setIncidentForm] = useState(emptyIncident)
+  const [riskForm, setRiskForm] = useState(emptyRisk)
+  const [trainingForm, setTrainingForm] = useState(emptyTraining)
   const [documentForm, setDocumentForm] = useState(emptyDocument)
   const [sgsstAuditForm, setSgsstAuditForm] = useState(emptySgsstAudit)
   const [userForm, setUserForm] = useState(emptyUser)
@@ -159,6 +189,9 @@ function App() {
   const activeCompanyId = user?.activeCompanyId ?? user?.companyId
   const canManageCompanies = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canManageEmployees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  // Autoservicio: el trabajador reporta incidentes y consulta riesgos/capacitaciones.
+  const canManageOperations = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canReportIncidents = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'EMPLOYEE'
   const canViewDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canViewReports = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   // EMPLOYEE consulta datos y dashboard, pero no genera exports (solo-backoffice).
@@ -177,17 +210,23 @@ function App() {
         ? 'Empresas'
         : view === 'employees'
           ? 'Empleados'
-          : view === 'documents'
-            ? 'Documentos'
-            : view === 'sgsstAudits'
-              ? 'Auditorias SG-SST'
-              : view === 'legalCompliance'
-                ? 'Mapa normativo'
-                : view === 'reports'
-                  ? 'Mis reportes'
-                  : view === 'users'
-                    ? 'Usuarios'
-                    : 'Auditoria'
+          : view === 'incidents'
+            ? 'Incidentes'
+            : view === 'risks'
+              ? 'Riesgos'
+              : view === 'trainings'
+                ? 'Capacitaciones'
+                : view === 'documents'
+                  ? 'Documentos'
+                  : view === 'sgsstAudits'
+                    ? 'Auditorias SG-SST'
+                    : view === 'legalCompliance'
+                      ? 'Mapa normativo'
+                      : view === 'reports'
+                        ? 'Mis reportes'
+                        : view === 'users'
+                          ? 'Usuarios'
+                          : 'Auditoria'
 
   const stats = useMemo(
     () => [
@@ -217,7 +256,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, employeeTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, employeeTable, incidentTable, riskTable, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -238,6 +277,30 @@ function App() {
             },
           })
         : Promise.resolve({ data: { data: [] as Employee[], meta: emptyMeta } })
+      const incidentsRequest = hasCompanyScope
+        ? api.get<Paginated<Incident>>('/incidents', {
+            params: {
+              ...tableParams(incidentTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Incident[], meta: emptyMeta } })
+      const risksRequest = hasCompanyScope
+        ? api.get<Paginated<Risk>>('/risks', {
+            params: {
+              ...tableParams(riskTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Risk[], meta: emptyMeta } })
+      const trainingsRequest = hasCompanyScope
+        ? api.get<Paginated<Training>>('/trainings', {
+            params: {
+              ...tableParams(trainingTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Training[], meta: emptyMeta } })
       const userRequest = canViewUsers && hasCompanyScope
         ? api.get<Paginated<SystemUser>>('/users', {
             params: {
@@ -293,6 +356,9 @@ function App() {
       const [
         companyResponse,
         employeeResponse,
+        incidentsResponse,
+        risksResponse,
+        trainingsResponse,
         documentResponse,
         sgsstAuditResponse,
         reportExportsResponse,
@@ -305,6 +371,9 @@ function App() {
       ] = await Promise.all([
         companyRequest,
         employeeRequest,
+        incidentsRequest,
+        risksRequest,
+        trainingsRequest,
         documentRequest,
         sgsstAuditRequest,
         reportExportsRequest,
@@ -326,6 +395,12 @@ function App() {
       }
       setEmployees(employeeResponse.data.data)
       setEmployeeMeta(employeeResponse.data.meta)
+      setIncidents(incidentsResponse.data.data)
+      setIncidentMeta(incidentsResponse.data.meta)
+      setRisks(risksResponse.data.data)
+      setRiskMeta(risksResponse.data.meta)
+      setTrainings(trainingsResponse.data.data)
+      setTrainingMeta(trainingsResponse.data.meta)
       setDocuments(documentResponse.data.data)
       setDocumentMeta(documentResponse.data.meta)
       setSgsstAudits(sgsstAuditResponse.data.data)
@@ -461,6 +536,9 @@ function App() {
   function resetWorkspace() {
     setCompanies([])
     setEmployees([])
+    setIncidents([])
+    setRisks([])
+    setTrainings([])
     setDocuments([])
     setSgsstAudits([])
     setReportExports([])
@@ -522,6 +600,52 @@ function App() {
     )
     setEmployeeDialog({ open: true, item })
     preloadEmployeeDialog()
+  }
+
+  function openIncidentForm(item?: Incident) {
+    setIncidentForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description,
+            date: item.date.slice(0, 10),
+            status: item.status,
+            companyId: item.companyId,
+          }
+        : { ...emptyIncident, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setIncidentDialog({ open: true, item })
+    preloadIncidentDialog()
+  }
+
+  function openRiskForm(item?: Risk) {
+    setRiskForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description ?? '',
+            level: item.level,
+            companyId: item.companyId,
+          }
+        : { ...emptyRisk, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setRiskDialog({ open: true, item })
+    preloadRiskDialog()
+  }
+
+  function openTrainingForm(item?: Training) {
+    setTrainingForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description ?? '',
+            date: item.date.slice(0, 10),
+            companyId: item.companyId,
+          }
+        : { ...emptyTraining, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setTrainingDialog({ open: true, item })
+    preloadTrainingDialog()
   }
 
   function openUserForm(item?: SystemUser) {
@@ -629,6 +753,39 @@ function App() {
         await api.post('/employees', sanitize(employeeForm))
       }
       setEmployeeDialog({ open: false })
+    })
+  }
+
+  async function saveIncident() {
+    await saveRecord(async () => {
+      if (incidentDialog.item) {
+        await api.patch(`/incidents/${incidentDialog.item.id}`, sanitize(incidentForm))
+      } else {
+        await api.post('/incidents', sanitize(incidentForm))
+      }
+      setIncidentDialog({ open: false })
+    })
+  }
+
+  async function saveRisk() {
+    await saveRecord(async () => {
+      if (riskDialog.item) {
+        await api.patch(`/risks/${riskDialog.item.id}`, sanitize(riskForm))
+      } else {
+        await api.post('/risks', sanitize(riskForm))
+      }
+      setRiskDialog({ open: false })
+    })
+  }
+
+  async function saveTraining() {
+    await saveRecord(async () => {
+      if (trainingDialog.item) {
+        await api.patch(`/trainings/${trainingDialog.item.id}`, sanitize(trainingForm))
+      } else {
+        await api.post('/trainings', sanitize(trainingForm))
+      }
+      setTrainingDialog({ open: false })
     })
   }
 
@@ -770,6 +927,48 @@ function App() {
 
   async function removeEmployee(id: string) {
     await saveRecord(() => api.delete(`/employees/${id}`).then())
+  }
+
+  function confirmDeleteIncident(incident: Incident) {
+    openConfirmDialog(
+      'Eliminar incidente',
+      `¿Seguro que deseas eliminar el incidente ${incident.title}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeIncident(incident.id) },
+    )
+  }
+
+  async function removeIncident(id: string) {
+    await saveRecord(() => api.delete(`/incidents/${id}`).then())
+  }
+
+  function confirmDeleteRisk(risk: Risk) {
+    openConfirmDialog(
+      'Eliminar riesgo',
+      `¿Seguro que deseas eliminar el riesgo ${risk.title}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeRisk(risk.id) },
+    )
+  }
+
+  async function removeRisk(id: string) {
+    await saveRecord(() => api.delete(`/risks/${id}`).then())
+  }
+
+  function confirmDeleteTraining(training: Training) {
+    openConfirmDialog(
+      'Eliminar capacitacion',
+      `¿Seguro que deseas eliminar la capacitacion ${training.title}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeTraining(training.id) },
+    )
+  }
+
+  async function removeTraining(id: string) {
+    await saveRecord(() => api.delete(`/trainings/${id}`).then())
   }
 
   function confirmRestoreEmployee(employee: Employee) {
@@ -1114,6 +1313,63 @@ function App() {
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
+            {view === 'incidents' && (
+              <IncidentsPage
+                incidents={incidents}
+                meta={incidentMeta}
+                tableState={incidentTable}
+                canManage={canReportIncidents}
+                onTableChange={setIncidentTable}
+                onCreate={() => openIncidentForm()}
+                onPreloadCreate={preloadIncidentDialog}
+                onEdit={openIncidentForm}
+                onDelete={(id) => {
+                  const incident = incidents.find((item) => item.id === id)
+                  if (incident) {
+                    confirmDeleteIncident(incident)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'risks' && (
+              <RisksPage
+                risks={risks}
+                meta={riskMeta}
+                tableState={riskTable}
+                canManage={canManageOperations}
+                onTableChange={setRiskTable}
+                onCreate={() => openRiskForm()}
+                onPreloadCreate={preloadRiskDialog}
+                onEdit={openRiskForm}
+                onDelete={(id) => {
+                  const risk = risks.find((item) => item.id === id)
+                  if (risk) {
+                    confirmDeleteRisk(risk)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'trainings' && (
+              <TrainingsPage
+                trainings={trainings}
+                meta={trainingMeta}
+                tableState={trainingTable}
+                canManage={canManageOperations}
+                onTableChange={setTrainingTable}
+                onCreate={() => openTrainingForm()}
+                onPreloadCreate={preloadTrainingDialog}
+                onEdit={openTrainingForm}
+                onDelete={(id) => {
+                  const training = trainings.find((item) => item.id === id)
+                  if (training) {
+                    confirmDeleteTraining(training)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
             {view === 'documents' && (
               <DocumentsPage
                 documents={documents}
@@ -1244,6 +1500,39 @@ function App() {
               onChange={setEmployeeForm}
               onClose={() => setEmployeeDialog({ open: false })}
               onSave={saveEmployee}
+            />
+            <IncidentDialog
+              open={incidentDialog.open}
+              editing={Boolean(incidentDialog.item)}
+              values={incidentForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setIncidentForm}
+              onClose={() => setIncidentDialog({ open: false })}
+              onSave={saveIncident}
+            />
+            <RiskDialog
+              open={riskDialog.open}
+              editing={Boolean(riskDialog.item)}
+              values={riskForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setRiskForm}
+              onClose={() => setRiskDialog({ open: false })}
+              onSave={saveRisk}
+            />
+            <TrainingDialog
+              open={trainingDialog.open}
+              editing={Boolean(trainingDialog.item)}
+              values={trainingForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setTrainingForm}
+              onClose={() => setTrainingDialog({ open: false })}
+              onSave={saveTraining}
             />
             <UserDialog
               open={userDialog.open}
