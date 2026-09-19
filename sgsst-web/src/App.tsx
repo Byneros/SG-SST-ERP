@@ -75,6 +75,7 @@ import {
   UsersPage,
 } from './routes/lazyRoutes'
 import { theme } from './theme'
+import { ViewErrorBoundary } from './components/ViewErrorBoundary'
 import type {
   AppNotification,
   AuditLog,
@@ -395,12 +396,40 @@ function App() {
       }
       setEmployees(employeeResponse.data.data)
       setEmployeeMeta(employeeResponse.data.meta)
-      setIncidents(incidentsResponse.data.data)
-      setIncidentMeta(incidentsResponse.data.meta)
-      setRisks(risksResponse.data.data)
-      setRiskMeta(risksResponse.data.meta)
-      setTrainings(trainingsResponse.data.data)
-      setTrainingMeta(trainingsResponse.data.meta)
+      // incidents/risks/trainings devuelven arrays planos (sin paginacion).
+      const incidentRows = isPaginated<Incident>(incidentsResponse.data)
+        ? incidentsResponse.data.data
+        : Array.isArray(incidentsResponse.data)
+          ? incidentsResponse.data
+          : []
+      setIncidents(incidentRows)
+      setIncidentMeta(
+        isPaginated<Incident>(incidentsResponse.data)
+          ? incidentsResponse.data.meta
+          : { ...emptyMeta, total: incidentRows.length, totalPages: 1 },
+      )
+      const riskRows = isPaginated<Risk>(risksResponse.data)
+        ? risksResponse.data.data
+        : Array.isArray(risksResponse.data)
+          ? risksResponse.data
+          : []
+      setRisks(riskRows)
+      setRiskMeta(
+        isPaginated<Risk>(risksResponse.data)
+          ? risksResponse.data.meta
+          : { ...emptyMeta, total: riskRows.length, totalPages: 1 },
+      )
+      const trainingRows = isPaginated<Training>(trainingsResponse.data)
+        ? trainingsResponse.data.data
+        : Array.isArray(trainingsResponse.data)
+          ? trainingsResponse.data
+          : []
+      setTrainings(trainingRows)
+      setTrainingMeta(
+        isPaginated<Training>(trainingsResponse.data)
+          ? trainingsResponse.data.meta
+          : { ...emptyMeta, total: trainingRows.length, totalPages: 1 },
+      )
       setDocuments(documentResponse.data.data)
       setDocumentMeta(documentResponse.data.meta)
       setSgsstAudits(sgsstAuditResponse.data.data)
@@ -761,7 +790,9 @@ function App() {
       if (incidentDialog.item) {
         await api.patch(`/incidents/${incidentDialog.item.id}`, sanitize(incidentForm))
       } else {
-        await api.post('/incidents', sanitize(incidentForm))
+        // El estado inicial lo fija el backend (PENDING); no se envia en creacion.
+        const { status: _status, ...createPayload } = sanitize(incidentForm)
+        await api.post('/incidents', createPayload)
       }
       setIncidentDialog({ open: false })
     })
@@ -1241,6 +1272,7 @@ function App() {
           }}
           onLogout={logout}
         >
+          <ViewErrorBoundary>
           <Suspense fallback={null}>
             {view === 'dashboard' && (
               <DashboardPage
@@ -1319,6 +1351,7 @@ function App() {
                 meta={incidentMeta}
                 tableState={incidentTable}
                 canManage={canReportIncidents}
+                canEdit={canManageOperations}
                 onTableChange={setIncidentTable}
                 onCreate={() => openIncidentForm()}
                 onPreloadCreate={preloadIncidentDialog}
@@ -1589,6 +1622,7 @@ function App() {
               onClose={() => setMfaSettingsOpen(false)}
             />
           </Suspense>
+          </ViewErrorBoundary>
         </AppLayout>
       )}
     </ThemeProvider>

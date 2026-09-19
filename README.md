@@ -71,6 +71,7 @@ La arquitectura SaaS aplicada esta documentada en:
 - `docs/whatsapp-alertas.md`
 - `docs/schema-sgsst-postgresql.sql`
 - `docs/backend-sgsst-nestjs.md`
+- `docs/permisos-rol-employee.md`
 
 ## Roadmap tecnico inmediato
 

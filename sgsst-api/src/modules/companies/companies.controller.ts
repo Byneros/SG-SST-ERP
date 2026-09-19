@@ -32,7 +32,9 @@ export class CompaniesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SST', 'AUDITOR')
+  // EMPLOYEE consulta su propia empresa (banner del frontend); el scope
+  // multi-tenant garantiza que solo pueda obtener la de su sesion.
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

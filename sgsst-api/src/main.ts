@@ -14,7 +14,8 @@ async function bootstrap() {
     origin: env.corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    // x-retry-refresh: marca del reintento tras renovar el access token (client.ts).
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-retry-refresh'],
   });
   app.useGlobalPipes(
     new ValidationPipe({

@@ -9,6 +9,7 @@ export function IncidentsPage(props: {
   meta: PageMeta
   tableState: TableState
   canManage: boolean
+  canEdit?: boolean
   onTableChange: (state: TableState) => void
   onCreate: () => void
   onPreloadCreate?: () => void
@@ -51,10 +52,10 @@ export function IncidentsPage(props: {
                   <ActiveChip active={incident.status !== 'RESOLVED'} />
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton disabled={!props.canManage} onClick={() => props.onEdit(incident)}>
+                  <IconButton disabled={!props.canEdit} onClick={() => props.onEdit(incident)}>
                     <Edit />
                   </IconButton>
-                  <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDelete(incident.id)}>
+                  <IconButton disabled={!props.canEdit} color="error" onClick={() => props.onDelete(incident.id)}>
                     <Delete />
                   </IconButton>
                 </TableCell>
