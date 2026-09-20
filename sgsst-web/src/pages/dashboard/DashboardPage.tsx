@@ -1,13 +1,14 @@
-import { Box, Button, Grid, Paper, Stack, Typography } from '@mui/material'
+import { Box, Button, Chip, Grid, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
 import type { ReportFormat } from '../../api/client'
 import { ActiveCompanyBanner } from '../../components/TablePieces'
-import type { Company, Employee } from '../../types'
+import type { Company, Employee, SiteKpi } from '../../types'
 
 export function DashboardPage({
   stats,
   companies,
   employees,
+  siteKpis,
   activeCompanyName,
   canExport,
   onDownloadReport,
@@ -16,6 +17,7 @@ export function DashboardPage({
   stats: Array<{ label: string; value: string | number; icon: ReactNode }>
   companies: Company[]
   employees: Employee[]
+  siteKpis: SiteKpi[]
   activeCompanyName?: string
   canExport: boolean
   onDownloadReport: (format: ReportFormat) => void
@@ -84,6 +86,45 @@ export function DashboardPage({
           </Paper>
         </Grid>
       </Grid>
+      {siteKpis.length > 0 && (
+        <Paper className="panel" variant="outlined" sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+            <Typography variant="h6">Sedes</Typography>
+            <Typography color="text.secondary" variant="body2">
+              Empleados activos, riesgos criticos e incidentes abiertos por sede
+            </Typography>
+          </Stack>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Sede</TableCell>
+                  <TableCell align="right">Empleados</TableCell>
+                  <TableCell align="right">Riesgos criticos</TableCell>
+                  <TableCell align="right">Incidentes abiertos</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {siteKpis.map((kpi) => (
+                  <TableRow key={kpi.siteId} hover>
+                    <TableCell>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography fontWeight={700}>
+                          {kpi.code ? `${kpi.name} (${kpi.code})` : kpi.name}
+                        </Typography>
+                        {kpi.isMain && <Chip size="small" label="Principal" color="primary" variant="outlined" />}
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="right">{kpi.employees}</TableCell>
+                    <TableCell align="right">{kpi.criticalRisks}</TableCell>
+                    <TableCell align="right">{kpi.openIncidents}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
     </>
   )
 }

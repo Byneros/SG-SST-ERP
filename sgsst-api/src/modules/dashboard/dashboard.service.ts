@@ -6,6 +6,17 @@ import { resolveCompanyScope } from '../../common/pipes/company-scope';
 import { env } from '../../config/env';
 import { PrismaService } from '../../database/prisma.service';
 
+/** KPIs de una sede para el desglose del dashboard. */
+export type SiteKpi = {
+  siteId: string;
+  name: string;
+  code: string | null;
+  isMain: boolean;
+  employees: number;
+  criticalRisks: number;
+  openIncidents: number;
+};
+
 @Injectable()
 export class DashboardService implements OnModuleDestroy {
   private redis?: IORedis;
@@ -81,6 +92,9 @@ export class DashboardService implements OnModuleDestroy {
       companiesCount + employeesCount + usersCount + inactiveCompanies + inactiveEmployees + inactiveUsers;
     const activeCoreRecords = companiesCount + employeesCount + usersCount;
 
+    // Desglose por sede (solo alcance de una empresa; global no lo desglosa).
+    const siteKpis = companyId ? await this.computeSiteKpis(companyId) : [];
+
     return {
       companiesCount,
       employeesCount,
@@ -97,7 +111,61 @@ export class DashboardService implements OnModuleDestroy {
         totalCoreRecords === 0
           ? 0
           : Math.round((activeCoreRecords / totalCoreRecords) * 100),
+      siteKpis,
     };
+  }
+
+  /** KPIs por sede de la empresa: empleados activos, riesgos criticos e incidentes abiertos. */
+  private async computeSiteKpis(companyId: string): Promise<SiteKpi[]> {
+    const [sites, employeeGroups, criticalRiskGroups, openIncidentGroups] =
+      (await this.prisma.$transaction([
+        // Sedes activas de la empresa (el scope lo garantiza el where).
+        this.prisma.site.findMany({
+          where: { companyId, isActive: true },
+          select: { id: true, name: true, code: true, isMain: true },
+          orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
+        }),
+        this.prisma.employee.groupBy({
+          by: ['siteId'],
+          where: { companyId, isActive: true, siteId: { not: null } },
+          _count: { _all: true },
+        }),
+        this.prisma.risk.groupBy({
+          by: ['siteId'],
+          where: { companyId, level: RiskLevel.CRITICAL, siteId: { not: null } },
+          _count: { _all: true },
+        }),
+        this.prisma.incident.groupBy({
+          by: ['siteId'],
+          where: {
+            companyId,
+            status: { not: IncidentStatus.RESOLVED },
+            siteId: { not: null },
+          },
+          _count: { _all: true },
+        }),
+      ])) as [
+        Array<{ id: string; name: string; code: string | null; isMain: boolean }>,
+        Array<{ siteId: string | null; _count: { _all: number } }>,
+        Array<{ siteId: string | null; _count: { _all: number } }>,
+        Array<{ siteId: string | null; _count: { _all: number } }>,
+      ];
+
+    const countBySite = (groups: Array<{ siteId: string | null; _count: { _all: number } }>) =>
+      new Map(groups.map((group) => [group.siteId, group._count._all]));
+    const employeesBySite = countBySite(employeeGroups);
+    const risksBySite = countBySite(criticalRiskGroups);
+    const incidentsBySite = countBySite(openIncidentGroups);
+
+    return sites.map((site) => ({
+      siteId: site.id,
+      name: site.name,
+      code: site.code,
+      isMain: site.isMain,
+      employees: employeesBySite.get(site.id) ?? 0,
+      criticalRisks: risksBySite.get(site.id) ?? 0,
+      openIncidents: incidentsBySite.get(site.id) ?? 0,
+    }));
   }
 
   private async getCachedSummary(cacheKey: string) {

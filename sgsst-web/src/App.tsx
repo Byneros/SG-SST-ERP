@@ -478,7 +478,7 @@ function App() {
       setAuditMeta(auditResponse.data.meta)
       setNotifications(notificationResponse.data.data)
       setNotificationUnread(notificationResponse.data.meta.unread ?? 0)
-      setDashboardSummary(summaryResponse.data)
+      setDashboardSummary({ ...emptySummary, ...summaryResponse.data, siteKpis: summaryResponse.data.siteKpis ?? [] })
     } catch (currentError) {
       setError(readApiError(currentError))
     } finally {
@@ -1385,6 +1385,8 @@ function App() {
                 stats={stats}
                 companies={companies}
                 employees={employees}
+                // El desglose por sede es del alcance de empresa: SUPER_ADMIN (global) no lo ve.
+                siteKpis={isPlatformAdmin ? [] : dashboardSummary.siteKpis ?? []}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
                 canExport={canExportReports}
                 onDownloadReport={(format) => handleDownloadReport('summary', format)}

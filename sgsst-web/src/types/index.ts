@@ -498,6 +498,7 @@ export type DashboardSummary = {
   inactiveEmployees: number
   inactiveUsers: number
   activeRate: number
+  siteKpis?: SiteKpi[]
 }
 
 export type CompanyFormValues = {
@@ -564,6 +565,16 @@ export type SgsstAuditFormValues = {
   scheduledAt: string
   result: string
   companyId: string
+}
+
+export type SiteKpi = {
+  siteId: string
+  name: string
+  code?: string
+  isMain: boolean
+  employees: number
+  criticalRisks: number
+  openIncidents: number
 }
 
 export type IncidentFormValues = {

@@ -141,6 +141,7 @@ export const emptySummary: DashboardSummary = {
   inactiveEmployees: 0,
   inactiveUsers: 0,
   activeRate: 0,
+  siteKpis: [],
 }
 
 export const emptyReportMetrics: ReportExportMetrics = {
