@@ -9,13 +9,22 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 export class EmployeesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(companyId?: string, query: ListQueryDto = new ListQueryDto()) {
+  async findAll(
+    companyId?: string,
+    query: ListQueryDto = new ListQueryDto(),
+    siteId?: string,
+  ) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const search = query.search?.trim();
     const where: Prisma.EmployeeWhereInput = {
       companyId,
       isActive: query.isActive,
+      ...(siteId
+        ? siteId === 'none'
+          ? { OR: [{ siteId: null }] }
+          : { siteId }
+        : {}),
       ...(search
         ? {
             OR: [

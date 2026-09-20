@@ -1,9 +1,9 @@
 import { Delete, Edit, RestoreFromTrash } from '@mui/icons-material'
-import { Button, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
+import { Button, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
 import { contractTypeLabels } from '../../constants/catalogs'
 import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { Employee, PageMeta, TableState } from '../../types'
+import type { Employee, PageMeta, Site, TableState } from '../../types'
 
 export function EmployeesPage(props: {
   employees: Employee[]
@@ -12,6 +12,9 @@ export function EmployeesPage(props: {
   canManage: boolean
   canDelete: boolean
   canExport: boolean
+  sites: Site[]
+  siteFilter: string
+  onSiteFilterChange: (siteId: string) => void
   onTableChange: (state: TableState) => void
   onCreate: () => void
   onPreloadCreate?: () => void
@@ -39,6 +42,24 @@ export function EmployeesPage(props: {
           </Button>
         </Stack>
       )}
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
+        <TextField
+          select
+          size="small"
+          label="Sede"
+          value={props.siteFilter}
+          onChange={(event) => props.onSiteFilterChange(event.target.value)}
+          sx={{ minWidth: 240 }}
+        >
+          <MenuItem value="all">Todas las sedes</MenuItem>
+          {props.sites.map((site) => (
+            <MenuItem key={site.id} value={site.id}>
+              {site.code ? `${site.name} (${site.code})` : site.name}
+            </MenuItem>
+          ))}
+          <MenuItem value="none">Sin sede asignada</MenuItem>
+        </TextField>
+      </Stack>
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por nombre, documento, cargo o correo" />
       <TableContainer>
         <Table>

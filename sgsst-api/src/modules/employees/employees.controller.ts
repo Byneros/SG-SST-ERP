@@ -18,6 +18,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { resolveCompanyScope } from '../../common/pipes/company-scope';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { EmployeeListQueryDto } from './dto/employee-list-query.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { EmployeesService } from './employees.service';
 
@@ -30,12 +31,14 @@ export class EmployeesController {
   @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: EmployeeListQueryDto,
     @Query('companyId') companyId?: string,
+    @Query('siteId') siteId?: string,
   ) {
     return this.employeesService.findAll(
       resolveCompanyScope(user, companyId),
       query,
+      siteId,
     );
   }
 

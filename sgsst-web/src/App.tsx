@@ -138,6 +138,7 @@ function App() {
   const [companyTable, setCompanyTable] = useState(initialTableState)
   const [siteTable, setSiteTable] = useState(initialTableState)
   const [employeeTable, setEmployeeTable] = useState(initialTableState)
+  const [employeeSiteFilter, setEmployeeSiteFilter] = useState('all')
   const [incidentTable, setIncidentTable] = useState(initialTableState)
   const [riskTable, setRiskTable] = useState(initialTableState)
   const [trainingTable, setTrainingTable] = useState(initialTableState)
@@ -273,7 +274,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, incidentTable, riskTable, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, riskTable, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -299,6 +300,7 @@ function App() {
             params: {
               ...tableParams(employeeTable),
               ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+              ...(employeeSiteFilter !== 'all' ? { siteId: employeeSiteFilter } : {}),
             },
           })
         : Promise.resolve({ data: { data: [] as Employee[], meta: emptyMeta } })
@@ -1425,6 +1427,12 @@ function App() {
                 canManage={canManageEmployees}
                 canDelete={canDeleteEmployees}
                 canExport={canExportReports}
+                sites={sites}
+                siteFilter={employeeSiteFilter}
+                onSiteFilterChange={(siteId) => {
+                  setEmployeeTable((current) => ({ ...current, page: 1 }))
+                  setEmployeeSiteFilter(siteId)
+                }}
                 onTableChange={setEmployeeTable}
                 onCreate={() => openEmployeeForm()}
                 onPreloadCreate={preloadEmployeeDialog}

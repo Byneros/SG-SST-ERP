@@ -24,8 +24,20 @@ export class EmployeesService {
     private readonly sitesRepository: SitesRepository,
   ) {}
 
-  findAll(companyId?: string, query: ListQueryDto = new ListQueryDto()) {
-    return this.employeesRepository.findAll(companyId, query);
+  async findAll(
+    companyId?: string,
+    query: ListQueryDto = new ListQueryDto(),
+    siteId?: string,
+  ) {
+    // Filtro por sede: una sede ajena no existe para el actor (404), igual
+    // que el detalle. 'none' filtra los empleados sin sede asignada.
+    if (siteId && siteId !== 'none' && companyId) {
+      const site = await this.sitesRepository.findByIdScoped(siteId, companyId);
+      if (!site) {
+        throw new NotFoundException('Site not found');
+      }
+    }
+    return this.employeesRepository.findAll(companyId, query, siteId);
   }
 
   async findOne(id: string, user?: AuthenticatedUser) {

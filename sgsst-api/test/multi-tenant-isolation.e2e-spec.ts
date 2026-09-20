@@ -497,10 +497,18 @@ class MemoryEmployeesRepository {
   findAll(
     companyId?: string,
     query: { page?: number; pageSize?: number; search?: string } = {},
+    siteId?: string,
   ) {
     const search = query.search?.toLowerCase();
     const rows = this.store.employees
       .filter((e) => e.companyId === companyId)
+      .filter((e) =>
+        siteId
+          ? siteId === 'none'
+            ? e.siteId === null
+            : e.siteId === siteId
+          : true,
+      )
       .filter((e) =>
         search
           ? `${e.firstName} ${e.lastName} ${e.document}`
@@ -1783,6 +1791,46 @@ describe('multi-tenant isolation (e2e)', () => {
       .expect(200)
       .then((response) => {
         expect(response.body.companyId).toBe(companyA.companyId);
+      });
+  });
+
+  it('filters employees by site and rejects a foreign site filter (404/403)', async () => {
+    // Asignar el empleado de A a su sede.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sites/${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ employeeIds: [companyA.employeeId] })
+      .expect(200);
+
+    // Filtro por sede propia: solo empleados de esa sede.
+    await request(app.getHttpServer())
+      .get('/api/v1/employees')
+      .query({ siteId: companyA.siteId })
+      .set('Authorization', tokenFor(companyA))
+      .expect(200)
+      .then((response) => {
+        const rows = response.body.data as Array<{ id: string }>;
+        expect(rows.map((e) => e.id)).toContain(companyA.employeeId);
+      });
+
+    // Filtro por sede de B: no existe para el actor de A (404).
+    await request(app.getHttpServer())
+      .get('/api/v1/employees')
+      .query({ siteId: companyB.siteId })
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
+
+    // EMPLOYEE de A tambien puede filtrar por su sede (lectura).
+    await request(app.getHttpServer())
+      .get('/api/v1/employees')
+      .query({ siteId: companyA.siteId })
+      .set('Authorization', `Bearer ${companyA.employeeToken}`)
+      .expect(200)
+      .then((response) => {
+        const rows = response.body.data as Array<{ companyId: string }>;
+        for (const row of rows) {
+          expect(row.companyId).toBe(companyA.companyId);
+        }
       });
   });
 
