@@ -1311,6 +1311,33 @@ function App() {
     setMobileOpen(false)
   }
 
+  // KPI de sede clickeable: abre Empleados con el filtro de esa sede aplicado.
+  function openEmployeesWithSite(siteId: string) {
+    if (!siteId) return
+    setEmployeeSiteFilter(siteId)
+    setEmployeeTable((current) => ({ ...current, page: 1 }))
+    setView('employees')
+    setMobileOpen(false)
+  }
+
+  // Conteo de incidentes abiertos: abre Incidentes filtrado por esa sede.
+  function openIncidentsWithSite(siteId: string) {
+    if (!siteId) return
+    setIncidentSiteFilter(siteId)
+    setIncidentTable((current) => ({ ...current, page: 1 }))
+    setView('incidents')
+    setMobileOpen(false)
+  }
+
+  // Conteo de riesgos criticos: abre Riesgos filtrado por esa sede.
+  function openRisksWithSite(siteId: string) {
+    if (!siteId) return
+    setRiskSiteFilter(siteId)
+    setRiskTable((current) => ({ ...current, page: 1 }))
+    setView('risks')
+    setMobileOpen(false)
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -1387,6 +1414,9 @@ function App() {
                 employees={employees}
                 // El desglose por sede es del alcance de empresa: SUPER_ADMIN (global) no lo ve.
                 siteKpis={isPlatformAdmin ? [] : dashboardSummary.siteKpis ?? []}
+                onOpenSite={openEmployeesWithSite}
+                onOpenSiteIncidents={openIncidentsWithSite}
+                onOpenSiteRisks={openRisksWithSite}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
                 canExport={canExportReports}
                 onDownloadReport={(format) => handleDownloadReport('summary', format)}

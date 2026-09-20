@@ -11,6 +11,9 @@ export function DashboardPage({
   siteKpis,
   activeCompanyName,
   canExport,
+  onOpenSite,
+  onOpenSiteIncidents,
+  onOpenSiteRisks,
   onDownloadReport,
   onScheduleReport,
 }: {
@@ -20,6 +23,9 @@ export function DashboardPage({
   siteKpis: SiteKpi[]
   activeCompanyName?: string
   canExport: boolean
+  onOpenSite?: (siteId: string) => void
+  onOpenSiteIncidents?: (siteId: string) => void
+  onOpenSiteRisks?: (siteId: string) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
 }) {
@@ -106,7 +112,17 @@ export function DashboardPage({
               </TableHead>
               <TableBody>
                 {siteKpis.map((kpi) => (
-                  <TableRow key={kpi.siteId} hover>
+                  <TableRow
+                    key={kpi.siteId}
+                    hover
+                    // Fila clickeable: abre Empleados filtrado por esta sede.
+                    onClick={onOpenSite ? () => onOpenSite(kpi.siteId) : undefined}
+                    sx={
+                      onOpenSite
+                        ? { cursor: 'pointer' }
+                        : undefined
+                    }
+                  >
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Typography fontWeight={700}>
@@ -116,8 +132,44 @@ export function DashboardPage({
                       </Stack>
                     </TableCell>
                     <TableCell align="right">{kpi.employees}</TableCell>
-                    <TableCell align="right">{kpi.criticalRisks}</TableCell>
-                    <TableCell align="right">{kpi.openIncidents}</TableCell>
+                    <TableCell
+                      align="right"
+                      onClick={
+                        onOpenSiteRisks
+                          ? (event) => {
+                              // El click en el conteo manda a Riesgos, no a Empleados.
+                              event.stopPropagation()
+                              onOpenSiteRisks(kpi.siteId)
+                            }
+                          : undefined
+                      }
+                      sx={
+                        onOpenSiteRisks
+                          ? { cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }
+                          : undefined
+                      }
+                    >
+                      {kpi.criticalRisks}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      onClick={
+                        onOpenSiteIncidents
+                          ? (event) => {
+                              // El click en el conteo manda a Incidentes, no a Empleados.
+                              event.stopPropagation()
+                              onOpenSiteIncidents(kpi.siteId)
+                            }
+                          : undefined
+                      }
+                      sx={
+                        onOpenSiteIncidents
+                          ? { cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }
+                          : undefined
+                      }
+                    >
+                      {kpi.openIncidents}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

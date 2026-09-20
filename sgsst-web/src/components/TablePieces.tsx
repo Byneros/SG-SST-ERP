@@ -119,6 +119,29 @@ export function ActiveChip({ active }: { active: boolean }) {
   )
 }
 
+/**
+ * Chip de filtro activo (p. ej. sede desde el dashboard): muestra el nombre
+ * del filtro aplicado y permite quitarlo con la X.
+ */
+export function ActiveSiteFilterChip({
+  siteName,
+  onClear,
+}: {
+  siteName: string
+  onClear: () => void
+}) {
+  if (!siteName) return null
+  return (
+    <Chip
+      size="small"
+      color="primary"
+      variant="outlined"
+      label={`Sede: ${siteName}`}
+      onDelete={onClear}
+    />
+  )
+}
+
 export function ActiveCompanyBanner({ name }: { name?: string }) {
   if (!name) return null
   return (

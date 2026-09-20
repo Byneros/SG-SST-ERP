@@ -2,7 +2,7 @@ import { Delete, Edit, RestoreFromTrash } from '@mui/icons-material'
 import { Button, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
 import { contractTypeLabels } from '../../constants/catalogs'
-import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveChip, ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { Employee, PageMeta, Site, TableState } from '../../types'
 
 export function EmployeesPage(props: {
@@ -29,6 +29,14 @@ export function EmployeesPage(props: {
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="CRUD Empleados" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      {props.siteFilter !== 'all' && (
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <ActiveSiteFilterChip
+            siteName={props.sites.find((site) => site.id === props.siteFilter)?.name ?? (props.siteFilter === 'none' ? 'Sin sede asignada' : props.siteFilter)}
+            onClear={() => props.onSiteFilterChange('all')}
+          />
+        </Stack>
+      )}
       {props.canExport && (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
           <Button variant="outlined" onClick={() => props.onDownloadReport('pdf')}>
