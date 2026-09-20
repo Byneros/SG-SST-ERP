@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, Stack, TextField } from '@mui/material'
 import {
   contractTypeLabels,
   contractTypeOptions,
@@ -7,13 +7,14 @@ import {
   employmentStatusLabels,
   employmentStatusOptions,
 } from '../../constants/catalogs'
-import type { Company, ContractType, DocumentType, EmployeeFormValues, EmploymentStatus } from '../../types'
+import type { Company, ContractType, DocumentType, EmployeeFormValues, EmploymentStatus, Site } from '../../types'
 
 export function EmployeeDialog(props: {
   open: boolean
   editing: boolean
   values: EmployeeFormValues
   companies: Company[]
+  sites: Site[]
   loading: boolean
   canPickCompany: boolean
   documentError?: string
@@ -24,6 +25,8 @@ export function EmployeeDialog(props: {
   const emailInvalid = props.values.email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(props.values.email)
   const companyMissing = !props.values.companyId && props.companies.length > 0
   const selectedCompanyName = props.companies.find((company) => company.id === props.values.companyId)?.name ?? ''
+  // Sedes de la empresa seleccionada: cambiar empresa limpia la sede elegida.
+  const siteOptions = props.sites.filter((site) => site.companyId === props.values.companyId)
 
   return (
     <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
@@ -78,6 +81,26 @@ export function EmployeeDialog(props: {
           />
           <TextField
             select
+            label="Sede"
+            value={props.values.siteId}
+            onChange={(event) => props.onChange({ ...props.values, siteId: event.target.value })}
+            helperText={
+              siteOptions.length === 0
+                ? 'Sin sedes registradas para esta empresa. Crea una en el módulo Sedes.'
+                : 'Sede donde el empleado presta sus funciones.'
+            }
+          >
+            <MenuItem value="">
+              <ListItemText>Sin sede</ListItemText>
+            </MenuItem>
+            {siteOptions.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                <ListItemText>{site.code ? `${site.name} (${site.code})` : site.name}</ListItemText>
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
             label="Tipo de contrato"
             value={props.values.contractType}
             onChange={(event) => props.onChange({ ...props.values, contractType: event.target.value as ContractType })}
@@ -115,7 +138,14 @@ export function EmployeeDialog(props: {
               label="Empresa"
               value={props.values.companyId}
               disabled={props.companies.length === 0}
-              onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+              onChange={(event) =>
+                props.onChange({
+                  ...props.values,
+                  companyId: event.target.value,
+                  // La sede pertenece a la empresa: al cambiarla se desasigna.
+                  siteId: '',
+                })
+              }
               required
               error={companyMissing}
               helperText={

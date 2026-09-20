@@ -671,6 +671,7 @@ function App() {
             email: item.email ?? '',
             phone: item.phone ?? '',
             companyId: item.companyId,
+            siteId: item.siteId ?? '',
           }
         : { ...emptyEmployee, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
@@ -848,10 +849,18 @@ function App() {
     }
 
     await saveRecord(async () => {
+      // siteId '' = sin sede; el backend interpreta null como desasignacion.
+      const payload = sanitize(employeeForm) as Record<string, unknown>
+      if (employeeDialog.item && !employeeForm.siteId) {
+        const current = employees.find((item) => item.id === employeeDialog.item?.id)
+        if (current?.siteId) {
+          payload.siteId = null
+        }
+      }
       if (employeeDialog.item) {
-        await api.patch(`/employees/${employeeDialog.item.id}`, sanitize(employeeForm))
+        await api.patch(`/employees/${employeeDialog.item.id}`, payload)
       } else {
-        await api.post('/employees', sanitize(employeeForm))
+        await api.post('/employees', payload)
       }
       setEmployeeDialog({ open: false })
     })
@@ -1630,6 +1639,7 @@ function App() {
               editing={Boolean(employeeDialog.item)}
               values={employeeForm}
               companies={companies}
+              sites={sites}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               documentError={employeeDocumentError}

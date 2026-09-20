@@ -1,4 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  NotFoundException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
@@ -122,6 +126,7 @@ class MemoryStore {
     employmentStatus: string;
     workCenter: string | null;
     companyId: string;
+    siteId: string | null;
     isActive: boolean;
     deletedAt: Date | null;
     createdAt: Date;
@@ -554,6 +559,7 @@ class MemoryEmployeesRepository {
       employmentStatus: dto.employmentStatus ?? 'ACTIVE',
       workCenter: dto.workCenter ?? null,
       companyId: dto.companyId,
+      siteId: null,
       isActive: true,
       deletedAt: null,
       createdAt: now,
@@ -573,6 +579,7 @@ class MemoryEmployeesRepository {
       email?: string;
       phone?: string;
       companyId?: string;
+      siteId?: string | null;
       isActive?: boolean;
     },
   ) {
@@ -586,6 +593,7 @@ class MemoryEmployeesRepository {
       email: dto.email ?? employee.email,
       phone: dto.phone ?? employee.phone,
       companyId: dto.companyId ?? employee.companyId,
+      siteId: dto.siteId === undefined ? employee.siteId : dto.siteId,
       isActive: dto.isActive ?? employee.isActive,
       deletedAt:
         dto.isActive === undefined
@@ -609,6 +617,7 @@ class MemoryEmployeesRepository {
       email?: string;
       phone?: string;
       companyId?: string;
+      siteId?: string | null;
       isActive?: boolean;
     },
   ) {
@@ -637,10 +646,16 @@ class MemoryEmployeesRepository {
     const company = this.store.companies.find(
       (c) => c.id === employee.companyId,
     );
+    const site = employee.siteId
+      ? this.store.sites.find((s) => s.id === employee.siteId)
+      : undefined;
     return {
       ...employee,
       company: company
         ? { id: company.id, name: company.name, nit: company.nit }
+        : null,
+      site: site
+        ? { id: site.id, name: site.name, code: site.code ?? null }
         : null,
     };
   }
@@ -840,6 +855,7 @@ class MemorySitesRepository {
     city?: string;
     department?: string;
     isMain?: boolean;
+    employeeIds?: string[];
   }, companyId: string) {
     const now = new Date();
     const site = {
@@ -857,7 +873,17 @@ class MemorySitesRepository {
       updatedAt: now,
     };
     this.store.sites.unshift(site);
-    return Promise.resolve(this.withCompany(site));
+    if (dto.employeeIds) {
+      for (const employeeId of dto.employeeIds) {
+        const employee = this.store.employees.find(
+          (e) => e.id === employeeId,
+        );
+        if (employee) {
+          employee.siteId = site.id;
+        }
+      }
+    }
+    return Promise.resolve(this.withCompanyRelations(site));
   }
 
   update(
@@ -869,6 +895,7 @@ class MemorySitesRepository {
       city?: string;
       department?: string;
       isMain?: boolean;
+      employeeIds?: string[];
     },
   ) {
     const site = this.store.sites.find((s) => s.id === id);
@@ -895,6 +922,7 @@ class MemorySitesRepository {
       city?: string;
       department?: string;
       isMain?: boolean;
+      employeeIds?: string[];
     },
   ) {
     const site = this.store.sites.find(
@@ -902,7 +930,22 @@ class MemorySitesRepository {
     );
     if (!site) return null;
     void this.update(id, dto);
-    return Promise.resolve(this.withCompany(site));
+    if (dto.employeeIds) {
+      for (const e of this.store.employees) {
+        if (e.siteId === site.id && !dto.employeeIds.includes(e.id)) {
+          e.siteId = null;
+        }
+      }
+      for (const employeeId of dto.employeeIds) {
+        const employee = this.store.employees.find(
+          (e) => e.id === employeeId,
+        );
+        if (employee) {
+          employee.siteId = site.id;
+        }
+      }
+    }
+    return Promise.resolve(this.withCompanyRelations(site));
   }
 
   remove(id: string) {
@@ -923,16 +966,35 @@ class MemorySitesRepository {
     return Promise.resolve({ count: 1 });
   }
 
-  private withCompany(site: (typeof this.store.sites)[number]) {
+  /** Valida que los empleados existan en la empresa (misma regla que Prisma real). */
+  assertEmployeesInCompany(employeeIds: string[], companyId: string) {
+    const found = this.store.employees.filter(
+      (e) => employeeIds.includes(e.id) && e.companyId === companyId,
+    );
+    if (found.length !== employeeIds.length) {
+      return Promise.reject(new NotFoundException('Employee not found'));
+    }
+    return Promise.resolve();
+  }
+
+  private withCompanyRelations(site: (typeof this.store.sites)[number]) {
     const company = this.store.companies.find(
       (c) => c.id === site.companyId,
     );
+    const employees = this.store.employees
+      .filter((e) => e.siteId === site.id)
+      .map((e) => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, position: e.position }));
     return {
       ...site,
       company: company
         ? { id: company.id, name: company.name, nit: company.nit }
         : null,
+      employees,
     };
+  }
+
+  private withCompany(site: (typeof this.store.sites)[number]) {
+    return { ...this.withCompanyRelations(site), employees: undefined };
   }
 }
 
@@ -2083,6 +2145,63 @@ describe('multi-tenant isolation (e2e)', () => {
       .delete(`/api/v1/users/${companyB.adminId}`)
       .set('Authorization', tokenFor(companyA))
       .expect(404);
+  });
+
+  it('rejects creating a site with an employee from another company (404, never a 500)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/sites')
+      .set('Authorization', tokenFor(companyA))
+      .send({
+        name: 'Sede con infiltrado',
+        code: 'SEDE-INF',
+        companyId: companyA.companyId,
+        employeeIds: [companyB.employeeId],
+      })
+      .expect(404);
+
+    // La sede no debe haberse creado.
+    await request(app.getHttpServer())
+      .get('/api/v1/sites')
+      .set('Authorization', tokenFor(companyA))
+      .expect(200)
+      .then((response) => {
+        const names = (response.body.data as Array<{ name: string }>).map(
+          (site) => site.name,
+        );
+        expect(names).not.toContain('Sede con infiltrado');
+      });
+  });
+
+  it('assigns employees to a site and rejects foreign employees on update', async () => {
+    // Asignar el empleado propio a la sede propia via PATCH.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sites/${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ employeeIds: [companyA.employeeId] })
+      .expect(200)
+      .then((response) => {
+        const employees = response.body.employees as Array<{ id: string }>;
+        expect(employees.map((e) => e.id)).toContain(companyA.employeeId);
+      });
+
+    // Actualizar el empleado con una sede de otra empresa: 404 (no existe para el actor).
+    await request(app.getHttpServer())
+      .patch(`/api/v1/employees/${companyA.employeeId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ siteId: companyB.siteId })
+      .expect(404);
+
+    // El empleado conserva su empresa y sin sede ajena.
+    await request(app.getHttpServer())
+      .get(`/api/v1/employees/${companyA.employeeId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(200)
+      .then((response) => {
+        expect(response.body.companyId).toBe(companyA.companyId);
+        expect((response.body.siteId as string | null) ?? null).not.toBe(
+          companyB.siteId,
+        );
+      });
   });
 
   // -------------------------------------------------------------------------

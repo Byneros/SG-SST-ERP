@@ -54,4 +54,9 @@ export class CreateEmployeeDto {
 
   @IsUUID()
   companyId!: string;
+
+  /** Sede donde el empleado presta sus funciones (opcional, de la misma empresa). */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
 }

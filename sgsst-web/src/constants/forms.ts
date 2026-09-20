@@ -46,6 +46,7 @@ export const emptyEmployee: EmployeeFormValues = {
   email: '',
   phone: '',
   companyId: '',
+  siteId: '',
 }
 
 export const emptySite: SiteFormValues = {

@@ -38,4 +38,9 @@ export class CreateSiteDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
+
+  /** Empleados que se reasignan a esta sede al crearla (opcional). */
+  @IsOptional()
+  @IsUUID(undefined, { each: true })
+  employeeIds?: string[];
 }

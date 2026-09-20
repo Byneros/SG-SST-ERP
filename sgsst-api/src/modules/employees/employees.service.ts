@@ -11,6 +11,7 @@ import {
   resolveCompanyScope,
 } from '../../common/pipes/company-scope';
 import { AuditService } from '../audit/audit.service';
+import { SitesRepository } from '../sites/sites.repository';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { EmployeesRepository } from './employees.repository';
@@ -20,6 +21,7 @@ export class EmployeesService {
   constructor(
     private readonly employeesRepository: EmployeesRepository,
     private readonly auditService: AuditService,
+    private readonly sitesRepository: SitesRepository,
   ) {}
 
   findAll(companyId?: string, query: ListQueryDto = new ListQueryDto()) {
@@ -56,6 +58,10 @@ export class EmployeesService {
     if (!dto.companyId) {
       throw new BadRequestException('Employee must belong to one company');
     }
+    // La sede debe existir y ser de la misma empresa del empleado.
+    if (dto.siteId) {
+      await this.assertSiteInCompany(dto.siteId, dto.companyId);
+    }
     const created = await this.employeesRepository.create(dto);
     await this.auditService.log({
       user,
@@ -81,6 +87,17 @@ export class EmployeesService {
       );
       if (existing) {
         throw new ConflictException('Document is already registered');
+      }
+    }
+    // Sede del update: de la misma empresa; null desasigna; undefined no toca.
+    if (dto.siteId !== undefined) {
+      if (dto.siteId === null) {
+        // desasignar: no requiere validacion de empresa
+      } else {
+        await this.assertSiteInCompany(
+          dto.siteId,
+          dto.companyId ?? before.companyId,
+        );
       }
     }
     // Update restrictivo por empresa: si el empleado no pertenece al scope, no existe para el actor.
@@ -150,5 +167,13 @@ export class EmployeesService {
       return 'DEACTIVATE';
     }
     return 'UPDATE';
+  }
+
+  /** La sede del empleado debe existir y pertenecer a la empresa del empleado. */
+  private async assertSiteInCompany(siteId: string, companyId: string) {
+    const site = await this.sitesRepository.findByIdScoped(siteId, companyId);
+    if (!site) {
+      throw new NotFoundException('Site not found');
+    }
   }
 }

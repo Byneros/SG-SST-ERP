@@ -61,6 +61,11 @@ export class UpdateEmployeeDto {
   @IsUUID()
   companyId?: string;
 
+  /** Sede del empleado; null lo desasigna. Debe ser de la misma empresa. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

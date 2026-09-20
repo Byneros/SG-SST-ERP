@@ -63,7 +63,19 @@ export class SitesService {
         throw new ConflictException('Site code is already registered');
       }
     }
-    const created = await this.sitesRepository.create(dto, companyId);
+    // Empleados a asignar: deben existir y pertenecer a la empresa del scope.
+    // Un empleado ajeno no existe para el actor (404), nunca 500 por FK.
+    if (dto.employeeIds?.length) {
+      await this.sitesRepository.assertEmployeesInCompany(
+        dto.employeeIds,
+        companyId,
+      );
+    }
+    const created = await this.sitesRepository.create(
+      dto,
+      companyId,
+      dto.employeeIds,
+    );
     await this.auditService.log({
       user,
       action: 'CREATE',
@@ -76,6 +88,14 @@ export class SitesService {
 
   async update(id: string, dto: UpdateSiteDto, user?: AuthenticatedUser) {
     const before = await this.findOne(id, user);
+    // Empleados del update: misma regla de empresa; si alguno es ajeno, 404
+    // antes de tocar la sede (defensa en profundidad sobre el FK).
+    if (dto.employeeIds?.length) {
+      await this.sitesRepository.assertEmployeesInCompany(
+        dto.employeeIds,
+        user ? resolveCompanyScope(user) : before.companyId,
+      );
+    }
     if (dto.code && dto.code !== before.code) {
       const scope = user ? resolveCompanyScope(user) : before.companyId;
       const existing = await this.sitesRepository.findByCode(
@@ -92,8 +112,9 @@ export class SitesService {
           id,
           resolveCompanyScope(user),
           dto,
+          dto.employeeIds,
         )
-      : await this.sitesRepository.update(id, dto);
+      : await this.sitesRepository.update(id, dto, dto.employeeIds);
     if (!updated) {
       throw new NotFoundException('Site not found');
     }

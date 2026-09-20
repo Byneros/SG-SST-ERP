@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { PrismaService } from '../../database/prisma.service';
@@ -31,7 +31,10 @@ export class SitesRepository {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.site.findMany({
         where,
-        include: { company: { select: { id: true, name: true, nit: true } } },
+        include: {
+          company: { select: { id: true, name: true, nit: true } },
+          _count: { select: { employees: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -47,7 +50,12 @@ export class SitesRepository {
   findById(id: string) {
     return this.prisma.site.findUnique({
       where: { id },
-      include: { company: { select: { id: true, name: true, nit: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        employees: {
+          select: { id: true, firstName: true, lastName: true, position: true },
+        },
+      },
     });
   }
 
@@ -55,8 +63,24 @@ export class SitesRepository {
   findByIdScoped(id: string, companyId: string) {
     return this.prisma.site.findFirst({
       where: { id, companyId },
-      include: { company: { select: { id: true, name: true, nit: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        employees: {
+          select: { id: true, firstName: true, lastName: true, position: true },
+        },
+      },
     });
+  }
+
+  /** Valida que todos los empleados existan y pertenezcan a la empresa. */
+  async assertEmployeesInCompany(employeeIds: string[], companyId: string) {
+    const found = await this.prisma.employee.findMany({
+      where: { id: { in: employeeIds }, companyId, deletedAt: null },
+      select: { id: true },
+    });
+    if (found.length !== employeeIds.length) {
+      throw new NotFoundException('Employee not found');
+    }
   }
 
   findByCode(companyId: string, code: string) {
@@ -65,7 +89,7 @@ export class SitesRepository {
     });
   }
 
-  create(dto: CreateSiteDto, companyId: string) {
+  create(dto: CreateSiteDto, companyId: string, employeeIds?: string[]) {
     return this.prisma.site.create({
       data: {
         name: dto.name,
@@ -75,13 +99,30 @@ export class SitesRepository {
         department: dto.department,
         isMain: dto.isMain ?? false,
         companyId,
+        ...(employeeIds
+          ? {
+              employees: {
+                connect: employeeIds.map((id) => ({ id })),
+              },
+            }
+          : {}),
       },
-      include: { company: { select: { id: true, name: true, nit: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        employees: {
+          select: { id: true, firstName: true, lastName: true, position: true },
+        },
+      },
     });
   }
 
   /** Updates restrictivos: la sede debe pertenecer a la empresa del actor. */
-  async updateScoped(id: string, companyId: string, dto: UpdateSiteDto) {
+  async updateScoped(
+    id: string,
+    companyId: string,
+    dto: UpdateSiteDto,
+    employeeIds?: string[],
+  ) {
     const result = await this.prisma.site.updateMany({
       where: { id, companyId },
       data: this.toPrismaData(dto) as Prisma.SiteUncheckedUpdateInput,
@@ -89,17 +130,46 @@ export class SitesRepository {
     if (result.count === 0) {
       return null;
     }
+    if (employeeIds) {
+      // Reasignacion atomica: set = reemplaza el listado completo; los IDs que
+      // no pasen la validacion de empresa se rechazan antes (404) en el service.
+      await this.prisma.site.update({
+        where: { id },
+        data: {
+          employees: { set: employeeIds.map((employeeId) => ({ id: employeeId })) },
+        },
+      });
+    }
     return this.prisma.site.findFirst({
       where: { id, companyId },
-      include: { company: { select: { id: true, name: true, nit: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        employees: {
+          select: { id: true, firstName: true, lastName: true, position: true },
+        },
+      },
     });
   }
 
-  update(id: string, dto: UpdateSiteDto) {
+  update(id: string, dto: UpdateSiteDto, employeeIds?: string[]) {
     return this.prisma.site.update({
       where: { id },
-      data: this.toPrismaData(dto) as Prisma.SiteUncheckedUpdateInput,
-      include: { company: { select: { id: true, name: true, nit: true } } },
+      data: {
+        ...(this.toPrismaData(dto) as Prisma.SiteUncheckedUpdateInput),
+        ...(employeeIds
+          ? {
+              employees: {
+                set: employeeIds.map((employeeId) => ({ id: employeeId })),
+              },
+            }
+          : {}),
+      },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        employees: {
+          select: { id: true, firstName: true, lastName: true, position: true },
+        },
+      },
     });
   }
 

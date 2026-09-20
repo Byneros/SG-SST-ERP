@@ -53,12 +53,15 @@ async function main() {
     update: {
       name: 'Administrador SG-SST',
       role: Role.ADMIN,
+      // Sin empresa el scope multi-tenant rechaza todo acceso (403).
+      companyId: company.id,
     },
     create: {
       name: 'Administrador SG-SST',
       email: 'admin@sgsst.com',
       password,
       role: Role.ADMIN,
+      companyId: company.id,
     },
   });
 
@@ -74,6 +77,46 @@ async function main() {
       email: 'sst@sgsst.com',
       password,
       role: Role.SST,
+      companyId: company.id,
+    },
+  });
+
+  // Usuario EMPLOYEE de QA: lectura de su empresa y reporte de incidentes.
+  await prisma.user.upsert({
+    where: { email: 'empleado@sgsst.com' },
+    update: {
+      name: 'Empleado QA',
+      role: Role.EMPLOYEE,
+      companyId: company.id,
+    },
+    create: {
+      name: 'Empleado QA',
+      email: 'empleado@sgsst.com',
+      password,
+      role: Role.EMPLOYEE,
+      companyId: company.id,
+    },
+  });
+
+  // Sede principal para los empleados de demostracion.
+  const mainSite = await prisma.site.upsert({
+    where: {
+      companyId_code: { companyId: company.id, code: 'SEDE-NORTE' },
+    },
+    update: {
+      name: 'Planta Norte',
+      address: 'KM 4 Via Cali, Bogota',
+      city: 'Bogota',
+      department: 'Cundinamarca',
+      isMain: true,
+    },
+    create: {
+      name: 'Planta Norte',
+      code: 'SEDE-NORTE',
+      address: 'KM 4 Via Cali, Bogota',
+      city: 'Bogota',
+      department: 'Cundinamarca',
+      isMain: true,
       companyId: company.id,
     },
   });
@@ -123,8 +166,8 @@ async function main() {
   for (const employee of employees) {
     await prisma.employee.upsert({
       where: { document: employee.document },
-      update: { ...employee, companyId: company.id },
-      create: { ...employee, companyId: company.id },
+      update: { ...employee, companyId: company.id, siteId: mainSite.id },
+      create: { ...employee, companyId: company.id, siteId: mainSite.id },
     });
   }
 
@@ -200,7 +243,9 @@ async function main() {
     });
   }
 
-  console.log('Seed listo: admin@sgsst.com / Admin12345');
+  console.log(
+    'Seed listo: admin@sgsst.com, sst@sgsst.com y empleado@sgsst.com / Admin12345',
+  );
 }
 
 main()

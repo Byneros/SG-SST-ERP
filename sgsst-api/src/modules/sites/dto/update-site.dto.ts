@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 
@@ -34,4 +35,9 @@ export class UpdateSiteDto {
   @IsOptional()
   @IsBoolean()
   isMain?: boolean;
+
+  /** Reemplaza el listado de empleados asignados a la sede (opcional). */
+  @IsOptional()
+  @IsUUID(undefined, { each: true })
+  employeeIds?: string[];
 }

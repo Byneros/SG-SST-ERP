@@ -49,6 +49,7 @@ export function EmployeesPage(props: {
               <TableCell>Cargo</TableCell>
               <TableCell>Contrato</TableCell>
               <TableCell>Centro</TableCell>
+              <TableCell>Sede</TableCell>
               <TableCell>Empresa</TableCell>
               <TableCell>Contacto</TableCell>
               <TableCell>Estado</TableCell>
@@ -67,6 +68,7 @@ export function EmployeesPage(props: {
                 <TableCell>{employee.position}</TableCell>
                 <TableCell>{contractTypeLabels[employee.contractType]}</TableCell>
                 <TableCell>{employee.workCenter || '-'}</TableCell>
+                <TableCell>{employee.site?.name ?? '-'}</TableCell>
                 <TableCell>{employee.company?.name ?? '-'}</TableCell>
                 <TableCell>{employee.email || employee.phone || '-'}</TableCell>
                 <TableCell>
