@@ -1,12 +1,13 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, Stack, TextField } from '@mui/material'
 import { riskLevelLabels, riskLevelOptions } from '../../constants/catalogs'
-import type { Company, RiskFormValues, RiskLevel } from '../../types'
+import type { Company, RiskFormValues, RiskLevel, Site } from '../../types'
 
 export function RiskDialog(props: {
   open: boolean
   editing: boolean
   values: RiskFormValues
   companies: Company[]
+  sites: Site[]
   loading: boolean
   canPickCompany: boolean
   onChange: (values: RiskFormValues) => void
@@ -44,13 +45,42 @@ export function RiskDialog(props: {
               </MenuItem>
             ))}
           </TextField>
+          <TextField
+            select
+            label="Sede"
+            value={props.values.siteId}
+            onChange={(event) => props.onChange({ ...props.values, siteId: event.target.value })}
+            helperText={
+              props.sites.filter((site) => site.companyId === props.values.companyId).length === 0
+                ? 'Sin sedes registradas para esta empresa. Crea una en el módulo Sedes.'
+                : 'Sede donde aplica el riesgo.'
+            }
+          >
+            <MenuItem value="">
+              <ListItemText>Sin sede</ListItemText>
+            </MenuItem>
+            {props.sites
+              .filter((site) => site.companyId === props.values.companyId)
+              .map((site) => (
+                <MenuItem key={site.id} value={site.id}>
+                  <ListItemText>{site.code ? `${site.name} (${site.code})` : site.name}</ListItemText>
+                </MenuItem>
+              ))}
+          </TextField>
           {props.canPickCompany ? (
             <TextField
               select
               label="Empresa"
               value={props.values.companyId}
               disabled={props.companies.length === 0}
-              onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+              onChange={(event) =>
+                props.onChange({
+                  ...props.values,
+                  companyId: event.target.value,
+                  // La sede pertenece a la empresa: al cambiarla se desasigna.
+                  siteId: '',
+                })
+              }
               required
             >
               {props.companies.map((company) => (

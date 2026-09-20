@@ -181,6 +181,7 @@ async function main() {
         description: 'Riesgo de caida por actividades sobre plataformas y escaleras.',
         level: RiskLevel.HIGH,
         companyId: company.id,
+        siteId: mainSite.id,
       },
     });
   }
@@ -196,6 +197,7 @@ async function main() {
         date: new Date('2026-05-08T14:30:00.000Z'),
         status: IncidentStatus.IN_PROGRESS,
         companyId: company.id,
+        siteId: mainSite.id,
       },
     });
   }

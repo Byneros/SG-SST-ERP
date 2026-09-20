@@ -4,6 +4,7 @@ import {
   resolveCompanyScope,
 } from '../../common/pipes/company-scope';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
+import { SitesRepository } from '../sites/sites.repository';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { IncidentsRepository } from './incidents.repository';
@@ -11,13 +12,26 @@ import { ListQueryDto } from '../../common/dto/list-query.dto';
 
 @Injectable()
 export class IncidentsService {
-  constructor(private readonly incidentsRepository: IncidentsRepository) {}
+  constructor(
+    private readonly incidentsRepository: IncidentsRepository,
+    private readonly sitesRepository: SitesRepository,
+  ) {}
 
-  findAll(currentUser: AuthenticatedUser, companyId?: string) {
+  async findAll(
+    currentUser: AuthenticatedUser,
+    companyId?: string,
+    siteId?: string,
+  ) {
+    const scopedCompanyId = this.resolveCompanyId(currentUser, companyId);
+    // Filtro por sede: una sede ajena no existe para el actor (404).
+    if (siteId && siteId !== 'none') {
+      await this.assertSiteInScope(siteId, scopedCompanyId);
+    }
     return this.incidentsRepository.findAll(
       currentUser,
-      this.resolveCompanyId(currentUser, companyId),
+      scopedCompanyId,
       new ListQueryDto(),
+      siteId,
     );
   }
 
@@ -34,11 +48,14 @@ export class IncidentsService {
     return incident;
   }
 
-  create(currentUser: AuthenticatedUser, dto: CreateIncidentDto) {
-    return this.incidentsRepository.create(
-      dto,
-      this.resolveCompanyId(currentUser, dto.companyId),
-    );
+  async create(currentUser: AuthenticatedUser, dto: CreateIncidentDto) {
+    const companyId = this.resolveCompanyId(currentUser, dto.companyId);
+    // La sede debe existir y ser de la empresa del incidente (aplica tambien
+    // al reporte hecho por EMPLOYEE).
+    if (dto.siteId) {
+      await this.assertSiteInScope(dto.siteId, companyId);
+    }
+    return this.incidentsRepository.create(dto, companyId);
   }
 
   async update(
@@ -47,6 +64,13 @@ export class IncidentsService {
     dto: UpdateIncidentDto,
   ) {
     await this.findOne(currentUser, id);
+    // Sede del update: de la misma empresa; null desasigna; undefined no toca.
+    if (dto.siteId !== undefined && dto.siteId !== null) {
+      await this.assertSiteInScope(
+        dto.siteId,
+        this.resolveCompanyId(currentUser),
+      );
+    }
     // Update restrictivo por empresa (defensa en profundidad).
     const updated = await this.incidentsRepository.updateScoped(
       id,
@@ -57,6 +81,14 @@ export class IncidentsService {
       throw new NotFoundException('Incident not found');
     }
     return updated;
+  }
+
+  /** La sede debe existir y pertenecer a la empresa del scope. */
+  private async assertSiteInScope(siteId: string, companyId: string) {
+    const site = await this.sitesRepository.findByIdScoped(siteId, companyId);
+    if (!site) {
+      throw new NotFoundException('Site not found');
+    }
   }
 
   async remove(currentUser: AuthenticatedUser, id: string) {

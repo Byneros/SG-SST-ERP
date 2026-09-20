@@ -1,26 +1,37 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateRiskDto } from './dto/create-risk.dto';
 import { UpdateRiskDto } from './dto/update-risk.dto';
+
+const siteInclude = { site: { select: { id: true, name: true, code: true } } };
 
 @Injectable()
 export class RisksRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(companyId: string) {
+  findAll(companyId: string, siteId?: string) {
     return this.prisma.risk.findMany({
-      where: { companyId },
+      where: {
+        companyId,
+        ...(siteId
+          ? siteId === 'none'
+            ? { siteId: null }
+            : { siteId }
+          : {}),
+      },
+      include: siteInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   findById(id: string) {
-    return this.prisma.risk.findUnique({ where: { id } });
+    return this.prisma.risk.findUnique({ where: { id }, include: siteInclude });
   }
 
   /** Variante con aislamiento por empresa. */
   findByIdScoped(id: string, companyId: string) {
-    return this.prisma.risk.findFirst({ where: { id, companyId } });
+    return this.prisma.risk.findFirst({ where: { id, companyId }, include: siteInclude });
   }
 
   /** Updates restrictivos: el riesgo debe pertenecer a la empresa del actor. */
@@ -31,12 +42,13 @@ export class RisksRepository {
         title: dto.title,
         description: dto.description,
         level: dto.level as never,
+        siteId: dto.siteId === undefined ? undefined : dto.siteId,
       },
     });
     if (result.count === 0) {
       return null;
     }
-    return this.prisma.risk.findFirst({ where: { id, companyId } });
+    return this.prisma.risk.findFirst({ where: { id, companyId }, include: siteInclude });
   }
 
   async removeScoped(id: string, companyId: string) {
@@ -53,7 +65,9 @@ export class RisksRepository {
         description: dto.description,
         level: dto.level as never,
         companyId,
+        siteId: dto.siteId,
       },
+      include: siteInclude,
     });
   }
 

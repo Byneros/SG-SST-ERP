@@ -22,7 +22,7 @@ export class EmployeesRepository {
       isActive: query.isActive,
       ...(siteId
         ? siteId === 'none'
-          ? { OR: [{ siteId: null }] }
+          ? { siteId: null }
           : { siteId }
         : {}),
       ...(search

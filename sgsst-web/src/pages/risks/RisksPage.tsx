@@ -1,14 +1,17 @@
 import { Delete, Edit } from '@mui/icons-material'
-import { Chip, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material'
+import { Chip, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import { riskLevelLabels } from '../../constants/catalogs'
-import type { PageMeta, Risk, TableState } from '../../types'
+import type { PageMeta, Risk, Site, TableState } from '../../types'
 
 export function RisksPage(props: {
   risks: Risk[]
   meta: PageMeta
   tableState: TableState
   canManage: boolean
+  sites: Site[]
+  siteFilter: string
+  onSiteFilterChange: (siteId: string) => void
   onTableChange: (state: TableState) => void
   onCreate: () => void
   onPreloadCreate?: () => void
@@ -23,6 +26,24 @@ export function RisksPage(props: {
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <TableHeader title="Matriz de riesgos" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
+        <TextField
+          select
+          size="small"
+          label="Sede"
+          value={props.siteFilter}
+          onChange={(event) => props.onSiteFilterChange(event.target.value)}
+          sx={{ minWidth: 240 }}
+        >
+          <MenuItem value="all">Todas las sedes</MenuItem>
+          {props.sites.map((site) => (
+            <MenuItem key={site.id} value={site.id}>
+              {site.code ? `${site.name} (${site.code})` : site.name}
+            </MenuItem>
+          ))}
+          <MenuItem value="none">Sin sede asignada</MenuItem>
+        </TextField>
+      </Stack>
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por titulo o descripcion" />
       <TableContainer>
         <Table>
@@ -30,6 +51,7 @@ export function RisksPage(props: {
             <TableRow>
               <TableCell>Riesgo</TableCell>
               <TableCell>Empresa</TableCell>
+              <TableCell>Sede</TableCell>
               <TableCell>Nivel</TableCell>
               <TableCell>Registrado</TableCell>
               <TableCell align="right">Acciones</TableCell>
@@ -45,6 +67,7 @@ export function RisksPage(props: {
                   )}
                 </TableCell>
                 <TableCell>{risk.company?.name ?? '-'}</TableCell>
+                <TableCell>{risk.site?.name ?? '-'}</TableCell>
                 <TableCell>
                   <Chip size="small" label={riskLevelLabels[risk.level]} color={levelColor(risk.level)} variant="outlined" />
                 </TableCell>

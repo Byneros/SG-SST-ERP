@@ -1,28 +1,39 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { AuthenticatedUser } from '../../common/types/authenticated-request';
 
+const siteInclude = { site: { select: { id: true, name: true, code: true } } };
+
 @Injectable()
 export class IncidentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(user: AuthenticatedUser, companyId: string, query: ListQueryDto) {
+  findAll(user: AuthenticatedUser, companyId: string, query: ListQueryDto, siteId?: string) {
     return this.prisma.incident.findMany({
-      where: { companyId },
+      where: {
+        companyId,
+        ...(siteId
+          ? siteId === 'none'
+            ? { siteId: null }
+            : { siteId }
+          : {}),
+      },
+      include: siteInclude,
       orderBy: { date: 'desc' },
     });
   }
 
   findById(id: string) {
-    return this.prisma.incident.findUnique({ where: { id } });
+    return this.prisma.incident.findUnique({ where: { id }, include: siteInclude });
   }
 
   /** Variante con aislamiento por empresa. */
   findByIdScoped(id: string, companyId: string) {
-    return this.prisma.incident.findFirst({ where: { id, companyId } });
+    return this.prisma.incident.findFirst({ where: { id, companyId }, include: siteInclude });
   }
 
   /** Updates restrictivos: el incidente debe pertenecer a la empresa del actor. */
@@ -34,12 +45,13 @@ export class IncidentsRepository {
         description: dto.description,
         date: dto.date ? new Date(dto.date) : undefined,
         status: dto.status as never,
+        siteId: dto.siteId === undefined ? undefined : dto.siteId,
       },
     });
     if (result.count === 0) {
       return null;
     }
-    return this.prisma.incident.findFirst({ where: { id, companyId } });
+    return this.prisma.incident.findFirst({ where: { id, companyId }, include: siteInclude });
   }
 
   async removeScoped(id: string, companyId: string) {
@@ -56,7 +68,9 @@ export class IncidentsRepository {
         description: dto.description,
         date: new Date(dto.date),
         companyId,
+        siteId: dto.siteId,
       },
+      include: siteInclude,
     });
   }
 

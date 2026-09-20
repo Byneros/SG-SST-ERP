@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateIncidentDto {
   @IsOptional()
@@ -16,4 +16,9 @@ export class UpdateIncidentDto {
   @IsOptional()
   @IsIn(['PENDING', 'IN_PROGRESS', 'RESOLVED'])
   status?: string;
+
+  /** Sede del incidente; null lo desasigna. Debe ser de la misma empresa. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
 }

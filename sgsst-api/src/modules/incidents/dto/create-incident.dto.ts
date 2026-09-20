@@ -13,4 +13,9 @@ export class CreateIncidentDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
+
+  /** Sede donde ocurrio el incidente (opcional, de la misma empresa). */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
 }

@@ -140,7 +140,9 @@ function App() {
   const [employeeTable, setEmployeeTable] = useState(initialTableState)
   const [employeeSiteFilter, setEmployeeSiteFilter] = useState('all')
   const [incidentTable, setIncidentTable] = useState(initialTableState)
+  const [incidentSiteFilter, setIncidentSiteFilter] = useState('all')
   const [riskTable, setRiskTable] = useState(initialTableState)
+  const [riskSiteFilter, setRiskSiteFilter] = useState('all')
   const [trainingTable, setTrainingTable] = useState(initialTableState)
   const [documentTable, setDocumentTable] = useState(initialTableState)
   const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
@@ -274,7 +276,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, riskTable, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -287,7 +289,7 @@ function App() {
           : hasCompanyScope
             ? api.get<Company>(`/companies/${activeCompanyId}`)
             : Promise.resolve({ data: [] as Company[] })
-      const siteRequest = canViewSites && hasCompanyScope
+      const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
             params: {
               ...tableParams(siteTable),
@@ -309,6 +311,7 @@ function App() {
             params: {
               ...tableParams(incidentTable),
               ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+              ...(incidentSiteFilter !== 'all' ? { siteId: incidentSiteFilter } : {}),
             },
           })
         : Promise.resolve({ data: { data: [] as Incident[], meta: emptyMeta } })
@@ -317,6 +320,7 @@ function App() {
             params: {
               ...tableParams(riskTable),
               ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+              ...(riskSiteFilter !== 'all' ? { siteId: riskSiteFilter } : {}),
             },
           })
         : Promise.resolve({ data: { data: [] as Risk[], meta: emptyMeta } })
@@ -690,6 +694,7 @@ function App() {
             date: item.date.slice(0, 10),
             status: item.status,
             companyId: item.companyId,
+            siteId: item.siteId ?? '',
           }
         : { ...emptyIncident, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
@@ -705,6 +710,7 @@ function App() {
             description: item.description ?? '',
             level: item.level,
             companyId: item.companyId,
+            siteId: item.siteId ?? '',
           }
         : { ...emptyRisk, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
@@ -870,11 +876,19 @@ function App() {
 
   async function saveIncident() {
     await saveRecord(async () => {
+      // siteId '' = sin sede; el backend interpreta null como desasignacion.
+      const payload = sanitize(incidentForm) as Record<string, unknown>
+      if (incidentDialog.item && !incidentForm.siteId) {
+        const current = incidents.find((item) => item.id === incidentDialog.item?.id)
+        if (current?.siteId) {
+          payload.siteId = null
+        }
+      }
       if (incidentDialog.item) {
-        await api.patch(`/incidents/${incidentDialog.item.id}`, sanitize(incidentForm))
+        await api.patch(`/incidents/${incidentDialog.item.id}`, payload)
       } else {
         // El estado inicial lo fija el backend (PENDING); no se envia en creacion.
-        const { status: _status, ...createPayload } = sanitize(incidentForm)
+        const { status: _status, ...createPayload } = payload
         await api.post('/incidents', createPayload)
       }
       setIncidentDialog({ open: false })
@@ -883,10 +897,18 @@ function App() {
 
   async function saveRisk() {
     await saveRecord(async () => {
+      // siteId '' = sin sede; el backend interpreta null como desasignacion.
+      const payload = sanitize(riskForm) as Record<string, unknown>
+      if (riskDialog.item && !riskForm.siteId) {
+        const current = risks.find((item) => item.id === riskDialog.item?.id)
+        if (current?.siteId) {
+          payload.siteId = null
+        }
+      }
       if (riskDialog.item) {
-        await api.patch(`/risks/${riskDialog.item.id}`, sanitize(riskForm))
+        await api.patch(`/risks/${riskDialog.item.id}`, payload)
       } else {
-        await api.post('/risks', sanitize(riskForm))
+        await api.post('/risks', payload)
       }
       setRiskDialog({ open: false })
     })
@@ -1461,6 +1483,12 @@ function App() {
                 tableState={incidentTable}
                 canManage={canReportIncidents}
                 canEdit={canManageOperations}
+                sites={sites}
+                siteFilter={incidentSiteFilter}
+                onSiteFilterChange={(siteId) => {
+                  setIncidentTable((current) => ({ ...current, page: 1 }))
+                  setIncidentSiteFilter(siteId)
+                }}
                 onTableChange={setIncidentTable}
                 onCreate={() => openIncidentForm()}
                 onPreloadCreate={preloadIncidentDialog}
@@ -1480,6 +1508,12 @@ function App() {
                 meta={riskMeta}
                 tableState={riskTable}
                 canManage={canManageOperations}
+                sites={sites}
+                siteFilter={riskSiteFilter}
+                onSiteFilterChange={(siteId) => {
+                  setRiskTable((current) => ({ ...current, page: 1 }))
+                  setRiskSiteFilter(siteId)
+                }}
                 onTableChange={setRiskTable}
                 onCreate={() => openRiskForm()}
                 onPreloadCreate={preloadRiskDialog}
@@ -1660,6 +1694,7 @@ function App() {
               editing={Boolean(incidentDialog.item)}
               values={incidentForm}
               companies={companies}
+              sites={sites}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               onChange={setIncidentForm}
@@ -1671,6 +1706,7 @@ function App() {
               editing={Boolean(riskDialog.item)}
               values={riskForm}
               companies={companies}
+              sites={sites}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               onChange={setRiskForm}

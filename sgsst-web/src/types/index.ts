@@ -258,7 +258,9 @@ export type Incident = {
   status: IncidentStatus
   createdAt: string
   companyId: string
+  siteId?: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
 }
 
 export type Risk = {
@@ -268,7 +270,9 @@ export type Risk = {
   level: RiskLevel
   createdAt: string
   companyId: string
+  siteId?: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
 }
 
 export type Training = {
@@ -568,6 +572,7 @@ export type IncidentFormValues = {
   date: string
   status: IncidentStatus
   companyId: string
+  siteId: string
 }
 
 export type RiskFormValues = {
@@ -575,6 +580,7 @@ export type RiskFormValues = {
   description: string
   level: RiskLevel
   companyId: string
+  siteId: string
 }
 
 export type TrainingFormValues = {

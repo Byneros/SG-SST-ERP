@@ -29,8 +29,9 @@ export class IncidentsController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('companyId') companyId?: string,
+    @Query('siteId') siteId?: string,
   ) {
-    return this.incidentsService.findAll(user, companyId);
+    return this.incidentsService.findAll(user, companyId, siteId);
   }
 
   @Get(':id')

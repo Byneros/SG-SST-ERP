@@ -14,4 +14,9 @@ export class CreateRiskDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
+
+  /** Sede donde aplica el riesgo (opcional, de la misma empresa). */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
 }

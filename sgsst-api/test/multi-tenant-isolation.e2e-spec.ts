@@ -157,6 +157,7 @@ class MemoryStore {
     description: string | null;
     level: string;
     companyId: string;
+    siteId: string | null;
     createdAt: Date;
   }> = [];
 
@@ -182,6 +183,7 @@ class MemoryStore {
     date: Date;
     status: string;
     companyId: string;
+    siteId: string | null;
     createdAt: Date;
   }> = [];
 
@@ -1009,9 +1011,17 @@ class MemorySitesRepository {
 class MemoryRisksRepository {
   constructor(private readonly store: MemoryStore) {}
 
-  findAll(companyId: string) {
+  findAll(companyId: string, siteId?: string) {
     return Promise.resolve(
-      this.store.risks.filter((r) => r.companyId === companyId),
+      this.store.risks
+        .filter((r) => r.companyId === companyId)
+        .filter((r) =>
+          siteId === undefined
+            ? true
+            : siteId === 'none'
+              ? r.siteId === null
+              : r.siteId === siteId,
+        ),
     );
   }
 
@@ -1027,7 +1037,12 @@ class MemoryRisksRepository {
   }
 
   create(
-    dto: { title: string; description?: string; level: string },
+    dto: {
+      title: string;
+      description?: string;
+      level: string;
+      siteId?: string | null;
+    },
     companyId: string,
   ) {
     const risk = {
@@ -1036,6 +1051,7 @@ class MemoryRisksRepository {
       description: dto.description ?? null,
       level: dto.level,
       companyId,
+      siteId: dto.siteId ?? null,
       createdAt: new Date(),
     };
     this.store.risks.unshift(risk);
@@ -1045,7 +1061,12 @@ class MemoryRisksRepository {
   updateScoped(
     id: string,
     companyId: string,
-    dto: { title?: string; description?: string; level?: string },
+    dto: {
+      title?: string;
+      description?: string;
+      level?: string;
+      siteId?: string | null;
+    },
   ) {
     const risk = this.store.risks.find(
       (r) => r.id === id && r.companyId === companyId,
@@ -1055,6 +1076,7 @@ class MemoryRisksRepository {
       title: dto.title ?? risk.title,
       description: dto.description ?? risk.description,
       level: dto.level ?? risk.level,
+      siteId: dto.siteId === undefined ? risk.siteId : dto.siteId,
     });
     return risk;
   }
@@ -1072,9 +1094,17 @@ class MemoryRisksRepository {
 class MemoryIncidentsRepository {
   constructor(private readonly store: MemoryStore) {}
 
-  findAll(user: unknown, companyId: string) {
+  findAll(user: unknown, companyId: string, query: unknown, siteId?: string) {
     return Promise.resolve(
-      this.store.incidents.filter((i) => i.companyId === companyId),
+      this.store.incidents
+        .filter((i) => i.companyId === companyId)
+        .filter((i) =>
+          siteId === undefined
+            ? true
+            : siteId === 'none'
+              ? i.siteId === null
+              : i.siteId === siteId,
+        ),
     );
   }
 
@@ -1093,7 +1123,12 @@ class MemoryIncidentsRepository {
   }
 
   create(
-    dto: { title: string; description: string; date: string },
+    dto: {
+      title: string;
+      description: string;
+      date: string;
+      siteId?: string | null;
+    },
     companyId: string,
   ) {
     const incident = {
@@ -1103,6 +1138,7 @@ class MemoryIncidentsRepository {
       date: new Date(dto.date),
       status: 'PENDING',
       companyId,
+      siteId: dto.siteId ?? null,
       createdAt: new Date(),
     };
     this.store.incidents.unshift(incident);
@@ -1112,7 +1148,7 @@ class MemoryIncidentsRepository {
   updateScoped(
     id: string,
     companyId: string,
-    dto: { title?: string; status?: string },
+    dto: { title?: string; status?: string; siteId?: string | null },
   ) {
     const incident = this.store.incidents.find(
       (i) => i.id === id && i.companyId === companyId,
@@ -1121,6 +1157,7 @@ class MemoryIncidentsRepository {
     Object.assign(incident, {
       title: dto.title ?? incident.title,
       status: dto.status ?? incident.status,
+      siteId: dto.siteId === undefined ? incident.siteId : dto.siteId,
     });
     return incident;
   }
@@ -2093,6 +2130,79 @@ describe('multi-tenant isolation (e2e)', () => {
       .delete(`/api/v1/incidents/${companyB.incidentId}`)
       .set('Authorization', tokenFor(companyA))
       .expect(404);
+  });
+
+  it('filters risks and incidents by site and rejects foreign sites', async () => {
+    // Asignar sede al riesgo e incidente propios.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/risks/${companyA.riskId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ siteId: companyA.siteId })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/incidents/${companyA.incidentId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ siteId: companyA.siteId })
+      .expect(200);
+
+    // Filtro por sede propia: aparecen los registros de esa sede.
+    const filteredRisks = await request(app.getHttpServer())
+      .get(`/api/v1/risks?siteId=${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
+    const filteredIncidents = await request(app.getHttpServer())
+      .get(`/api/v1/incidents?siteId=${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
+    expect(
+      (filteredRisks.body as Array<{ id: string }>).some(
+        (r) => r.id === companyA.riskId,
+      ),
+    ).toBe(true);
+    expect(
+      (filteredIncidents.body as Array<{ id: string }>).some(
+        (i) => i.id === companyA.incidentId,
+      ),
+    ).toBe(true);
+    // Ningun registro de la empresa B se filtra.
+    expect(
+      (filteredRisks.body as Array<{ id: string }>).some(
+        (r) => r.id === companyB.riskId,
+      ),
+    ).toBe(false);
+
+    // EMPLOYEE tambien puede filtrar por sede de su empresa.
+    await request(app.getHttpServer())
+      .get(`/api/v1/risks?siteId=${companyA.siteId}`)
+      .set('Authorization', `Bearer ${companyA.employeeToken}`)
+      .expect(200);
+
+    // Sede ajena: no existe para el actor (404).
+    await request(app.getHttpServer())
+      .get(`/api/v1/risks?siteId=${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/incidents?siteId=${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
+
+    // Crear con sede ajena tambien es 404.
+    await request(app.getHttpServer())
+      .post('/api/v1/risks')
+      .set('Authorization', tokenFor(companyA))
+      .send({
+        title: 'Riesgo sede ajena',
+        level: 'LOW',
+        siteId: companyB.siteId,
+      })
+      .expect(404);
+
+    // 'none' = solo registros sin sede.
+    await request(app.getHttpServer())
+      .get('/api/v1/risks?siteId=none')
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
   });
 
   it('denies cross-tenant access to trainings (GET/PATCH/DELETE)', async () => {

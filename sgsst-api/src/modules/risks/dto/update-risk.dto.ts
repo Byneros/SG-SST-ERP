@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateRiskDto {
   @IsOptional()
@@ -12,4 +12,9 @@ export class UpdateRiskDto {
   @IsOptional()
   @IsIn(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])
   level?: string;
+
+  /** Sede del riesgo; null lo desasigna. Debe ser de la misma empresa. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
 }

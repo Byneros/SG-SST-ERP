@@ -29,8 +29,9 @@ export class RisksController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('companyId') companyId?: string,
+    @Query('siteId') siteId?: string,
   ) {
-    return this.risksService.findAll(user, companyId);
+    return this.risksService.findAll(user, companyId, siteId);
   }
 
   @Get(':id')

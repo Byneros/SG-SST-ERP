@@ -96,6 +96,7 @@ export const emptyIncident: IncidentFormValues = {
   date: '',
   status: 'PENDING',
   companyId: '',
+  siteId: '',
 }
 
 export const emptyRisk: RiskFormValues = {
@@ -103,6 +104,7 @@ export const emptyRisk: RiskFormValues = {
   description: '',
   level: 'LOW',
   companyId: '',
+  siteId: '',
 }
 
 export const emptyTraining: TrainingFormValues = {
