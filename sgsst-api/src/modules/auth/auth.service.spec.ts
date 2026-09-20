@@ -55,6 +55,11 @@ describe('AuthService', () => {
       password: 'Admin12345',
     });
 
+    // Guard: el login sin MFA devuelto por el fixture es una sesion completa.
+    if (!('accessToken' in result)) {
+      throw new Error('Expected a full session, got an MFA challenge');
+    }
+
     expect(jwtService.signAsync).toHaveBeenCalledWith({
       sub: 'user-1',
       email: 'admin@sgsst.com',

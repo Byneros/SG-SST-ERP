@@ -4,6 +4,7 @@ import type { View } from '../types'
 const pageLoaders = {
   dashboard: () => import('../pages/dashboard/DashboardPage'),
   companies: () => import('../pages/companies/CompaniesPage'),
+  sites: () => import('../pages/sites/SitesPage'),
   employees: () => import('../pages/employees/EmployeesPage'),
   incidents: () => import('../pages/incidents/IncidentsPage'),
   risks: () => import('../pages/risks/RisksPage'),
@@ -19,6 +20,7 @@ const pageLoaders = {
 
 const dialogLoaders = {
   company: () => import('../pages/companies/CompanyDialog'),
+  site: () => import('../pages/sites/SiteDialog'),
   employee: () => import('../pages/employees/EmployeeDialog'),
   incident: () => import('../pages/incidents/IncidentDialog'),
   risk: () => import('../pages/risks/RiskDialog'),
@@ -33,6 +35,9 @@ export const DashboardPage = lazy(() =>
 )
 export const CompaniesPage = lazy(() =>
   pageLoaders.companies().then((module) => ({ default: module.CompaniesPage })),
+)
+export const SitesPage = lazy(() =>
+  pageLoaders.sites().then((module) => ({ default: module.SitesPage })),
 )
 export const EmployeesPage = lazy(() =>
   pageLoaders.employees().then((module) => ({ default: module.EmployeesPage })),
@@ -71,6 +76,9 @@ export const AuditPage = lazy(() =>
 export const CompanyDialog = lazy(() =>
   dialogLoaders.company().then((module) => ({ default: module.CompanyDialog })),
 )
+export const SiteDialog = lazy(() =>
+  dialogLoaders.site().then((module) => ({ default: module.SiteDialog })),
+)
 export const EmployeeDialog = lazy(() =>
   dialogLoaders.employee().then((module) => ({ default: module.EmployeeDialog })),
 )
@@ -99,6 +107,10 @@ export function preloadView(view: View) {
 
 export function preloadCompanyDialog() {
   void dialogLoaders.company()
+}
+
+export function preloadSiteDialog() {
+  void dialogLoaders.site()
 }
 
 export function preloadEmployeeDialog() {

@@ -7,6 +7,7 @@ import type {
   PageMeta,
   RiskFormValues,
   SgsstAuditFormValues,
+  SiteFormValues,
   TableState,
   TrainingFormValues,
   UserFormValues,
@@ -44,6 +45,16 @@ export const emptyEmployee: EmployeeFormValues = {
   hireDate: '',
   email: '',
   phone: '',
+  companyId: '',
+}
+
+export const emptySite: SiteFormValues = {
+  name: '',
+  code: '',
+  address: '',
+  city: '',
+  department: '',
+  isMain: false,
   companyId: '',
 }
 

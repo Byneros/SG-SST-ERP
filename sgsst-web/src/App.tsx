@@ -37,6 +37,7 @@ import {
   emptyReportMetrics,
   emptyRisk,
   emptySgsstAudit,
+  emptySite,
   emptySummary,
   emptyTraining,
   emptyUser,
@@ -66,9 +67,12 @@ import {
   preloadEmployeeDialog,
   preloadIncidentDialog,
   preloadRiskDialog,
+  preloadSiteDialog,
   preloadTrainingDialog,
   preloadUserDialog,
   preloadView,
+  SiteDialog,
+  SitesPage,
   TrainingDialog,
   TrainingsPage,
   UserDialog,
@@ -92,6 +96,7 @@ import type {
   ReportExportMetrics,
   Risk,
   SgsstAudit,
+  Site,
   SystemUser,
   Training,
   View,
@@ -104,6 +109,7 @@ function App() {
   const [view, setView] = useState<View>('dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [risks, setRisks] = useState<Risk[]>([])
@@ -119,6 +125,7 @@ function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [dashboardSummary, setDashboardSummary] = useState(emptySummary)
   const [companyMeta, setCompanyMeta] = useState(emptyMeta)
+  const [siteMeta, setSiteMeta] = useState(emptyMeta)
   const [employeeMeta, setEmployeeMeta] = useState(emptyMeta)
   const [incidentMeta, setIncidentMeta] = useState(emptyMeta)
   const [riskMeta, setRiskMeta] = useState(emptyMeta)
@@ -129,6 +136,7 @@ function App() {
   const [userMeta, setUserMeta] = useState(emptyMeta)
   const [auditMeta, setAuditMeta] = useState(emptyMeta)
   const [companyTable, setCompanyTable] = useState(initialTableState)
+  const [siteTable, setSiteTable] = useState(initialTableState)
   const [employeeTable, setEmployeeTable] = useState(initialTableState)
   const [incidentTable, setIncidentTable] = useState(initialTableState)
   const [riskTable, setRiskTable] = useState(initialTableState)
@@ -169,6 +177,7 @@ function App() {
     confirmPassword: '',
   })
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; item?: Company }>({ open: false })
+  const [siteDialog, setSiteDialog] = useState<{ open: boolean; item?: Site }>({ open: false })
   const [employeeDialog, setEmployeeDialog] = useState<{ open: boolean; item?: Employee }>({ open: false })
   const [incidentDialog, setIncidentDialog] = useState<{ open: boolean; item?: Incident }>({ open: false })
   const [riskDialog, setRiskDialog] = useState<{ open: boolean; item?: Risk }>({ open: false })
@@ -177,6 +186,7 @@ function App() {
   const [sgsstAuditDialog, setSgsstAuditDialog] = useState<{ open: boolean; item?: SgsstAudit }>({ open: false })
   const [userDialog, setUserDialog] = useState<{ open: boolean; item?: SystemUser }>({ open: false })
   const [companyForm, setCompanyForm] = useState(emptyCompany)
+  const [siteForm, setSiteForm] = useState(emptySite)
   const [employeeForm, setEmployeeForm] = useState(emptyEmployee)
   const [incidentForm, setIncidentForm] = useState(emptyIncident)
   const [riskForm, setRiskForm] = useState(emptyRisk)
@@ -193,6 +203,10 @@ function App() {
   // Autoservicio: el trabajador reporta incidentes y consulta riesgos/capacitaciones.
   const canManageOperations = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canReportIncidents = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'EMPLOYEE'
+  const canManageSites = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  // Sedes siguen la misma visibilidad que documentos/auditorias SG-SST (lectura
+  // tambien para AUDITOR; EMPLOYEE no navega esta vista).
+  const canViewSites = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canViewDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canViewReports = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   // EMPLOYEE consulta datos y dashboard, pero no genera exports (solo-backoffice).
@@ -209,7 +223,9 @@ function App() {
       ? 'Dashboard'
       : view === 'companies'
         ? 'Empresas'
-        : view === 'employees'
+        : view === 'sites'
+          ? 'Sedes'
+          : view === 'employees'
           ? 'Empleados'
           : view === 'incidents'
             ? 'Incidentes'
@@ -257,7 +273,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, employeeTable, incidentTable, riskTable, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, siteTable, employeeTable, incidentTable, riskTable, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -270,6 +286,14 @@ function App() {
           : hasCompanyScope
             ? api.get<Company>(`/companies/${activeCompanyId}`)
             : Promise.resolve({ data: [] as Company[] })
+      const siteRequest = canViewSites && hasCompanyScope
+        ? api.get<Paginated<Site>>('/sites', {
+            params: {
+              ...tableParams(siteTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Site[], meta: emptyMeta } })
       const employeeRequest = hasCompanyScope
         ? api.get<Paginated<Employee>>('/employees', {
             params: {
@@ -356,6 +380,7 @@ function App() {
         : Promise.resolve({ data: emptySummary })
       const [
         companyResponse,
+        siteResponse,
         employeeResponse,
         incidentsResponse,
         risksResponse,
@@ -371,6 +396,7 @@ function App() {
         summaryResponse,
       ] = await Promise.all([
         companyRequest,
+        siteRequest,
         employeeRequest,
         incidentsRequest,
         risksRequest,
@@ -394,6 +420,8 @@ function App() {
         setCompanies(data)
         setCompanyMeta({ ...emptyMeta, total: data.length, totalPages: 1 })
       }
+      setSites(siteResponse.data.data)
+      setSiteMeta(siteResponse.data.meta)
       setEmployees(employeeResponse.data.data)
       setEmployeeMeta(employeeResponse.data.meta)
       // incidents/risks/trainings devuelven arrays planos (sin paginacion).
@@ -564,6 +592,7 @@ function App() {
 
   function resetWorkspace() {
     setCompanies([])
+    setSites([])
     setEmployees([])
     setIncidents([])
     setRisks([])
@@ -606,6 +635,24 @@ function App() {
     )
     setCompanyDialog({ open: true, item })
     preloadCompanyDialog()
+  }
+
+  function openSiteForm(item?: Site) {
+    setSiteForm(
+      item
+        ? {
+            name: item.name,
+            code: item.code ?? '',
+            address: item.address ?? '',
+            city: item.city ?? '',
+            department: item.department ?? '',
+            isMain: item.isMain,
+            companyId: item.companyId,
+          }
+        : { ...emptySite, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setSiteDialog({ open: true, item })
+    preloadSiteDialog()
   }
 
   function openEmployeeForm(item?: Employee) {
@@ -741,6 +788,31 @@ function App() {
       }
       setCompanyDialog({ open: false })
     })
+  }
+
+  async function saveSite() {
+    await saveRecord(async () => {
+      if (siteDialog.item) {
+        await api.patch(`/sites/${siteDialog.item.id}`, sanitize(siteForm))
+      } else {
+        await api.post('/sites', sanitize(siteForm))
+      }
+      setSiteDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteSite(site: Site) {
+    openConfirmDialog(
+      'Eliminar sede',
+      `¿Seguro que deseas eliminar la sede ${site.name}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeSite(site.id) },
+    )
+  }
+
+  async function removeSite(id: string) {
+    await saveRecord(() => api.delete(`/sites/${id}`).then())
   }
 
   function normalizeCompanyForm() {
@@ -1198,7 +1270,7 @@ function App() {
   function selectView(nextView: View) {
     // Defensa en profundidad: el backend es la autoridad, aqui solo evitamos
     // navegaciones que producirian 403 para roles sin permisos.
-    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'legalCompliance', 'reports', 'users', 'externalDeliveries', 'audit']
+    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'legalCompliance', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
     if (isEmployee && employeeBlocked.includes(nextView)) {
       return
     }
@@ -1250,6 +1322,7 @@ function App() {
           loading={loading}
           error={error}
           canViewUsers={canViewUsers}
+          canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
           canViewReports={canViewReports}
           canViewAudit={canViewAudit}
@@ -1311,6 +1384,25 @@ function App() {
                   const company = companies.find((item) => item.id === id)
                   if (company) {
                     confirmHardDeleteCompany(company)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'sites' && (
+              <SitesPage
+                sites={sites}
+                meta={siteMeta}
+                tableState={siteTable}
+                canManage={canManageSites}
+                onTableChange={setSiteTable}
+                onCreate={() => openSiteForm()}
+                onPreloadCreate={preloadSiteDialog}
+                onEdit={openSiteForm}
+                onDelete={(id) => {
+                  const site = sites.find((item) => item.id === id)
+                  if (site) {
+                    confirmDeleteSite(site)
                   }
                 }}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
@@ -1521,6 +1613,17 @@ function App() {
               onChange={setCompanyForm}
               onClose={() => setCompanyDialog({ open: false })}
               onSave={saveCompany}
+            />
+            <SiteDialog
+              open={siteDialog.open}
+              editing={Boolean(siteDialog.item)}
+              values={siteForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setSiteForm}
+              onClose={() => setSiteDialog({ open: false })}
+              onSave={saveSite}
             />
             <EmployeeDialog
               open={employeeDialog.open}

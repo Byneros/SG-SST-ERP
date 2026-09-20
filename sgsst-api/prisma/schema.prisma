@@ -62,8 +62,28 @@ model Company {
   reportExports                 ReportExport[]
   reportMetricSnapshots         ReportExportMetricSnapshot[]
   risks                         Risk[]
+  sites                         Site[]
   trainings                     Training[]
   users                         User[]
+}
+
+model Site {
+  id          String    @id @default(uuid())
+  name        String
+  code        String?
+  address     String?
+  city        String?
+  department  String?
+  isMain      Boolean   @default(false)
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isActive    Boolean   @default(true)
+  deletedAt   DateTime?
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
 }
 
 model Employee {

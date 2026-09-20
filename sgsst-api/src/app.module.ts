@@ -19,6 +19,7 @@ import { LegalComplianceModule } from './modules/legal-compliance/legal-complian
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { RisksModule } from './modules/risks/risks.module';
+import { SitesModule } from './modules/sites/sites.module';
 import { SgsstAuditsModule } from './modules/sgsst-audits/sgsst-audits.module';
 import { TrainingsModule } from './modules/trainings/trainings.module';
 import { UsersModule } from './modules/users/users.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './modules/users/users.module';
     NotificationsModule,
     ReportsModule,
     RisksModule,
+    SitesModule,
     SgsstAuditsModule,
     TrainingsModule,
     IncidentsModule,

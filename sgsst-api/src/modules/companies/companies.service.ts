@@ -28,22 +28,23 @@ export class CompaniesService {
   }
 
   async findOne(id: string, user?: AuthenticatedUser) {
-    // Aislamiento: para actores con empresa activa, una empresa ajena no existe (404).
-    // SUPER_ADMIN sin empresa activa conserva la búsqueda global.
-    if (user?.activeCompanyId) {
-      const scoped = await this.companiesRepository.findById(id);
-      if (!scoped || scoped.id !== user.activeCompanyId) {
-        throw new NotFoundException('Company not found');
-      }
-      return scoped;
-    }
     const company = await this.companiesRepository.findById(id);
     if (!company) {
       throw new NotFoundException('Company not found');
     }
-    if (user) {
-      assertCompanyScope(user, company.id);
+    if (!user) {
+      return company;
     }
+    // Aislamiento: para actores con empresa activa, una empresa ajena no existe (404).
+    if (user.activeCompanyId) {
+      if (company.id !== user.activeCompanyId) {
+        throw new NotFoundException('Company not found');
+      }
+      return company;
+    }
+    // SUPER_ADMIN sin empresa activa conserva la busqueda global (operatoria de
+    // plataforma); los demas roles sin empresa activa nunca pasan el assert (403).
+    assertCompanyScope(user, company.id);
     return company;
   }
 

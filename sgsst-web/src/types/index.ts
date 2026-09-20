@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'companies' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -54,6 +54,32 @@ export type Company = {
   whatsappAlertPhone?: string
   isActive: boolean
   deletedAt?: string
+}
+
+export type Site = {
+  id: string
+  name: string
+  code?: string
+  address?: string
+  city?: string
+  department?: string
+  isMain: boolean
+  companyId: string
+  isActive: boolean
+  deletedAt?: string
+  createdAt: string
+  updatedAt: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+}
+
+export type SiteFormValues = {
+  name: string
+  code: string
+  address: string
+  city: string
+  department: string
+  isMain: boolean
+  companyId: string
 }
 
 export type Employee = {

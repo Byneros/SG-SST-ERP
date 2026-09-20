@@ -32,6 +32,9 @@ import { IncidentsService } from '../src/modules/incidents/incidents.service';
 import { RisksController } from '../src/modules/risks/risks.controller';
 import { RisksRepository } from '../src/modules/risks/risks.repository';
 import { RisksService } from '../src/modules/risks/risks.service';
+import { SitesController } from '../src/modules/sites/sites.controller';
+import { SitesRepository } from '../src/modules/sites/sites.repository';
+import { SitesService } from '../src/modules/sites/sites.service';
 import { SgsstAuditsController } from '../src/modules/sgsst-audits/sgsst-audits.controller';
 import { SgsstAuditsRepository } from '../src/modules/sgsst-audits/sgsst-audits.repository';
 import { SgsstAuditsService } from '../src/modules/sgsst-audits/SgsstAuditsService';
@@ -66,6 +69,7 @@ type Tenant = {
   employeeId: string;
   documentId: string;
   riskId: string;
+  siteId: string;
   incidentId: string;
   trainingId: string;
   auditId: string;
@@ -149,6 +153,21 @@ class MemoryStore {
     level: string;
     companyId: string;
     createdAt: Date;
+  }> = [];
+
+  sites: Array<{
+    id: string;
+    name: string;
+    code: string | null;
+    address: string | null;
+    city: string | null;
+    department: string | null;
+    isMain: boolean;
+    companyId: string;
+    isActive: boolean;
+    deletedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
   }> = [];
 
   incidents: Array<{
@@ -773,6 +792,150 @@ class MemoryDocumentsRepository {
   }
 }
 
+class MemorySitesRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  findAll(
+    companyId: string,
+    query: { page?: number; pageSize?: number; search?: string } = {},
+  ) {
+    const search = query.search?.toLowerCase();
+    const rows = this.store.sites
+      .filter((s) => s.companyId === companyId && s.isActive)
+      .filter((s) =>
+        search
+          ? `${s.name} ${s.code ?? ''} ${s.city ?? ''}`
+              .toLowerCase()
+              .includes(search)
+          : true,
+      )
+      .map((s) => this.withCompany(s));
+    return Promise.resolve(paginate(rows, query));
+  }
+
+  findById(id: string) {
+    const site = this.store.sites.find((s) => s.id === id);
+    return Promise.resolve(site ? this.withCompany(site) : null);
+  }
+
+  findByIdScoped(id: string, companyId: string) {
+    const site = this.store.sites.find(
+      (s) => s.id === id && s.companyId === companyId,
+    );
+    return Promise.resolve(site ? this.withCompany(site) : null);
+  }
+
+  findByCode(companyId: string, code: string) {
+    return Promise.resolve(
+      this.store.sites.find(
+        (s) => s.companyId === companyId && s.code === code && !s.deletedAt,
+      ) ?? null,
+    );
+  }
+
+  create(dto: {
+    name: string;
+    code?: string;
+    address?: string;
+    city?: string;
+    department?: string;
+    isMain?: boolean;
+  }, companyId: string) {
+    const now = new Date();
+    const site = {
+      id: randomUUID(),
+      name: dto.name,
+      code: dto.code ?? null,
+      address: dto.address ?? null,
+      city: dto.city ?? null,
+      department: dto.department ?? null,
+      isMain: dto.isMain ?? false,
+      companyId,
+      isActive: true,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.store.sites.unshift(site);
+    return Promise.resolve(this.withCompany(site));
+  }
+
+  update(
+    id: string,
+    dto: {
+      name?: string;
+      code?: string;
+      address?: string;
+      city?: string;
+      department?: string;
+      isMain?: boolean;
+    },
+  ) {
+    const site = this.store.sites.find((s) => s.id === id);
+    if (!site) throw new Error('Site not found');
+    Object.assign(site, {
+      name: dto.name ?? site.name,
+      code: dto.code ?? site.code,
+      address: dto.address ?? site.address,
+      city: dto.city ?? site.city,
+      department: dto.department ?? site.department,
+      isMain: dto.isMain ?? site.isMain,
+      updatedAt: new Date(),
+    });
+    return Promise.resolve(this.withCompany(site));
+  }
+
+  updateScoped(
+    id: string,
+    companyId: string,
+    dto: {
+      name?: string;
+      code?: string;
+      address?: string;
+      city?: string;
+      department?: string;
+      isMain?: boolean;
+    },
+  ) {
+    const site = this.store.sites.find(
+      (s) => s.id === id && s.companyId === companyId,
+    );
+    if (!site) return null;
+    void this.update(id, dto);
+    return Promise.resolve(this.withCompany(site));
+  }
+
+  remove(id: string) {
+    const site = this.store.sites.find((s) => s.id === id);
+    if (!site) throw new Error('Site not found');
+    site.isActive = false;
+    site.deletedAt = new Date();
+    return Promise.resolve(this.withCompany(site));
+  }
+
+  removeScoped(id: string, companyId: string) {
+    const site = this.store.sites.find(
+      (s) => s.id === id && s.companyId === companyId,
+    );
+    if (!site) return Promise.resolve({ count: 0 });
+    site.isActive = false;
+    site.deletedAt = new Date();
+    return Promise.resolve({ count: 1 });
+  }
+
+  private withCompany(site: (typeof this.store.sites)[number]) {
+    const company = this.store.companies.find(
+      (c) => c.id === site.companyId,
+    );
+    return {
+      ...site,
+      company: company
+        ? { id: company.id, name: company.name, nit: company.nit }
+        : null,
+    };
+  }
+}
+
 class MemoryRisksRepository {
   constructor(private readonly store: MemoryStore) {}
 
@@ -1254,6 +1417,7 @@ describe('multi-tenant isolation (e2e)', () => {
         EmployeesController,
         DocumentsController,
         RisksController,
+        SitesController,
         IncidentsController,
         TrainingsController,
         SgsstAuditsController,
@@ -1265,6 +1429,7 @@ describe('multi-tenant isolation (e2e)', () => {
         EmployeesService,
         DocumentsService,
         RisksService,
+        SitesService,
         IncidentsService,
         TrainingsService,
         SgsstAuditsService,
@@ -1294,6 +1459,10 @@ describe('multi-tenant isolation (e2e)', () => {
         {
           provide: RisksRepository,
           useValue: new MemoryRisksRepository(store),
+        },
+        {
+          provide: SitesRepository,
+          useValue: new MemorySitesRepository(store),
         },
         {
           provide: IncidentsRepository,
@@ -1437,6 +1606,18 @@ describe('multi-tenant isolation (e2e)', () => {
       })
       .expect(201);
 
+    // Sede propia
+    const siteResponse = await request(app.getHttpServer())
+      .post('/api/v1/sites')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: `Sede ${company.name}`,
+        code: company.name.startsWith('Empresa A') ? 'SEDE-A' : 'SEDE-B',
+        city: 'Bogota',
+        companyId: company.id,
+      })
+      .expect(201);
+
     // Incidente propio
     const incidentResponse = await request(app.getHttpServer())
       .post('/api/v1/incidents')
@@ -1499,6 +1680,7 @@ describe('multi-tenant isolation (e2e)', () => {
       employeeId: employeeResponse.body.id as string,
       documentId: documentResponse.body.id as string,
       riskId: riskResponse.body.id as string,
+      siteId: siteResponse.body.id as string,
       incidentId: incidentResponse.body.id as string,
       trainingId: trainingResponse.body.id as string,
       auditId,
@@ -1511,9 +1693,109 @@ describe('multi-tenant isolation (e2e)', () => {
     expect(companyA.employeeId).toBeTruthy();
     expect(companyA.documentId).toBeTruthy();
     expect(companyA.riskId).toBeTruthy();
+    expect(companyA.siteId).toBeTruthy();
     expect(companyA.incidentId).toBeTruthy();
     expect(companyA.trainingId).toBeTruthy();
     expect(companyA.auditId).toBeTruthy();
+  });
+
+  // -------------------------------------------------------------------------
+  // Sedes (sites)
+  // -------------------------------------------------------------------------
+
+  it('allows Company A to manage its own sites', async () => {
+    const listResponse = await request(app.getHttpServer())
+      .get('/api/v1/sites')
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
+    const siteIds = (listResponse.body.data as Array<{ id: string }>).map(
+      (site) => site.id,
+    );
+    expect(siteIds).toContain(companyA.siteId);
+    expect(siteIds).not.toContain(companyB.siteId);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sites/${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ city: 'Medellin' })
+      .expect(200)
+      .then((response) => {
+        expect(response.body.companyId).toBe(companyA.companyId);
+      });
+  });
+
+  it('denies Company A access to Company B site (GET/PATCH/DELETE)', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/v1/sites/${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sites/${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ name: 'Hacked' })
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/sites/${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
+  });
+
+  it('denies Company B access to Company A site (GET/PATCH/DELETE)', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/v1/sites/${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyB))
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sites/${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyB))
+      .send({ name: 'Hacked' })
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/sites/${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyB))
+      .expect(404);
+  });
+
+  it('rejects client-sent foreign companyId when creating a site (never lands in Company B)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/sites')
+      .set('Authorization', tokenFor(companyA))
+      .send({
+        name: 'Sede infiltrada',
+        code: 'SEDE-X',
+        companyId: companyB.companyId,
+      })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/sites')
+      .set('Authorization', tokenFor(companyA))
+      .expect(200)
+      .then((response) => {
+        const names = (response.body.data as Array<{ name: string }>).map(
+          (site) => site.name,
+        );
+        expect(names).not.toContain('Sede infiltrada');
+      });
+  });
+
+  it('rejects duplicate site code inside the tenant but allows it across tenants', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/sites')
+      .set('Authorization', tokenFor(companyA))
+      .send({ name: 'Sede duplicada', code: 'SEDE-A' })
+      .expect(409);
+
+    // El mismo codigo en otra empresa es valido (unicidad por tenant).
+    await request(app.getHttpServer())
+      .post('/api/v1/sites')
+      .set('Authorization', tokenFor(companyB))
+      .send({ name: 'Sede B con codigo de A', code: 'SEDE-A' })
+      .expect(201);
   });
 
   // -------------------------------------------------------------------------
