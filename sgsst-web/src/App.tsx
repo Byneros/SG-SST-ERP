@@ -103,10 +103,47 @@ import type {
 } from './types'
 import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
 
+/**
+ * Vistas con filtro de sede persistido en la URL (hash routing minimo):
+ * #/employees?site=<uuid|none> — sin react-router; solo lectura/escritura
+ * del hash con replaceState para que las vistas filtradas sean compartibles.
+ */
+const SITE_FILTER_VIEWS: Array<View & ('employees' | 'incidents' | 'risks')> = ['employees',
+  'incidents', 'risks']
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ALL_VIEWS: View[] = [
+  'dashboard',
+  'companies',
+  'sites',
+  'employees',
+  'incidents',
+  'risks',
+  'trainings',
+  'documents',
+  'sgsstAudits',
+  'legalCompliance',
+  'reports',
+  'users',
+  'externalDeliveries',
+  'audit',
+]
+
+function readHashLocation(): { view: View; site: string } {
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  const [path, query] = hash.split('?')
+  const candidate = path ?? ''
+  const view = (ALL_VIEWS as string[]).includes(candidate) ? (candidate as View) : 'dashboard'
+  const rawSite = new URLSearchParams(query ?? '').get('site') ?? 'all'
+  // Valor invalido -> 'all' (el backend responderia 404 a una sede inexistente).
+  const site = rawSite === 'none' || rawSite === 'all' || UUID_PATTERN.test(rawSite) ? rawSite : 'all'
+  return { view, site }
+}
+
 function App() {
   const [token, setToken] = useState(() => getStoredSession().token)
   const [user, setUser] = useState<AuthUser | null>(() => getStoredSession().user)
-  const [view, setView] = useState<View>('dashboard')
+  const [initialHash] = useState(() => readHashLocation())
+  const [view, setView] = useState<View>(initialHash.view)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   const [sites, setSites] = useState<Site[]>([])
@@ -138,11 +175,12 @@ function App() {
   const [companyTable, setCompanyTable] = useState(initialTableState)
   const [siteTable, setSiteTable] = useState(initialTableState)
   const [employeeTable, setEmployeeTable] = useState(initialTableState)
-  const [employeeSiteFilter, setEmployeeSiteFilter] = useState('all')
+  // Filtro de sede inicial desde la URL (compartible); 'all' si no hay hash.
+  const [employeeSiteFilter, setEmployeeSiteFilter] = useState(initialHash.view === 'employees' ? initialHash.site : 'all')
   const [incidentTable, setIncidentTable] = useState(initialTableState)
-  const [incidentSiteFilter, setIncidentSiteFilter] = useState('all')
+  const [incidentSiteFilter, setIncidentSiteFilter] = useState(initialHash.view === 'incidents' ? initialHash.site : 'all')
   const [riskTable, setRiskTable] = useState(initialTableState)
-  const [riskSiteFilter, setRiskSiteFilter] = useState('all')
+  const [riskSiteFilter, setRiskSiteFilter] = useState(initialHash.view === 'risks' ? initialHash.site : 'all')
   const [trainingTable, setTrainingTable] = useState(initialTableState)
   const [documentTable, setDocumentTable] = useState(initialTableState)
   const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
@@ -277,6 +315,27 @@ function App() {
       void loadData()
     }
   }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+
+  // La URL refleja vista + filtro de sede (sin entradas de historial).
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (SITE_FILTER_VIEWS.includes(view as never)) {
+      const siteFilter =
+        view === 'employees'
+          ? employeeSiteFilter
+          : view === 'incidents'
+            ? incidentSiteFilter
+            : riskSiteFilter
+      if (siteFilter !== 'all') {
+        params.set('site', siteFilter)
+      }
+    }
+    const query = params.toString()
+    const nextHash = `#/${view}${query ? `?${query}` : ''}`
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, '', nextHash)
+    }
+  }, [view, employeeSiteFilter, incidentSiteFilter, riskSiteFilter])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -1312,29 +1371,32 @@ function App() {
   }
 
   // KPI de sede clickeable: abre Empleados con el filtro de esa sede aplicado.
-  function openEmployeesWithSite(siteId: string) {
-    if (!siteId) return
-    setEmployeeSiteFilter(siteId)
-    setEmployeeTable((current) => ({ ...current, page: 1 }))
-    setView('employees')
-    setMobileOpen(false)
+  // Helper: limpia el filtro de sede de la vista actual (chip X o selector).
+  function applySiteFilter(
+    target: 'employees' | 'incidents' | 'risks',
+    siteId: string,
+  ) {
+    const pageSetter =
+      target === 'employees'
+        ? setEmployeeTable
+        : target === 'incidents'
+          ? setIncidentTable
+          : setRiskTable
+    const filterSetter =
+      target === 'employees'
+        ? setEmployeeSiteFilter
+        : target === 'incidents'
+          ? setIncidentSiteFilter
+          : setRiskSiteFilter
+    pageSetter((current) => ({ ...current, page: 1 }))
+    filterSetter(siteId)
   }
 
-  // Conteo de incidentes abiertos: abre Incidentes filtrado por esa sede.
-  function openIncidentsWithSite(siteId: string) {
+  // KPI de sede clickeable: abre la vista destino con el filtro de esa sede.
+  function openSiteView(target: 'employees' | 'incidents' | 'risks', siteId: string) {
     if (!siteId) return
-    setIncidentSiteFilter(siteId)
-    setIncidentTable((current) => ({ ...current, page: 1 }))
-    setView('incidents')
-    setMobileOpen(false)
-  }
-
-  // Conteo de riesgos criticos: abre Riesgos filtrado por esa sede.
-  function openRisksWithSite(siteId: string) {
-    if (!siteId) return
-    setRiskSiteFilter(siteId)
-    setRiskTable((current) => ({ ...current, page: 1 }))
-    setView('risks')
+    applySiteFilter(target, siteId)
+    setView(target)
     setMobileOpen(false)
   }
 
@@ -1414,9 +1476,9 @@ function App() {
                 employees={employees}
                 // El desglose por sede es del alcance de empresa: SUPER_ADMIN (global) no lo ve.
                 siteKpis={isPlatformAdmin ? [] : dashboardSummary.siteKpis ?? []}
-                onOpenSite={openEmployeesWithSite}
-                onOpenSiteIncidents={openIncidentsWithSite}
-                onOpenSiteRisks={openRisksWithSite}
+                onOpenSite={(siteId) => openSiteView('employees', siteId)}
+                onOpenSiteIncidents={(siteId) => openSiteView('incidents', siteId)}
+                onOpenSiteRisks={(siteId) => openSiteView('risks', siteId)}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
                 canExport={canExportReports}
                 onDownloadReport={(format) => handleDownloadReport('summary', format)}
@@ -1483,10 +1545,7 @@ function App() {
                 canExport={canExportReports}
                 sites={sites}
                 siteFilter={employeeSiteFilter}
-                onSiteFilterChange={(siteId) => {
-                  setEmployeeTable((current) => ({ ...current, page: 1 }))
-                  setEmployeeSiteFilter(siteId)
-                }}
+                onSiteFilterChange={(siteId) => applySiteFilter('employees', siteId)}
                 onTableChange={setEmployeeTable}
                 onCreate={() => openEmployeeForm()}
                 onPreloadCreate={preloadEmployeeDialog}
@@ -1517,10 +1576,7 @@ function App() {
                 canEdit={canManageOperations}
                 sites={sites}
                 siteFilter={incidentSiteFilter}
-                onSiteFilterChange={(siteId) => {
-                  setIncidentTable((current) => ({ ...current, page: 1 }))
-                  setIncidentSiteFilter(siteId)
-                }}
+                onSiteFilterChange={(siteId) => applySiteFilter('incidents', siteId)}
                 onTableChange={setIncidentTable}
                 onCreate={() => openIncidentForm()}
                 onPreloadCreate={preloadIncidentDialog}
@@ -1542,10 +1598,7 @@ function App() {
                 canManage={canManageOperations}
                 sites={sites}
                 siteFilter={riskSiteFilter}
-                onSiteFilterChange={(siteId) => {
-                  setRiskTable((current) => ({ ...current, page: 1 }))
-                  setRiskSiteFilter(siteId)
-                }}
+                onSiteFilterChange={(siteId) => applySiteFilter('risks', siteId)}
                 onTableChange={setRiskTable}
                 onCreate={() => openRiskForm()}
                 onPreloadCreate={preloadRiskDialog}
