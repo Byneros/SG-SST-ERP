@@ -1,14 +1,16 @@
-import { Box, Button, Chip, Grid, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
+import { Assessment, AssignmentLate, FactCheck, TrendingDown } from '@mui/icons-material'
+import { Box, Button, Chip, Grid, LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
 import type { ReportFormat } from '../../api/client'
 import { ActiveCompanyBanner } from '../../components/TablePieces'
-import type { Company, Employee, SiteKpi } from '../../types'
+import type { Company, ComplianceSummary, Employee, SiteKpi } from '../../types'
 
 export function DashboardPage({
   stats,
   companies,
   employees,
   siteKpis,
+  compliance,
   activeCompanyName,
   canExport,
   onOpenSite,
@@ -23,6 +25,7 @@ export function DashboardPage({
   companies: Company[]
   employees: Employee[]
   siteKpis: SiteKpi[]
+  compliance?: ComplianceSummary
   activeCompanyName?: string
   canExport: boolean
   onOpenSite?: (siteId: string) => void
@@ -96,6 +99,66 @@ export function DashboardPage({
           </Paper>
         </Grid>
       </Grid>
+      {compliance && (
+        <Grid container spacing={2} sx={{ mt: 0 }}>
+          <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+            <Paper className="kpi-card" variant="outlined">
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary">Cumplimiento 0312</Typography>
+                  {compliance.evaluationsAvgCompliance === null || compliance.evaluationsCount === 0 ? (
+                    <Typography variant="h5">-</Typography>
+                  ) : (
+                    <>
+                      <Typography variant="h5">{compliance.evaluationsAvgCompliance}%</Typography>
+                      <LinearProgress variant="determinate" value={Math.min(100, compliance.evaluationsAvgCompliance)} sx={{ mt: 1 }} />
+                    </>
+                  )}
+                  <Typography variant="caption" color="text.secondary">{compliance.evaluationsCount} evaluaciones activas</Typography>
+                </Box>
+                <Box className="kpi-icon"><FactCheck /></Box>
+              </Stack>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+            <Paper className="kpi-card" variant="outlined">
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary">Indicadores fuera de meta</Typography>
+                  <Typography variant="h5">{compliance.indicatorsOffTarget} / {compliance.indicatorsCount}</Typography>
+                  <Typography variant="caption" color="text.secondary">valor actual vs. ultima meta</Typography>
+                </Box>
+                <Box className="kpi-icon"><TrendingDown /></Box>
+              </Stack>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+            <Paper className="kpi-card" variant="outlined">
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary">Auditorias pendientes</Typography>
+                  <Typography variant="h5">{compliance.pendingAudits}</Typography>
+                  <Typography variant="caption" color="text.secondary">{compliance.openFindings} hallazgos abiertos</Typography>
+                </Box>
+                <Box className="kpi-icon"><Assessment /></Box>
+              </Stack>
+              {compliance.pendingAudits > 0 && <LinearProgress variant="determinate" value={100} color="warning" sx={{ mt: 1 }} />}
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+            <Paper className="kpi-card" variant="outlined">
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary">Acciones correctivas vencidas</Typography>
+                  <Typography variant="h5">{compliance.overdueCorrectiveActions}</Typography>
+                  <Typography variant="caption" color="text.secondary">compromisos con fecha vencida</Typography>
+                </Box>
+                <Box className="kpi-icon"><AssignmentLate /></Box>
+              </Stack>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
       {siteKpis.length > 0 && (
         <Paper className="panel" variant="outlined" sx={{ mt: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>

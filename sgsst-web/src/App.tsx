@@ -1697,6 +1697,7 @@ function App() {
                 employees={employees}
                 // El desglose por sede es del alcance de empresa: SUPER_ADMIN (global) no lo ve.
                 siteKpis={isPlatformAdmin ? [] : dashboardSummary.siteKpis ?? []}
+                compliance={dashboardSummary.compliance}
                 onOpenSite={(siteId) => openSiteView('employees', siteId)}
                 onOpenSiteIncidents={(siteId) => openSiteView('incidents', siteId)}
                 onOpenSiteRisks={(siteId) => openSiteView('risks', siteId)}

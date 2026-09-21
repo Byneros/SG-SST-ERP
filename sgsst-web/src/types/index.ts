@@ -585,6 +585,16 @@ export type LegalComplianceFilters = {
   applies: 'all' | 'yes' | 'no'
 }
 
+export type ComplianceSummary = {
+  pendingAudits: number
+  openFindings: number
+  overdueCorrectiveActions: number
+  evaluationsCount: number
+  evaluationsAvgCompliance: number | null
+  indicatorsCount: number
+  indicatorsOffTarget: number
+}
+
 export type DashboardSummary = {
   companiesCount: number
   employeesCount: number
@@ -599,6 +609,7 @@ export type DashboardSummary = {
   inactiveUsers: number
   activeRate: number
   siteKpis?: SiteKpi[]
+  compliance?: ComplianceSummary
 }
 
 export type CompanyFormValues = {

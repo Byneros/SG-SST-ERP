@@ -193,7 +193,8 @@ export class DashboardService implements OnModuleDestroy {
       }),
       this.prisma.correctiveAction.count({
         where: {
-          ...auditScope,
+          // CorrectiveAction no tiene relacion directa con Audit: pasa por finding.
+          finding: { audit: scope },
           dueDate: { lt: now },
           status: { not: 'COMPLETED' },
         },

@@ -2,12 +2,7 @@
 ALTER TABLE "Audit" ADD COLUMN "programId" TEXT;
 ALTER TABLE "Audit" ADD COLUMN "checklistTemplate" JSONB;
 
-CREATE INDEX "Audit_programId_idx" ON "Audit"("programId");
-
-ALTER TABLE "Audit" ADD CONSTRAINT "Audit_programId_fkey"
-  FOREIGN KEY ("programId") REFERENCES "AuditProgram"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
-
+-- AuditProgram debe existir antes de la FK desde Audit (orden corregido).
 CREATE TABLE "AuditProgram" (
   "id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -28,6 +23,12 @@ CREATE INDEX "AuditProgram_companyId_idx" ON "AuditProgram"("companyId");
 ALTER TABLE "AuditProgram" ADD CONSTRAINT "AuditProgram_companyId_fkey"
   FOREIGN KEY ("companyId") REFERENCES "Company"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE INDEX "Audit_programId_idx" ON "Audit"("programId");
+
+ALTER TABLE "Audit" ADD CONSTRAINT "Audit_programId_fkey"
+  FOREIGN KEY ("programId") REFERENCES "AuditProgram"("id")
+  ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- Checklist por auditoria: items con respuesta, evidencia y responsable.
 CREATE TABLE "AuditChecklistItem" (
@@ -52,13 +53,17 @@ ALTER TABLE "AuditChecklistItem" ADD CONSTRAINT "AuditChecklistItem_auditId_fkey
   ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- FASE 7.2: evaluacion de estandares minimos (Resolucion 0312 de 2019).
+-- Enums nativos: el cliente Prisma los exige para las columnas de estado.
+CREATE TYPE "EvaluationStatus" AS ENUM ('IN_PROGRESS', 'COMPLETED');
+CREATE TYPE "EvaluationItemStatus" AS ENUM ('PENDING', 'COMPLIANT', 'PARTIAL', 'NON_COMPLIANT', 'NOT_APPLICABLE');
+
 CREATE TABLE "SgsstEvaluation" (
   "id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
   "standard" TEXT NOT NULL DEFAULT 'RES_0312_2019',
   "riskClass" TEXT NOT NULL,
   "period" TEXT,
-  "status" TEXT NOT NULL DEFAULT 'IN_PROGRESS',
+  "status" "EvaluationStatus" NOT NULL DEFAULT 'IN_PROGRESS',
   "score" DOUBLE PRECISION,
   "maxScore" DOUBLE PRECISION,
   "compliancePercent" DOUBLE PRECISION,
@@ -86,7 +91,7 @@ CREATE TABLE "EvaluationItem" (
   "question" TEXT NOT NULL,
   "maxScore" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "score" DOUBLE PRECISION,
-  "status" TEXT NOT NULL DEFAULT 'PENDING',
+  "status" "EvaluationItemStatus" NOT NULL DEFAULT 'PENDING',
   "notes" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
