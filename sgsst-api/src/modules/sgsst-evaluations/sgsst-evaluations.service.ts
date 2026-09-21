@@ -184,7 +184,8 @@ export class SgsstEvaluationsService {
       })),
     });
 
-    return this.findOne(user, id);
+    // Recalcula: los items PENDING cuentan como pendientes para el estado.
+    return this.recalculate(id);
   }
 
   /** Responde un item y recalcula el cumplimiento total de la evaluación. */

@@ -112,13 +112,14 @@ async function phase8ApiFlows() {
     return 'compliance=75% y COMPLETED'
   })
 
-  // Agregar un item nuevo vía endpoint Fase 7 (no recalcula estado: quirk
-  // conocido del backend; el estado se actualiza al responder items).
+  // Agregar un item nuevo vía endpoint Fase 7: la evaluación estaba COMPLETED
+  // y con un item PENDING nuevo debe volver a IN_PROGRESS (recalcula).
   await expectApi(token, 'POST', `/sgsst-evaluations/${evaluationId}/items`, {
     items: [{ numeral: '3.1', section: 'Verificacion', question: 'Inspecciones planeadas ejecutadas', maxScore: 10 }],
-  }, 'POST /items agrega item', (data) => {
+  }, 'POST /items agrega item y recalcula estado', (data) => {
     if (data.items?.length !== 4) throw new Error(`items=${data.items?.length}`)
-    return `4 items (status=${data.status})`
+    if (data.status !== 'IN_PROGRESS') throw new Error(`status=${data.status}`)
+    return '4 items, vuelve a IN_PROGRESS'
   })
 
   // --- Indicadores ---
