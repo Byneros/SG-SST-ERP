@@ -12,6 +12,7 @@ import { env } from '../../config/env';
 import { PrismaService } from '../../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { decryptSecret } from './sso-crypto';
+import { UpdateSsoProviderDto } from './dto/update-sso-provider.dto';
 
 export type SsoSession = {
   accessToken: string;
@@ -61,7 +62,7 @@ export class SsoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   /** Inicia el flujo: state persistido + PKCE + redirect al IdP de la empresa. */
   async beginLogin(companyId: string, redirect: string | undefined) {
@@ -146,7 +147,12 @@ export class SsoService {
       );
       throw new BadRequestException('Token exchange failed');
     }
-    const tokens = (await response.json()) as { id_token?: string };
+    const tokens = (await response.json()) as {
+      id_token?: string;
+      access_token?: string;
+      token_type?: string;
+      expires_in?: number;
+    };
 
     if (tokens.id_token) {
       // Firma y emisor verificados contra el JWKS del IdP; audience = client_id.
@@ -261,26 +267,30 @@ export class SsoService {
   /** Opciones de login SSO activas: solo datos publicos del IdP. */
   async listActiveLoginOptions() {
     const providers = await this.prisma.ssoProvider.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        company: {
+          isActive: true,
+        },
+      },
       select: {
+        id: true,
         companyId: true,
         issuer: true,
         authorizationEndpoint: true,
+        company: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
-    const companies = await this.prisma.company.findMany({
-      where: { isActive: true, ssoProviderId: { not: null } },
-      select: { id: true, name: true, ssoProviderId: true },
-    });
-    const byProviderId = new Map(
-      companies.map((c) => [c.ssoProviderId, c.name]),
-    );
-    return providers
-      .filter((provider) => byProviderId.has(provider.id))
-      .map((provider) => ({
-        companyId: provider.companyId,
-        companyName: byProviderId.get(provider.id) ?? provider.companyId,
-      }));
+
+    return providers.map((provider) => ({
+      companyId: provider.companyId,
+      companyName: provider.company.name,
+    }));
   }
 
   async findProviderById(id: string) {
@@ -336,18 +346,27 @@ export class SsoService {
   async updateProvider(
     id: string,
     companyId: string,
-    dto: Record<string, unknown>,
+    dto: UpdateSsoProviderDto,
     encrypt: (plain: string) => string,
   ) {
-    const data: Record<string, unknown> = { ...dto };
-    if (typeof data.clientSecret === 'string' && data.clientSecret) {
+    const data: Record<string, unknown> = {
+      ...dto,
+    };
+
+    if (typeof data.clientSecret === 'string' && data.clientSecret.length > 0) {
       data.clientSecret = encrypt(data.clientSecret);
     } else {
       delete data.clientSecret;
     }
+
     if (data.isActive !== undefined) {
       data.isActive = data.isActive === 'true';
     }
+
+    return this.prisma.ssoProvider.update({
+      where: { id },
+      data,
+    });
     // jwksUri/userinfoEndpoint admiten explicitamente null para limpiar.
     return this.prisma.ssoProvider.update({ where: { id }, data });
   }

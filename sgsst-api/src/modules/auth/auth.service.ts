@@ -266,7 +266,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
-        companyId: user.companyId,
+        companyId: user.companyId ?? null,
         activeCompanyId,
         mfaEnabled: user.mfaEnabled,
       },
@@ -286,7 +286,8 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
-      companyId: user.companyId,
+      companyId: user.companyId ?? null,
+      /*companyId: user.companyId,*/
       activeCompanyId,
       type: 'access',
     };
