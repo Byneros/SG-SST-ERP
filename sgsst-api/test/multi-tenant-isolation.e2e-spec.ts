@@ -193,6 +193,7 @@ class MemoryStore {
     description: string | null;
     date: Date;
     companyId: string;
+    siteId: string | null;
     createdAt: Date;
   }> = [];
 
@@ -1175,9 +1176,17 @@ class MemoryIncidentsRepository {
 class MemoryTrainingsRepository {
   constructor(private readonly store: MemoryStore) {}
 
-  findAll(companyId: string) {
+  findAll(companyId: string, siteId?: string) {
     return Promise.resolve(
-      this.store.trainings.filter((t) => t.companyId === companyId),
+      this.store.trainings
+        .filter((t) => t.companyId === companyId)
+        .filter((t) =>
+          siteId === undefined
+            ? true
+            : siteId === 'none'
+              ? t.siteId === null
+              : t.siteId === siteId,
+        ),
     );
   }
 
@@ -1196,7 +1205,12 @@ class MemoryTrainingsRepository {
   }
 
   create(
-    dto: { title: string; description?: string; date: string },
+    dto: {
+      title: string;
+      description?: string;
+      date: string;
+      siteId?: string | null;
+    },
     companyId: string,
   ) {
     const training = {
@@ -1205,18 +1219,26 @@ class MemoryTrainingsRepository {
       description: dto.description ?? null,
       date: new Date(dto.date),
       companyId,
+      siteId: dto.siteId ?? null,
       createdAt: new Date(),
     };
     this.store.trainings.unshift(training);
     return Promise.resolve(training);
   }
 
-  updateScoped(id: string, companyId: string, dto: { title?: string }) {
+  updateScoped(
+    id: string,
+    companyId: string,
+    dto: { title?: string; siteId?: string | null },
+  ) {
     const training = this.store.trainings.find(
       (t) => t.id === id && t.companyId === companyId,
     );
     if (!training) return null;
-    Object.assign(training, { title: dto.title ?? training.title });
+    Object.assign(training, {
+      title: dto.title ?? training.title,
+      siteId: dto.siteId === undefined ? training.siteId : dto.siteId,
+    });
     return training;
   }
 
@@ -2203,6 +2225,55 @@ describe('multi-tenant isolation (e2e)', () => {
       .get('/api/v1/risks?siteId=none')
       .set('Authorization', tokenFor(companyA))
       .expect(200);
+  });
+
+  it('filters trainings by site and rejects foreign sites', async () => {
+    // Asignar sede a la capacitacion propia.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/trainings/${companyA.trainingId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ siteId: companyA.siteId })
+      .expect(200);
+
+    // Filtro por sede propia: aparece la capacitacion de esa sede.
+    const filtered = await request(app.getHttpServer())
+      .get(`/api/v1/trainings?siteId=${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
+    expect(
+      (filtered.body as Array<{ id: string }>).some(
+        (t) => t.id === companyA.trainingId,
+      ),
+    ).toBe(true);
+
+    // Sede ajena: no existe para el actor (404).
+    await request(app.getHttpServer())
+      .get(`/api/v1/trainings?siteId=${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
+  });
+
+  it('filters documents by site and rejects foreign sites', async () => {
+    // Asignar sede al documento propio.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/documents/${companyA.documentId}`)
+      .set('Authorization', tokenFor(companyA))
+      .send({ siteId: companyA.siteId })
+      .expect(200);
+
+    // Filtro por sede propia: aparece el documento de esa sede (respuesta paginada).
+    const filtered = await request(app.getHttpServer())
+      .get(`/api/v1/documents?siteId=${companyA.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
+    const rows = (filtered.body as { data: Array<{ id: string }> }).data;
+    expect(rows.some((d) => d.id === companyA.documentId)).toBe(true);
+
+    // Sede ajena: no existe para el actor (404).
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents?siteId=${companyB.siteId}`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
   });
 
   it('denies cross-tenant access to trainings (GET/PATCH/DELETE)', async () => {

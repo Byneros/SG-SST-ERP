@@ -77,6 +77,7 @@ export const emptyDocument: DocumentFormValues = {
   mimeType: '',
   expiresAt: '',
   companyId: '',
+  siteId: '',
 }
 
 export const emptySgsstAudit: SgsstAuditFormValues = {
@@ -112,6 +113,7 @@ export const emptyTraining: TrainingFormValues = {
   description: '',
   date: '',
   companyId: '',
+  siteId: '',
 }
 
 export const initialTableState: TableState = {

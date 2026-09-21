@@ -7,10 +7,14 @@ import {
 import { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { CreateTrainingDto } from './dto/create-training.dto';
 import { TrainingsRepository } from './trainings.repository';
+import { SitesRepository } from '../sites/sites.repository';
 
 @Injectable()
 export class TrainingsService {
-  constructor(private readonly trainingsRepository: TrainingsRepository) {}
+  constructor(
+    private readonly trainingsRepository: TrainingsRepository,
+    private readonly sitesRepository: SitesRepository,
+  ) {}
 
   async findOne(currentUser: AuthenticatedUser, id: string) {
     // Aislamiento: una capacitación de otra empresa no existe para el actor.
@@ -32,16 +36,36 @@ export class TrainingsService {
     return resolveCompanyScope(currentUser, companyId);
   }
 
-  findAll(currentUser: AuthenticatedUser, companyId?: string) {
-    return this.trainingsRepository.findAll(
-      this.resolveCompanyId(currentUser, companyId),
-    );
+  /** La sede debe existir y pertenecer a la empresa del scope. */
+  private async assertSiteInScope(siteId: string, companyId: string) {
+    const site = await this.sitesRepository.findByIdScoped(siteId, companyId);
+    if (!site) {
+      throw new NotFoundException('Site not found');
+    }
   }
 
-  create(currentUser: AuthenticatedUser, dto: CreateTrainingDto) {
+  async findAll(
+    currentUser: AuthenticatedUser,
+    companyId?: string,
+    siteId?: string,
+  ) {
+    const scopedCompanyId = this.resolveCompanyId(currentUser, companyId);
+    // Filtro por sede: una sede ajena no existe para el actor (404).
+    if (siteId && siteId !== 'none') {
+      await this.assertSiteInScope(siteId, scopedCompanyId);
+    }
+    return this.trainingsRepository.findAll(scopedCompanyId, siteId);
+  }
+
+  async create(currentUser: AuthenticatedUser, dto: CreateTrainingDto) {
+    const companyId = this.resolveCompanyId(currentUser, dto.companyId);
+    // La sede debe ser de la empresa de la capacitacion.
+    if (dto.siteId) {
+      await this.assertSiteInScope(dto.siteId, companyId);
+    }
     return this.trainingsRepository.create(
       dto,
-      this.resolveCompanyId(currentUser, dto.companyId),
+      companyId,
     );
   }
 
@@ -51,6 +75,13 @@ export class TrainingsService {
     dto: UpdateTrainingDto,
   ) {
     await this.findOne(currentUser, id);
+    // Sede del update: de la misma empresa; null desasigna; undefined no toca.
+    if (dto.siteId !== undefined && dto.siteId !== null) {
+      await this.assertSiteInScope(
+        dto.siteId,
+        this.resolveCompanyId(currentUser),
+      );
+    }
     // Update restrictivo por empresa (defensa en profundidad).
     const updated = await this.trainingsRepository.updateScoped(
       id,

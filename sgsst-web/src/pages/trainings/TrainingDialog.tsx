@@ -1,17 +1,21 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
-import type { Company, TrainingFormValues } from '../../types'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, Stack, TextField } from '@mui/material'
+import type { Company, Site, TrainingFormValues } from '../../types'
 
 export function TrainingDialog(props: {
   open: boolean
   editing: boolean
   values: TrainingFormValues
   companies: Company[]
+  sites: Site[]
   loading: boolean
   canPickCompany: boolean
   onChange: (values: TrainingFormValues) => void
   onClose: () => void
   onSave: () => void
 }) {
+  // Sedes de la empresa seleccionada: cambiar empresa limpia la sede elegida.
+  const siteOptions = props.sites.filter((site) => site.companyId === props.values.companyId)
+
   return (
     <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{props.editing ? 'Editar capacitacion' : 'Nueva capacitacion'}</DialogTitle>
@@ -38,13 +42,40 @@ export function TrainingDialog(props: {
             onChange={(event) => props.onChange({ ...props.values, date: event.target.value })}
             required
           />
+          <TextField
+            select
+            label="Sede"
+            value={props.values.siteId}
+            onChange={(event) => props.onChange({ ...props.values, siteId: event.target.value })}
+            helperText={
+              siteOptions.length === 0
+                ? 'Sin sedes registradas para esta empresa. Crea una en el módulo Sedes.'
+                : 'Sede donde se realiza la capacitacion.'
+            }
+          >
+            <MenuItem value="">
+              <ListItemText>Sin sede</ListItemText>
+            </MenuItem>
+            {siteOptions.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                <ListItemText>{site.code ? `${site.name} (${site.code})` : site.name}</ListItemText>
+              </MenuItem>
+            ))}
+          </TextField>
           {props.canPickCompany ? (
             <TextField
               select
               label="Empresa"
               value={props.values.companyId}
               disabled={props.companies.length === 0}
-              onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+              onChange={(event) =>
+                props.onChange({
+                  ...props.values,
+                  companyId: event.target.value,
+                  // La sede pertenece a la empresa: al cambiarla se desasigna.
+                  siteId: '',
+                })
+              }
               required
             >
               {props.companies.map((company) => (

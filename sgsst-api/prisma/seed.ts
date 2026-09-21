@@ -212,6 +212,7 @@ async function main() {
         description: 'Responsabilidades, reporte de incidentes y uso de EPP.',
         date: new Date('2026-05-20T13:00:00.000Z'),
         companyId: company.id,
+        siteId: mainSite.id,
       },
     });
   }

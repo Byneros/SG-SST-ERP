@@ -48,4 +48,9 @@ export class CreateDocumentDto {
 
   @IsUUID()
   companyId!: string;
+
+  /** Sede asociada al documento (opcional, de la misma empresa). */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
 }

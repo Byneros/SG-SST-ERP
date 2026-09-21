@@ -136,9 +136,11 @@ export type SgsstDocument = {
   version: number
   expiresAt?: string
   companyId: string
+  siteId?: string
   isActive: boolean
   deletedAt?: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
   versions?: SgsstDocumentVersion[]
 }
 
@@ -282,7 +284,9 @@ export type Training = {
   date: string
   createdAt: string
   companyId: string
+  siteId?: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
 }
 
 export type CorrectiveAction = {
@@ -554,6 +558,7 @@ export type DocumentFormValues = {
   mimeType: string
   expiresAt: string
   companyId: string
+  siteId: string
 }
 
 export type SgsstAuditFormValues = {
@@ -599,4 +604,5 @@ export type TrainingFormValues = {
   description: string
   date: string
   companyId: string
+  siteId: string
 }

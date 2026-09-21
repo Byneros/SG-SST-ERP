@@ -10,20 +10,40 @@ import {
   resolveCompanyScope,
 } from '../../common/pipes/company-scope';
 import { AuditService } from '../audit/audit.service';
+import { SitesRepository } from '../sites/sites.repository';
+import { DocumentsRepository } from './documents.repository';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreateDocumentVersionDto } from './dto/create-document-version.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
-import { DocumentsRepository } from './documents.repository';
 
 @Injectable()
 export class DocumentsService {
   constructor(
     private readonly documentsRepository: DocumentsRepository,
     private readonly auditService: AuditService,
+    private readonly sitesRepository: SitesRepository,
   ) {}
 
-  findAll(companyId?: string, query: ListQueryDto = new ListQueryDto()) {
-    return this.documentsRepository.findAll(companyId, query);
+  /** La sede debe existir y pertenecer a la empresa del scope. */
+  private async assertSiteInScope(siteId: string, companyId: string) {
+    const site = await this.sitesRepository.findByIdScoped(siteId, companyId);
+    if (!site) {
+      throw new NotFoundException('Site not found');
+    }
+  }
+
+  async findAll(
+    user: AuthenticatedUser,
+    query: ListQueryDto = new ListQueryDto(),
+    companyId?: string,
+    siteId?: string,
+  ) {
+    const scopedCompanyId = resolveCompanyScope(user, companyId);
+    // Filtro por sede: una sede ajena no existe para el actor (404).
+    if (siteId && siteId !== 'none') {
+      await this.assertSiteInScope(siteId, scopedCompanyId);
+    }
+    return this.documentsRepository.findAll(scopedCompanyId, query, siteId);
   }
 
   async findOne(id: string, user?: AuthenticatedUser) {
@@ -50,6 +70,10 @@ export class DocumentsService {
     if (!dto.companyId) {
       throw new BadRequestException('Document must belong to one company');
     }
+    // La sede debe existir y ser de la empresa del documento.
+    if (dto.siteId) {
+      await this.assertSiteInScope(dto.siteId, dto.companyId);
+    }
     const created = await this.documentsRepository.create(dto);
     await this.auditService.log({
       user,
@@ -65,6 +89,13 @@ export class DocumentsService {
     const before = await this.findOne(id, user);
     if (user && dto.companyId) {
       assertCompanyScope(user, dto.companyId);
+    }
+    // Sede del update: de la misma empresa; null desasigna; undefined no toca.
+    if (user && dto.siteId !== undefined && dto.siteId !== null) {
+      await this.assertSiteInScope(
+        dto.siteId,
+        resolveCompanyScope(user),
+      );
     }
     // Update restrictivo por empresa.
     const updated =

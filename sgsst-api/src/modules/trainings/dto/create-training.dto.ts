@@ -14,4 +14,9 @@ export class CreateTrainingDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
+
+  /** Sede donde se realiza la capacitacion (opcional, de la misma empresa). */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
 }

@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateTrainingDto {
   @IsOptional()
@@ -12,4 +12,9 @@ export class UpdateTrainingDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  /** Sede de la capacitacion; null la desasigna. Debe ser de la misma empresa. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
 }

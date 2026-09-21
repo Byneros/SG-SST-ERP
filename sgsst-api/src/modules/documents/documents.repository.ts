@@ -6,17 +6,31 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreateDocumentVersionDto } from './dto/create-document-version.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 
+const documentInclude = {
+  company: { select: { id: true, name: true, nit: true } },
+  site: { select: { id: true, name: true, code: true } },
+};
+
 @Injectable()
 export class DocumentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(companyId?: string, query: ListQueryDto = new ListQueryDto()) {
+  async findAll(
+    companyId?: string,
+    query: ListQueryDto = new ListQueryDto(),
+    siteId?: string,
+  ) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const search = query.search?.trim();
     const where: Prisma.DocumentWhereInput = {
       companyId,
       isActive: query.isActive,
+      ...(siteId
+        ? siteId === 'none'
+          ? { siteId: null }
+          : { siteId }
+        : {}),
       ...(search
         ? {
             OR: [
@@ -32,7 +46,7 @@ export class DocumentsRepository {
       this.prisma.document.findMany({
         where,
         include: {
-          company: { select: { id: true, name: true, nit: true } },
+          ...documentInclude,
           versions: { orderBy: { version: 'desc' }, take: 3 },
         },
         orderBy: { createdAt: 'desc' },
@@ -51,7 +65,7 @@ export class DocumentsRepository {
     return this.prisma.document.findUnique({
       where: { id },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });
@@ -62,7 +76,7 @@ export class DocumentsRepository {
     return this.prisma.document.findFirst({
       where: { id, companyId },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });
@@ -89,7 +103,7 @@ export class DocumentsRepository {
               : new Date(),
       },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });
@@ -126,7 +140,7 @@ export class DocumentsRepository {
         },
       },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });
@@ -158,7 +172,7 @@ export class DocumentsRepository {
         },
       },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });
@@ -177,7 +191,7 @@ export class DocumentsRepository {
               : new Date(),
       },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });
@@ -207,7 +221,7 @@ export class DocumentsRepository {
         },
       },
       include: {
-        company: { select: { id: true, name: true, nit: true } },
+        ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
       },
     });

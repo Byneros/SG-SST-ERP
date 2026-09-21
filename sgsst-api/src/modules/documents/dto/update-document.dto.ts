@@ -53,6 +53,11 @@ export class UpdateDocumentDto {
   @IsUUID()
   companyId?: string;
 
+  /** Sede del documento; null la desasigna. Debe ser de la misma empresa. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

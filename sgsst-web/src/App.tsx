@@ -107,9 +107,7 @@ import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
  * Vistas con filtro de sede persistido en la URL (hash routing minimo):
  * #/employees?site=<uuid|none> — sin react-router; solo lectura/escritura
  * del hash con replaceState para que las vistas filtradas sean compartibles.
- */
-const SITE_FILTER_VIEWS: Array<View & ('employees' | 'incidents' | 'risks')> = ['employees',
-  'incidents', 'risks']
+ */const SITE_FILTER_VIEWS = ['employees', 'incidents', 'risks', 'trainings', 'documents']
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ALL_VIEWS: View[] = [
   'dashboard',
@@ -182,7 +180,9 @@ function App() {
   const [riskTable, setRiskTable] = useState(initialTableState)
   const [riskSiteFilter, setRiskSiteFilter] = useState(initialHash.view === 'risks' ? initialHash.site : 'all')
   const [trainingTable, setTrainingTable] = useState(initialTableState)
+  const [trainingSiteFilter, setTrainingSiteFilter] = useState(initialHash.view === 'trainings' ? initialHash.site : 'all')
   const [documentTable, setDocumentTable] = useState(initialTableState)
+  const [documentSiteFilter, setDocumentSiteFilter] = useState(initialHash.view === 'documents' ? initialHash.site : 'all')
   const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
   const [reportExportTable, setReportExportTable] = useState(initialTableState)
   const [reportExportFilters, setReportExportFilters] = useState<ReportExportFilters>({
@@ -314,18 +314,22 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, documentTable, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
     const params = new URLSearchParams()
-    if (SITE_FILTER_VIEWS.includes(view as never)) {
+    if ((SITE_FILTER_VIEWS as string[]).includes(view)) {
       const siteFilter =
         view === 'employees'
           ? employeeSiteFilter
           : view === 'incidents'
             ? incidentSiteFilter
-            : riskSiteFilter
+            : view === 'risks'
+              ? riskSiteFilter
+              : view === 'trainings'
+                ? trainingSiteFilter
+                : documentSiteFilter
       if (siteFilter !== 'all') {
         params.set('site', siteFilter)
       }
@@ -335,7 +339,7 @@ function App() {
     if (window.location.hash !== nextHash) {
       window.history.replaceState(null, '', nextHash)
     }
-  }, [view, employeeSiteFilter, incidentSiteFilter, riskSiteFilter])
+  }, [view, employeeSiteFilter, incidentSiteFilter, riskSiteFilter, trainingSiteFilter, documentSiteFilter])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -388,6 +392,7 @@ function App() {
             params: {
               ...tableParams(trainingTable),
               ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+              ...(trainingSiteFilter !== 'all' ? { siteId: trainingSiteFilter } : {}),
             },
           })
         : Promise.resolve({ data: { data: [] as Training[], meta: emptyMeta } })
@@ -404,6 +409,7 @@ function App() {
             params: {
               ...tableParams(documentTable),
               ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+              ...(documentSiteFilter !== 'all' ? { siteId: documentSiteFilter } : {}),
             },
           })
         : Promise.resolve({ data: { data: [] as SgsstDocument[], meta: emptyMeta } })
@@ -785,6 +791,7 @@ function App() {
             description: item.description ?? '',
             date: item.date.slice(0, 10),
             companyId: item.companyId,
+            siteId: item.siteId ?? '',
           }
         : { ...emptyTraining, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
@@ -821,6 +828,7 @@ function App() {
             mimeType: item.mimeType ?? '',
             expiresAt: item.expiresAt?.slice(0, 10) ?? '',
             companyId: item.companyId,
+            siteId: item.siteId ?? '',
           }
         : { ...emptyDocument, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
@@ -975,10 +983,18 @@ function App() {
 
   async function saveTraining() {
     await saveRecord(async () => {
+      // siteId '' = sin sede; el backend interpreta null como desasignacion.
+      const payload = sanitize(trainingForm) as Record<string, unknown>
+      if (trainingDialog.item && !trainingForm.siteId) {
+        const current = trainings.find((item) => item.id === trainingDialog.item?.id)
+        if (current?.siteId) {
+          payload.siteId = null
+        }
+      }
       if (trainingDialog.item) {
-        await api.patch(`/trainings/${trainingDialog.item.id}`, sanitize(trainingForm))
+        await api.patch(`/trainings/${trainingDialog.item.id}`, payload)
       } else {
-        await api.post('/trainings', sanitize(trainingForm))
+        await api.post('/trainings', payload)
       }
       setTrainingDialog({ open: false })
     })
@@ -999,10 +1015,18 @@ function App() {
 
   async function saveDocument() {
     await saveRecord(async () => {
+      // siteId '' = sin sede; el backend interpreta null como desasignacion.
+      const payload = sanitize(documentForm) as Record<string, unknown>
+      if (documentDialog.item && !documentForm.siteId) {
+        const current = documents.find((item) => item.id === documentDialog.item?.id)
+        if (current?.siteId) {
+          payload.siteId = null
+        }
+      }
       if (documentDialog.item) {
-        await api.patch(`/documents/${documentDialog.item.id}`, sanitize(documentForm))
+        await api.patch(`/documents/${documentDialog.item.id}`, payload)
       } else {
-        await api.post('/documents', sanitize(documentForm))
+        await api.post('/documents', payload)
       }
       setDocumentDialog({ open: false })
     })
@@ -1371,9 +1395,9 @@ function App() {
   }
 
   // KPI de sede clickeable: abre Empleados con el filtro de esa sede aplicado.
-  // Helper: limpia el filtro de sede de la vista actual (chip X o selector).
+  // Helper: aplica (o limpia) el filtro de sede de la vista indicada.
   function applySiteFilter(
-    target: 'employees' | 'incidents' | 'risks',
+    target: 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents',
     siteId: string,
   ) {
     const pageSetter =
@@ -1381,19 +1405,30 @@ function App() {
         ? setEmployeeTable
         : target === 'incidents'
           ? setIncidentTable
-          : setRiskTable
+          : target === 'risks'
+            ? setRiskTable
+            : target === 'trainings'
+              ? setTrainingTable
+              : setDocumentTable
     const filterSetter =
       target === 'employees'
         ? setEmployeeSiteFilter
         : target === 'incidents'
           ? setIncidentSiteFilter
-          : setRiskSiteFilter
+          : target === 'risks'
+            ? setRiskSiteFilter
+            : target === 'trainings'
+              ? setTrainingSiteFilter
+              : setDocumentSiteFilter
     pageSetter((current) => ({ ...current, page: 1 }))
     filterSetter(siteId)
   }
 
   // KPI de sede clickeable: abre la vista destino con el filtro de esa sede.
-  function openSiteView(target: 'employees' | 'incidents' | 'risks', siteId: string) {
+  function openSiteView(
+    target: 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents',
+    siteId: string,
+  ) {
     if (!siteId) return
     applySiteFilter(target, siteId)
     setView(target)
@@ -1618,6 +1653,9 @@ function App() {
                 meta={trainingMeta}
                 tableState={trainingTable}
                 canManage={canManageOperations}
+                sites={sites}
+                siteFilter={trainingSiteFilter}
+                onSiteFilterChange={(siteId) => applySiteFilter('trainings', siteId)}
                 onTableChange={setTrainingTable}
                 onCreate={() => openTrainingForm()}
                 onPreloadCreate={preloadTrainingDialog}
@@ -1638,6 +1676,9 @@ function App() {
                 tableState={documentTable}
                 canManage={canManageDocuments}
                 canExport={canExportReports}
+                sites={sites}
+                siteFilter={documentSiteFilter}
+                onSiteFilterChange={(siteId) => applySiteFilter('documents', siteId)}
                 onTableChange={setDocumentTable}
                 onCreate={() => openDocumentForm()}
                 onPreloadCreate={preloadDocumentDialog}
@@ -1803,6 +1844,7 @@ function App() {
               editing={Boolean(trainingDialog.item)}
               values={trainingForm}
               companies={companies}
+              sites={sites}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               onChange={setTrainingForm}
@@ -1824,6 +1866,7 @@ function App() {
               editing={Boolean(documentDialog.item)}
               values={documentForm}
               companies={companies}
+              sites={sites}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               onChange={setDocumentForm}

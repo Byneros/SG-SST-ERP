@@ -24,6 +24,7 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-request
 import { resolveCompanyScope } from '../../common/pipes/company-scope';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreateDocumentVersionDto } from './dto/create-document-version.dto';
+import { DocumentListQueryDto } from './dto/document-list-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DocumentsStorageService } from './documents-storage.service';
 import { DocumentsService } from './documents.service';
@@ -40,12 +41,15 @@ export class DocumentsController {
   @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: DocumentListQueryDto,
     @Query('companyId') companyId?: string,
+    @Query('siteId') siteId?: string,
   ) {
     return this.documentsService.findAll(
-      resolveCompanyScope(user, companyId),
+      user,
       query,
+      companyId,
+      siteId,
     );
   }
 

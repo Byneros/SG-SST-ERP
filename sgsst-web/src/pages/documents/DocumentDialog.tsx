@@ -1,18 +1,19 @@
 import { UploadFile } from '@mui/icons-material'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText, MenuItem, Stack, TextField } from '@mui/material'
 import {
   documentCategoryLabels,
   documentCategoryOptions,
   documentStatusLabels,
   documentStatusOptions,
 } from '../../constants/catalogs'
-import type { Company, DocumentCategory, DocumentFormValues, DocumentStatus } from '../../types'
+import type { Company, DocumentCategory, DocumentFormValues, DocumentStatus, Site } from '../../types'
 
 export function DocumentDialog(props: {
   open: boolean
   editing: boolean
   values: DocumentFormValues
   companies: Company[]
+  sites: Site[]
   loading: boolean
   canPickCompany: boolean
   onChange: (values: DocumentFormValues) => void
@@ -20,6 +21,8 @@ export function DocumentDialog(props: {
   onClose: () => void
   onSave: () => void
 }) {
+  // Sedes de la empresa seleccionada: cambiar empresa limpia la sede elegida.
+  const siteOptions = props.sites.filter((site) => site.companyId === props.values.companyId)
   return (
     <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{props.editing ? 'Editar documento' : 'Nuevo documento'}</DialogTitle>
@@ -59,7 +62,41 @@ export function DocumentDialog(props: {
           <TextField label="Archivo seleccionado" value={props.values.fileName} InputProps={{ readOnly: true }} required />
           <TextField label="Tipo MIME" value={props.values.mimeType} InputProps={{ readOnly: true }} placeholder="application/pdf" />
           <TextField type="date" label="Fecha de vencimiento" InputLabelProps={{ shrink: true }} value={props.values.expiresAt} onChange={(event) => props.onChange({ ...props.values, expiresAt: event.target.value })} />
-          <TextField select label="Empresa" value={props.values.companyId} disabled={!props.canPickCompany} onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })} required>
+          <TextField
+            select
+            label="Sede"
+            value={props.values.siteId}
+            onChange={(event) => props.onChange({ ...props.values, siteId: event.target.value })}
+            helperText={
+              siteOptions.length === 0
+                ? 'Sin sedes registradas para esta empresa. Crea una en el módulo Sedes.'
+                : 'Sede a la que aplica el documento.'
+            }
+          >
+            <MenuItem value="">
+              <ListItemText>Sin sede</ListItemText>
+            </MenuItem>
+            {siteOptions.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                <ListItemText>{site.code ? `${site.name} (${site.code})` : site.name}</ListItemText>
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Empresa"
+            value={props.values.companyId}
+            disabled={!props.canPickCompany}
+            onChange={(event) =>
+              props.onChange({
+                ...props.values,
+                companyId: event.target.value,
+                // La sede pertenece a la empresa: al cambiarla se desasigna.
+                siteId: '',
+              })
+            }
+            required
+          >
             {props.companies.map((company) => (
               <MenuItem key={company.id} value={company.id}>
                 {company.name}

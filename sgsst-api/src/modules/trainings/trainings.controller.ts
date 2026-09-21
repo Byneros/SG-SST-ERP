@@ -29,8 +29,9 @@ export class TrainingsController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('companyId') companyId?: string,
+    @Query('siteId') siteId?: string,
   ) {
-    return this.trainingsService.findAll(user, companyId);
+    return this.trainingsService.findAll(user, companyId, siteId);
   }
 
   @Get(':id')

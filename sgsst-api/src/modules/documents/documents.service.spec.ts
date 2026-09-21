@@ -25,6 +25,7 @@ describe('DocumentsService', () => {
     const service = new DocumentsService(
       documentsRepository as never,
       auditService as never,
+      { findByIdScoped: jest.fn().mockResolvedValue(null) } as never,
     );
 
     await expect(
