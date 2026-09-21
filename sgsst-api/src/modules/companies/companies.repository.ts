@@ -64,7 +64,11 @@ export class CompaniesRepository {
       data: {
         ...(this.toPrismaData(dto) as Prisma.CompanyUncheckedUpdateInput),
         deletedAt:
-          dto.isActive === undefined ? undefined : dto.isActive ? null : new Date(),
+          dto.isActive === undefined
+            ? undefined
+            : dto.isActive
+              ? null
+              : new Date(),
       },
     });
   }

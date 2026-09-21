@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
@@ -19,7 +27,10 @@ export class NotificationsController {
 
   @Get()
   @Roles('ADMIN', 'SST', 'EMPLOYEE', 'AUDITOR')
-  findMine(@CurrentUser() user: AuthenticatedUser, @Query() query: ListQueryDto) {
+  findMine(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListQueryDto,
+  ) {
     return this.notificationsService.findForUser(user, query);
   }
 
@@ -58,7 +69,10 @@ export class NotificationsController {
 
   @Post('external-deliveries/:id/retry')
   @Roles('ADMIN')
-  retryExternalDelivery(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  retryExternalDelivery(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.notificationsService.retryExternalDeliveryForUser(user, id);
   }
 }

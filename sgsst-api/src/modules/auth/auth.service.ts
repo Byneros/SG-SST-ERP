@@ -87,7 +87,10 @@ export class AuthService {
     return { success: true };
   }
 
-  async switchActiveCompany(user: AuthenticatedUser, dto: SwitchActiveCompanyDto) {
+  async switchActiveCompany(
+    user: AuthenticatedUser,
+    dto: SwitchActiveCompanyDto,
+  ) {
     const existing = await this.usersRepository.findAuthById(user.sub);
     if (!existing || !existing.isActive) {
       throw new UnauthorizedException('Invalid user');
@@ -133,7 +136,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid user');
     }
     const secret = existing.mfaSecret ?? this.totpService.generateSecret();
-    await this.usersRepository.updateMfaSecret(existing.id, secret, existing.mfaEnabled);
+    await this.usersRepository.updateMfaSecret(
+      existing.id,
+      secret,
+      existing.mfaEnabled,
+    );
     return {
       secret,
       otpauthUrl: this.totpService.otpauthUrl(existing.email, secret),
@@ -149,7 +156,11 @@ export class AuthService {
     if (!this.totpService.verify(existing.mfaSecret, dto.code)) {
       throw new UnauthorizedException('Invalid MFA code');
     }
-    await this.usersRepository.updateMfaSecret(existing.id, existing.mfaSecret, true);
+    await this.usersRepository.updateMfaSecret(
+      existing.id,
+      existing.mfaSecret,
+      true,
+    );
     return { success: true };
   }
 
@@ -176,7 +187,9 @@ export class AuthService {
       { expiresIn: `${env.passwordResetExpiresMinutes}m` as never },
     );
     const resetTokenHash = await bcrypt.hash(resetToken, 12);
-    const expiresAt = new Date(Date.now() + env.passwordResetExpiresMinutes * 60_000);
+    const expiresAt = new Date(
+      Date.now() + env.passwordResetExpiresMinutes * 60_000,
+    );
     await this.usersRepository.updatePasswordResetToken(
       user.id,
       resetTokenHash,
@@ -221,14 +234,17 @@ export class AuthService {
     );
   }
 
-  private async issueSession(user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    companyId?: string | null;
-    mfaEnabled?: boolean;
-  }, activeCompanyId = user.companyId ?? null) {
+  private async issueSession(
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      companyId?: string | null;
+      mfaEnabled?: boolean;
+    },
+    activeCompanyId = user.companyId ?? null,
+  ) {
     const payload = this.toAccessPayload(user, activeCompanyId);
     const refreshToken = await this.jwtService.signAsync(
       { sub: user.id, type: 'refresh', jti: randomUUID() },
@@ -256,12 +272,15 @@ export class AuthService {
     };
   }
 
-  private toAccessPayload(user: {
-    id: string;
-    email: string;
-    role: string;
-    companyId?: string | null;
-  }, activeCompanyId: string | null) {
+  private toAccessPayload(
+    user: {
+      id: string;
+      email: string;
+      role: string;
+      companyId?: string | null;
+    },
+    activeCompanyId: string | null,
+  ) {
     return {
       sub: user.id,
       email: user.email,
@@ -274,7 +293,10 @@ export class AuthService {
 
   private async verifyToken(token: string, expectedType: string) {
     try {
-      const payload = await this.jwtService.verifyAsync(token);
+      const payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        type?: string;
+      }>(token);
       if (payload.type !== expectedType || !payload.sub) {
         throw new UnauthorizedException('Invalid token');
       }

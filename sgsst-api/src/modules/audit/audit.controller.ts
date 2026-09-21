@@ -14,7 +14,10 @@ export class AuditController {
 
   @Get()
   @Roles('ADMIN', 'AUDITOR')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: ListQueryDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListQueryDto,
+  ) {
     return this.auditService.findAll(user, query);
   }
 }

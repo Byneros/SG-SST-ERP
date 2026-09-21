@@ -17,7 +17,9 @@ export class CompanyScopeService {
 
   validate(user: AuthenticatedUser, companyId: string) {
     if (resolveCompanyScope(user) !== companyId) {
-      throw new ForbiddenException('Resource is outside the current company scope');
+      throw new ForbiddenException(
+        'Resource is outside the current company scope',
+      );
     }
   }
 

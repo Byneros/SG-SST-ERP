@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,10 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-request
 import { CreateCorrectiveActionDto } from './dto/create-corrective-action.dto';
 import { CreateFindingDto } from './dto/create-finding.dto';
 import { CreateSgsstAuditDto } from './dto/create-sgsst-audit.dto';
+import { CreateAuditProgramDto } from './dto/create-audit-program.dto';
+import { ReplaceAuditChecklistDto } from './dto/replace-audit-checklist.dto';
+import { UpdateAuditChecklistItemDto } from './dto/update-audit-checklist-item.dto';
+import { UpdateAuditProgramDto } from './dto/update-audit-program.dto';
 import { UpdateCorrectiveActionDto } from './dto/update-corrective-action.dto';
 import { UpdateFindingDto } from './dto/update-finding.dto';
 import { UpdateSgsstAuditDto } from './dto/update-sgsst-audit.dto';
@@ -114,5 +119,85 @@ export class SgsstAuditsController {
     @Body() dto: UpdateCorrectiveActionDto,
   ) {
     return this.service.updateAction(user, id, dto);
+  }
+
+  // ----- FASE 7.1: programas de auditoría -----------------------------------
+
+  @Get('programs')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
+  findPrograms(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListQueryDto,
+    @Query('companyId') companyId?: string,
+  ) {
+    return this.service.findPrograms(user, query, companyId);
+  }
+
+  @Get('programs/:id')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
+  findProgramById(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.findProgramById(user, id);
+  }
+
+  @Post('programs')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  createProgram(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateAuditProgramDto,
+  ) {
+    return this.service.createProgram(user, dto);
+  }
+
+  @Patch('programs/:id')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  updateProgram(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAuditProgramDto,
+  ) {
+    return this.service.updateProgram(user, id, dto);
+  }
+
+  @Delete('programs/:id')
+  @Roles('ADMIN', 'SST')
+  removeProgram(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.removeProgram(user, id);
+  }
+
+  // ----- FASE 7.1: checklist de auditoría -----------------------------------
+
+  @Get(':id/checklist')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
+  findChecklist(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.findChecklist(user, id);
+  }
+
+  @Put(':id/checklist')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  replaceChecklist(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReplaceAuditChecklistDto,
+  ) {
+    return this.service.replaceChecklist(user, id, dto);
+  }
+
+  @Patch('checklist/:id')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  updateChecklistItem(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAuditChecklistItemDto,
+  ) {
+    return this.service.updateChecklistItem(user, id, dto);
   }
 }

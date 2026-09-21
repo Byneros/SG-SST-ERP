@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { NotificationPriority, NotificationType } from '@prisma/client';
 import { Job, Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -53,7 +58,10 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
       connection: this.connection,
     });
     this.worker.on('failed', (job, error) => {
-      this.logger.error(`Report job failed: ${job?.id ?? 'unknown'}`, error.stack);
+      this.logger.error(
+        `Report job failed: ${job?.id ?? 'unknown'}`,
+        error.stack,
+      );
     });
     await this.scheduleMaintenance();
   }
@@ -76,7 +84,12 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
 
     if (!this.queue) {
       const result = await this.generate(jobData);
-      return { success: true, queued: false, exportId: reportExport.id, fileUrl: result.fileUrl };
+      return {
+        success: true,
+        queued: false,
+        exportId: reportExport.id,
+        fileUrl: result.fileUrl,
+      };
     }
 
     const job = await this.queue.add(GENERATE_REPORT_JOB, jobData, {
@@ -92,7 +105,12 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
       status: 'QUEUED',
       jobId: job.id,
     });
-    return { success: true, queued: true, exportId: reportExport.id, jobId: job.id };
+    return {
+      success: true,
+      queued: true,
+      exportId: reportExport.id,
+      jobId: job.id,
+    };
   }
 
   async onModuleDestroy() {
@@ -132,7 +150,9 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
         },
       },
     );
-    this.logger.log(`Scheduled report cleanup job with cron: ${env.reportsCleanupCron}`);
+    this.logger.log(
+      `Scheduled report cleanup job with cron: ${env.reportsCleanupCron}`,
+    );
     await this.queue.upsertJobScheduler(
       `${CAPTURE_METRICS_JOB}-daily`,
       { pattern: env.reportsMetricsCron },
@@ -145,7 +165,9 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
         },
       },
     );
-    this.logger.log(`Scheduled report metrics job with cron: ${env.reportsMetricsCron}`);
+    this.logger.log(
+      `Scheduled report metrics job with cron: ${env.reportsMetricsCron}`,
+    );
     await this.queue.upsertJobScheduler(
       `${EVALUATE_ALERTS_JOB}-daily`,
       { pattern: env.reportsAlertsCron },
@@ -158,7 +180,9 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
         },
       },
     );
-    this.logger.log(`Scheduled report alerts job with cron: ${env.reportsAlertsCron}`);
+    this.logger.log(
+      `Scheduled report alerts job with cron: ${env.reportsAlertsCron}`,
+    );
   }
 
   private cleanupExpiredReports() {
@@ -175,8 +199,13 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
     const alerts = await this.reportsService.metricAlertCandidates();
     let notifications = 0;
     for (const alert of alerts) {
-      const targets = await this.reportsService.metricAlertTargets(alert.companyId);
-      const priority = alert.kind === 'FAILURE_RATE' ? NotificationPriority.CRITICAL : NotificationPriority.HIGH;
+      const targets = await this.reportsService.metricAlertTargets(
+        alert.companyId,
+      );
+      const priority =
+        alert.kind === 'FAILURE_RATE'
+          ? NotificationPriority.CRITICAL
+          : NotificationPriority.HIGH;
       for (const target of targets) {
         const notification = await this.notificationsService.create({
           userId: target.id,
@@ -220,10 +249,11 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
     try {
       let jobInput = input;
       if (jobInput.exportId) {
-        const { reportExport, companyId } = await this.reportsService.getExportForProcessing(
-          jobInput.user,
-          jobInput.exportId,
-        );
+        const { reportExport, companyId } =
+          await this.reportsService.getExportForProcessing(
+            jobInput.user,
+            jobInput.exportId,
+          );
         jobInput = {
           ...jobInput,
           companyId,
@@ -273,7 +303,10 @@ export class ReportsQueueService implements OnModuleInit, OnModuleDestroy {
       return stored;
     } catch (error) {
       if (verifiedInput?.exportId) {
-        await this.reportsService.markExportFailed(verifiedInput.exportId, error);
+        await this.reportsService.markExportFailed(
+          verifiedInput.exportId,
+          error,
+        );
       }
       if (verifiedInput) {
         await this.notificationsService.create({

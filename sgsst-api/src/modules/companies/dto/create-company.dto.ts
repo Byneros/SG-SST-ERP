@@ -1,4 +1,14 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateCompanyDto {
   @IsString()
@@ -6,7 +16,8 @@ export class CreateCompanyDto {
 
   @IsString()
   @Matches(/^\d{7,10}-\d$/, {
-    message: 'nit must use Colombian format without dots, for example 900123456-7',
+    message:
+      'nit must use Colombian format without dots, for example 900123456-7',
   })
   nit!: string;
 
@@ -73,7 +84,8 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   @Matches(/^\+?[1-9]\d{7,14}$/, {
-    message: 'whatsappAlertPhone must use international format, for example 573001112233',
+    message:
+      'whatsappAlertPhone must use international format, for example 573001112233',
   })
   whatsappAlertPhone?: string;
 }

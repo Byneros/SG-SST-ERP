@@ -27,7 +27,10 @@ export class CompaniesController {
 
   @Get()
   @Roles('ADMIN', 'SUPER_ADMIN')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: ListQueryDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListQueryDto,
+  ) {
     return this.companiesService.findAll(user, query);
   }
 
@@ -44,7 +47,10 @@ export class CompaniesController {
 
   @Post()
   @Roles('ADMIN', 'SUPER_ADMIN')
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCompanyDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateCompanyDto,
+  ) {
     return this.companiesService.create(dto, user);
   }
 
@@ -60,13 +66,19 @@ export class CompaniesController {
 
   @Delete(':id')
   @Roles('ADMIN')
-  remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+  remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.companiesService.remove(id, user);
   }
 
   @Delete(':id/permanent')
   @Roles('ADMIN')
-  hardRemove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+  hardRemove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.companiesService.hardRemove(id, user);
   }
 }

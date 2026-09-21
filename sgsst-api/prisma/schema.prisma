@@ -60,6 +60,8 @@ model Company {
   legalComplianceReviews        LegalComplianceReview[]
   notifications                 Notification[]
   reportExports                 ReportExport[]
+  auditPrograms                 AuditProgram[]
+  sgsstEvaluations              SgsstEvaluation[]
   reportMetricSnapshots         ReportExportMetricSnapshot[]
   risks                         Risk[]
   sites                         Site[]
@@ -68,24 +70,25 @@ model Company {
 }
 
 model Site {
-  id          String    @id @default(uuid())
-  name        String
-  code        String?
-  address     String?
-  city        String?
-  department  String?
-  isMain      Boolean   @default(false)
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id])
-  employees   Employee[]
-  risks       Risk[]
-  incidents   Incident[]
-  trainings   Training[]
-  documents   Document[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  isActive    Boolean   @default(true)
-  deletedAt   DateTime?
+  id         String      @id @default(uuid())
+  name       String
+  code       String?
+  address    String?
+  city       String?
+  department String?
+  isMain     Boolean     @default(false)
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id])
+  employees  Employee[]
+  risks      Risk[]
+  incidents  Incident[]
+  trainings  Training[]
+  documents  Document[]
+  indicators Indicator[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  isActive   Boolean     @default(true)
+  deletedAt  DateTime?
 
   @@unique([companyId, code])
   @@index([companyId, isActive])
@@ -152,22 +155,94 @@ model Training {
 }
 
 model Audit {
-  id          String         @id @default(uuid())
-  title       String
-  description String?
-  scheduledAt DateTime
-  result      String?
-  createdAt   DateTime       @default(now())
-  companyId   String
-  status      AuditStatus    @default(PLANNED)
-  scope       String?
-  auditorName String?
-  closedAt    DateTime?
-  isActive    Boolean        @default(true)
-  deletedAt   DateTime?
-  updatedAt   DateTime       @updatedAt
-  company     Company        @relation(fields: [companyId], references: [id])
-  findings    AuditFinding[]
+  id                String               @id @default(uuid())
+  title             String
+  description       String?
+  scheduledAt       DateTime
+  result            String?
+  createdAt         DateTime             @default(now())
+  companyId         String
+  status            AuditStatus          @default(PLANNED)
+  scope             String?
+  auditorName       String?
+  closedAt          DateTime?
+  isActive          Boolean              @default(true)
+  deletedAt         DateTime?
+  updatedAt         DateTime             @updatedAt
+  programId         String?
+  program           AuditProgram?        @relation(fields: [programId], references: [id])
+  checklistTemplate Json?
+  company           Company              @relation(fields: [companyId], references: [id])
+  findings          AuditFinding[]
+  checklist         AuditChecklistItem[]
+}
+
+model AuditProgram {
+  id        String    @id @default(uuid())
+  name      String
+  period    String
+  objective String?
+  scope     String?
+  companyId String
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  company   Company   @relation(fields: [companyId], references: [id])
+  audits    Audit[]
+}
+
+model AuditChecklistItem {
+  id          String   @id @default(uuid())
+  auditId     String
+  audit       Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  order       Int      @default(0)
+  section     String?
+  question    String
+  answer      String?
+  notes       String?
+  responsible String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([auditId])
+}
+
+model SgsstEvaluation {
+  id                String           @id @default(uuid())
+  name              String
+  standard          String           @default("RES_0312_2019")
+  riskClass         String
+  period            String?
+  status            EvaluationStatus @default(IN_PROGRESS)
+  score             Float?
+  maxScore          Float?
+  compliancePercent Float?
+  notes             String?
+  companyId         String
+  isActive          Boolean          @default(true)
+  deletedAt         DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  company           Company          @relation(fields: [companyId], references: [id])
+  items             EvaluationItem[]
+}
+
+model EvaluationItem {
+  id           String               @id @default(uuid())
+  evaluationId String
+  evaluation   SgsstEvaluation      @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  numeral      String?
+  section      String?
+  question     String
+  maxScore     Float                @default(0)
+  score        Float?
+  status       EvaluationItemStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([evaluationId])
 }
 
 model AuditFinding {
@@ -232,12 +307,54 @@ model DocumentVersion {
 }
 
 model Indicator {
-  id        String   @id @default(uuid())
-  name      String
-  value     Float
-  createdAt DateTime @default(now())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
+  id                String                 @id @default(uuid())
+  name              String
+  code              String?
+  description       String?
+  unit              String?
+  value             Float
+  formulaDefinition String?
+  direction         String                 @default("LOWER_IS_BETTER")
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  companyId         String
+  siteId            String?
+  isActive          Boolean                @default(true)
+  deletedAt         DateTime?
+  company           Company                @relation(fields: [companyId], references: [id])
+  site              Site?                  @relation(fields: [siteId], references: [id])
+  targets           IndicatorTarget[]
+  measurements      IndicatorMeasurement[]
+
+  @@unique([companyId, code])
+}
+
+model IndicatorTarget {
+  id          String    @id @default(uuid())
+  indicatorId String
+  indicator   Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  period      String
+  target      Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([indicatorId, period])
+  @@index([indicatorId])
+}
+
+model IndicatorMeasurement {
+  id          String    @id @default(uuid())
+  indicatorId String
+  indicator   Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  period      String
+  value       Float
+  measuredAt  DateTime  @default(now())
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([indicatorId, period])
+  @@index([indicatorId])
 }
 
 model Notification {
@@ -623,4 +740,17 @@ enum ReportExportStatus {
   READY
   FAILED
   EXPIRED
+}
+
+enum EvaluationStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum EvaluationItemStatus {
+  PENDING
+  COMPLIANT
+  PARTIAL
+  NON_COMPLIANT
+  NOT_APPLICABLE
 }

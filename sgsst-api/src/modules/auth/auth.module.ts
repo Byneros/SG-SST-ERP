@@ -11,9 +11,10 @@ import { TotpService } from './totp.service';
   imports: [
     UsersModule,
     JwtModule.register({
-  secret: env.jwtSecret,
-  signOptions: {
-    expiresIn: '1d',},
+      secret: env.jwtSecret,
+      signOptions: {
+        expiresIn: '1d',
+      },
     }),
   ],
   controllers: [AuthController],

@@ -17,7 +17,6 @@ import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
@@ -45,12 +44,7 @@ export class DocumentsController {
     @Query('companyId') companyId?: string,
     @Query('siteId') siteId?: string,
   ) {
-    return this.documentsService.findAll(
-      user,
-      query,
-      companyId,
-      siteId,
-    );
+    return this.documentsService.findAll(user, query, companyId, siteId);
   }
 
   @Get(':id/download')

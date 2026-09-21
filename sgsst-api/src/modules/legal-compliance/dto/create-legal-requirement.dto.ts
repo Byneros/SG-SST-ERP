@@ -42,7 +42,15 @@ class LegalEvidenceRequirementDto {
   mandatory?: boolean;
 
   @IsOptional()
-  @IsIn(['ONCE', 'ANNUAL', 'SEMIANNUAL', 'QUARTERLY', 'MONTHLY', 'EVENT_BASED', 'CONTINUOUS'])
+  @IsIn([
+    'ONCE',
+    'ANNUAL',
+    'SEMIANNUAL',
+    'QUARTERLY',
+    'MONTHLY',
+    'EVENT_BASED',
+    'CONTINUOUS',
+  ])
   frequency?: string;
 }
 
@@ -69,7 +77,15 @@ export class CreateLegalRequirementDto {
   obligationType?: string;
 
   @IsOptional()
-  @IsIn(['ONCE', 'ANNUAL', 'SEMIANNUAL', 'QUARTERLY', 'MONTHLY', 'EVENT_BASED', 'CONTINUOUS'])
+  @IsIn([
+    'ONCE',
+    'ANNUAL',
+    'SEMIANNUAL',
+    'QUARTERLY',
+    'MONTHLY',
+    'EVENT_BASED',
+    'CONTINUOUS',
+  ])
   frequency?: string;
 
   @IsOptional()

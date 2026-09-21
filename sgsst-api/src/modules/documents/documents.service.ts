@@ -92,10 +92,7 @@ export class DocumentsService {
     }
     // Sede del update: de la misma empresa; null desasigna; undefined no toca.
     if (user && dto.siteId !== undefined && dto.siteId !== null) {
-      await this.assertSiteInScope(
-        dto.siteId,
-        resolveCompanyScope(user),
-      );
+      await this.assertSiteInScope(dto.siteId, resolveCompanyScope(user));
     }
     // Update restrictivo por empresa.
     const updated =

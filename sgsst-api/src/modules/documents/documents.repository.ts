@@ -26,11 +26,7 @@ export class DocumentsRepository {
     const where: Prisma.DocumentWhereInput = {
       companyId,
       isActive: query.isActive,
-      ...(siteId
-        ? siteId === 'none'
-          ? { siteId: null }
-          : { siteId }
-        : {}),
+      ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
       ...(search
         ? {
             OR: [

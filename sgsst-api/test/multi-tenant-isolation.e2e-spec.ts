@@ -61,6 +61,11 @@ import { UsersService } from '../src/modules/users/users.service';
 
 const jwtSecret = 'test-secret';
 
+/** Body de una respuesta supertest, tipado para evitar `any` inseguro. */
+function body<T>(response: { body: unknown }): T {
+  return response.body as T;
+}
+
 type Tenant = {
   companyId: string;
   companyName: string;
@@ -859,15 +864,18 @@ class MemorySitesRepository {
     );
   }
 
-  create(dto: {
-    name: string;
-    code?: string;
-    address?: string;
-    city?: string;
-    department?: string;
-    isMain?: boolean;
-    employeeIds?: string[];
-  }, companyId: string) {
+  create(
+    dto: {
+      name: string;
+      code?: string;
+      address?: string;
+      city?: string;
+      department?: string;
+      isMain?: boolean;
+      employeeIds?: string[];
+    },
+    companyId: string,
+  ) {
     const now = new Date();
     const site = {
       id: randomUUID(),
@@ -886,9 +894,7 @@ class MemorySitesRepository {
     this.store.sites.unshift(site);
     if (dto.employeeIds) {
       for (const employeeId of dto.employeeIds) {
-        const employee = this.store.employees.find(
-          (e) => e.id === employeeId,
-        );
+        const employee = this.store.employees.find((e) => e.id === employeeId);
         if (employee) {
           employee.siteId = site.id;
         }
@@ -948,9 +954,7 @@ class MemorySitesRepository {
         }
       }
       for (const employeeId of dto.employeeIds) {
-        const employee = this.store.employees.find(
-          (e) => e.id === employeeId,
-        );
+        const employee = this.store.employees.find((e) => e.id === employeeId);
         if (employee) {
           employee.siteId = site.id;
         }
@@ -989,12 +993,15 @@ class MemorySitesRepository {
   }
 
   private withCompanyRelations(site: (typeof this.store.sites)[number]) {
-    const company = this.store.companies.find(
-      (c) => c.id === site.companyId,
-    );
+    const company = this.store.companies.find((c) => c.id === site.companyId);
     const employees = this.store.employees
       .filter((e) => e.siteId === site.id)
-      .map((e) => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, position: e.position }));
+      .map((e) => ({
+        id: e.id,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        position: e.position,
+      }));
     return {
       ...site,
       company: company
@@ -1610,7 +1617,10 @@ describe('multi-tenant isolation (e2e)', () => {
           provide: ReportsService,
           useValue: {
             // El harness valida el RBAC del guard (403), no la logica del servicio.
-            findExports: jest.fn().mockResolvedValue({ data: [], meta: { page: 1, pageSize: 10, total: 0, totalPages: 0 } }),
+            findExports: jest.fn().mockResolvedValue({
+              data: [],
+              meta: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
+            }),
             metrics: jest.fn(),
             metricHistory: jest.fn(),
           },
@@ -1694,7 +1704,7 @@ describe('multi-tenant isolation (e2e)', () => {
       .post('/api/v1/auth/login')
       .send({ email: adminEmail, password })
       .expect(201);
-    const token = loginResponse.body.accessToken as string;
+    const token = body<{ accessToken: string }>(loginResponse).accessToken;
 
     // Empleado propio
     const employeeResponse = await request(app.getHttpServer())
@@ -1780,14 +1790,14 @@ describe('multi-tenant isolation (e2e)', () => {
         companyId: company.id,
       })
       .expect(201);
-    const auditId = auditResponse.body.id as string;
+    const auditId = body<{ id: string }>(auditResponse).id;
 
     const findingResponse = await request(app.getHttpServer())
       .post(`/api/v1/sgsst-audits/${auditId}/findings`)
       .set('Authorization', `Bearer ${token}`)
       .send({ title: `Hallazgo ${company.name}`, severity: 'MAJOR' })
       .expect(201);
-    const findingId = findingResponse.body.id as string;
+    const findingId = body<{ id: string }>(findingResponse).id;
 
     const actionResponse = await request(app.getHttpServer())
       .post(`/api/v1/sgsst-audits/findings/${findingId}/actions`)
@@ -1806,15 +1816,15 @@ describe('multi-tenant isolation (e2e)', () => {
       adminId: admin.id,
       adminEmail,
       token,
-      employeeId: employeeResponse.body.id as string,
-      documentId: documentResponse.body.id as string,
-      riskId: riskResponse.body.id as string,
-      siteId: siteResponse.body.id as string,
-      incidentId: incidentResponse.body.id as string,
-      trainingId: trainingResponse.body.id as string,
+      employeeId: body<{ id: string }>(employeeResponse).id,
+      documentId: body<{ id: string }>(documentResponse).id,
+      riskId: body<{ id: string }>(riskResponse).id,
+      siteId: body<{ id: string }>(siteResponse).id,
+      incidentId: body<{ id: string }>(incidentResponse).id,
+      trainingId: body<{ id: string }>(trainingResponse).id,
       auditId,
       findingId,
-      actionId: actionResponse.body.id as string,
+      actionId: body<{ id: string }>(actionResponse).id,
     };
   }
 
@@ -1837,9 +1847,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .get('/api/v1/sites')
       .set('Authorization', tokenFor(companyA))
       .expect(200);
-    const siteIds = (listResponse.body.data as Array<{ id: string }>).map(
-      (site) => site.id,
-    );
+    const siteIds = body<{ data: Array<{ id: string }> }>(
+      listResponse,
+    ).data.map((site) => site.id);
     expect(siteIds).toContain(companyA.siteId);
     expect(siteIds).not.toContain(companyB.siteId);
 
@@ -1849,7 +1859,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .send({ city: 'Medellin' })
       .expect(200)
       .then((response) => {
-        expect(response.body.companyId).toBe(companyA.companyId);
+        expect(body<{ companyId: string }>(response).companyId).toBe(
+          companyA.companyId,
+        );
       });
   });
 
@@ -1868,7 +1880,7 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .expect(200)
       .then((response) => {
-        const rows = response.body.data as Array<{ id: string }>;
+        const rows = body<{ data: Array<{ id: string }> }>(response).data;
         expect(rows.map((e) => e.id)).toContain(companyA.employeeId);
       });
 
@@ -1886,7 +1898,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', `Bearer ${companyA.employeeToken}`)
       .expect(200)
       .then((response) => {
-        const rows = response.body.data as Array<{ companyId: string }>;
+        const rows = body<{ data: Array<{ companyId: string }> }>(
+          response,
+        ).data;
         for (const row of rows) {
           expect(row.companyId).toBe(companyA.companyId);
         }
@@ -1945,9 +1959,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .expect(200)
       .then((response) => {
-        const names = (response.body.data as Array<{ name: string }>).map(
-          (site) => site.name,
-        );
+        const names = body<{ data: Array<{ name: string }> }>(
+          response,
+        ).data.map((site) => site.name);
         expect(names).not.toContain('Sede infiltrada');
       });
   });
@@ -2013,8 +2027,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .send({ position: 'Coordinador' })
       .expect(200);
-    expect(response.body.position).toBe('Coordinador');
-    expect(response.body.companyId).toBe(companyA.companyId);
+    const updated = body<{ position: string; companyId: string }>(response);
+    expect(updated.position).toBe('Coordinador');
+    expect(updated.companyId).toBe(companyA.companyId);
   });
 
   // -------------------------------------------------------------------------
@@ -2042,9 +2057,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .expect(200)
       .then((response) => {
-        const names = (response.body.data as Array<{ firstName: string }>).map(
-          (employee) => employee.firstName,
-        );
+        const names = body<{ data: Array<{ firstName: string }> }>(
+          response,
+        ).data.map((employee) => employee.firstName);
         expect(names).not.toContain('Infiltrado');
       });
   });
@@ -2353,9 +2368,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .expect(200)
       .then((response) => {
-        const emails = (response.body.data as Array<{ email: string }>).map(
-          (user) => user.email,
-        );
+        const emails = body<{ data: Array<{ email: string }> }>(
+          response,
+        ).data.map((user) => user.email);
         expect(emails).not.toContain(companyB.adminEmail);
       });
 
@@ -2394,9 +2409,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .expect(200)
       .then((response) => {
-        const names = (response.body.data as Array<{ name: string }>).map(
-          (site) => site.name,
-        );
+        const names = body<{ data: Array<{ name: string }> }>(
+          response,
+        ).data.map((site) => site.name);
         expect(names).not.toContain('Sede con infiltrado');
       });
   });
@@ -2409,7 +2424,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .send({ employeeIds: [companyA.employeeId] })
       .expect(200)
       .then((response) => {
-        const employees = response.body.employees as Array<{ id: string }>;
+        const employees = body<{ employees: Array<{ id: string }> }>(
+          response,
+        ).employees;
         expect(employees.map((e) => e.id)).toContain(companyA.employeeId);
       });
 
@@ -2426,10 +2443,11 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', tokenFor(companyA))
       .expect(200)
       .then((response) => {
-        expect(response.body.companyId).toBe(companyA.companyId);
-        expect((response.body.siteId as string | null) ?? null).not.toBe(
-          companyB.siteId,
+        const employee = body<{ companyId: string; siteId: string | null }>(
+          response,
         );
+        expect(employee.companyId).toBe(companyA.companyId);
+        expect(employee.siteId ?? null).not.toBe(companyB.siteId);
       });
   });
 
@@ -2445,9 +2463,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', token)
       .expect(200)
       .then((response) => {
-        const companyIds = (
-          response.body.data as Array<{ companyId: string }>
-        ).map((employee) => employee.companyId);
+        const companyIds = body<{ data: Array<{ companyId: string }> }>(
+          response,
+        ).data.map((employee) => employee.companyId);
         expect(companyIds.length).toBeGreaterThan(0);
         for (const companyId of companyIds) {
           expect(companyId).toBe(companyA.companyId);
@@ -2518,7 +2536,9 @@ describe('multi-tenant isolation (e2e)', () => {
       })
       .expect(201);
 
-    expect(response.body.companyId).toBe(companyA.companyId);
+    expect(body<{ companyId: string }>(response).companyId).toBe(
+      companyA.companyId,
+    );
 
     // Intento de manipulacion: companyId ajeno del cliente se rechaza (403).
     await request(app.getHttpServer())
@@ -2589,7 +2609,10 @@ describe('multi-tenant isolation (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/v1/trainings')
       .set('Authorization', token)
-      .send({ title: 'Capacitacion no autorizada', date: new Date().toISOString() })
+      .send({
+        title: 'Capacitacion no autorizada',
+        date: new Date().toISOString(),
+      })
       .expect(403);
 
     // Defensa en profundidad: aun con RBAC sorteado, el scope devuelve 404
@@ -2624,9 +2647,9 @@ describe('multi-tenant isolation (e2e)', () => {
       .set('Authorization', `Bearer ${activeToken}`)
       .expect(200)
       .then((response) => {
-        const companyIds = (
-          response.body.data as Array<{ companyId: string }>
-        ).map((employee) => employee.companyId);
+        const companyIds = body<{ data: Array<{ companyId: string }> }>(
+          response,
+        ).data.map((employee) => employee.companyId);
         expect(companyIds.length).toBeGreaterThan(0);
         for (const companyId of companyIds) {
           expect(companyId).toBe(companyA.companyId);

@@ -70,7 +70,10 @@ export class AuthController {
 
   @Post('mfa/disable')
   @UseGuards(JwtAuthGuard)
-  disableMfa(@CurrentUser() user: AuthenticatedUser, @Body() dto: EnableMfaDto) {
+  disableMfa(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: EnableMfaDto,
+  ) {
     return this.authService.disableMfa(user, dto);
   }
 

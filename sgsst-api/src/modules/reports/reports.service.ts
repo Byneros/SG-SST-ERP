@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   IncidentStatus,
   Prisma,
@@ -947,8 +943,27 @@ export class ReportsService {
     return lines.join('\n');
   }
 
+  /** Convierte un valor a texto plano evitando '[object Object]' en reportes. */
+  private toText(value: unknown) {
+    if (value === null || value === undefined) return '';
+    switch (typeof value) {
+      case 'string':
+        return value;
+      case 'number':
+      case 'boolean':
+        return String(value);
+      case 'bigint':
+      case 'symbol':
+        return value.toString();
+      case 'function':
+        return value.name || '[function]';
+      default:
+        return JSON.stringify(value);
+    }
+  }
+
   private escapeCsv(value: unknown) {
-    const text = String(value ?? '');
+    const text = this.toText(value);
     return `"${text.replace(/"/g, '""')}"`;
   }
 
@@ -974,7 +989,7 @@ export class ReportsService {
             );
           doc.fontSize(9);
           Object.entries(row).forEach(([key, value]) => {
-            doc.text(`${key}: ${String(value ?? '')}`);
+            doc.text(`${key}: ${this.toText(value)}`);
           });
           doc.moveDown();
         });

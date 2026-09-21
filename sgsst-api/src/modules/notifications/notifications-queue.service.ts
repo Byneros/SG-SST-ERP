@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Job, Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { env } from '../../config/env';
@@ -12,7 +17,9 @@ const RETRY_EXTERNAL_DELIVERIES_JOB = 'retry-external-deliveries';
 type TenantJobData = { companyId?: string };
 
 @Injectable()
-export class NotificationsQueueService implements OnModuleInit, OnModuleDestroy {
+export class NotificationsQueueService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(NotificationsQueueService.name);
   private connection?: IORedis;
   private queue?: Queue;
@@ -53,25 +60,32 @@ export class NotificationsQueueService implements OnModuleInit, OnModuleDestroy 
       return this.notificationsService.generateDueAlertsForCompany(companyId);
     }
 
-    const job = await this.queue.add(DUE_ALERTS_JOB, { companyId } satisfies TenantJobData, {
-      removeOnComplete: 50,
-      removeOnFail: 100,
-    });
+    const job = await this.queue.add(
+      DUE_ALERTS_JOB,
+      { companyId } satisfies TenantJobData,
+      {
+        removeOnComplete: 50,
+        removeOnFail: 100,
+      },
+    );
     return { success: true, queued: true, jobId: job.id };
   }
 
   async enqueueExternalDeliveryRetries(user: AuthenticatedUser) {
     const companyId = resolveCompanyScope(user);
     if (!this.queue) {
-      return this.notificationsService.retryFailedExternalDeliveries(25, companyId);
+      return this.notificationsService.retryFailedExternalDeliveries(
+        25,
+        companyId,
+      );
     }
 
     const job = await this.queue.add(
       RETRY_EXTERNAL_DELIVERIES_JOB,
       { companyId } satisfies TenantJobData,
       {
-      removeOnComplete: 50,
-      removeOnFail: 100,
+        removeOnComplete: 50,
+        removeOnFail: 100,
       },
     );
     return { success: true, queued: true, jobId: job.id };
@@ -100,7 +114,9 @@ export class NotificationsQueueService implements OnModuleInit, OnModuleDestroy 
         },
       },
     );
-    this.logger.log(`Scheduled notifications job with cron: ${env.notificationsCron}`);
+    this.logger.log(
+      `Scheduled notifications job with cron: ${env.notificationsCron}`,
+    );
   }
 
   private async scheduleExternalDeliveryRetries() {
@@ -120,7 +136,9 @@ export class NotificationsQueueService implements OnModuleInit, OnModuleDestroy 
         },
       },
     );
-    this.logger.log(`Scheduled external delivery retries with cron: ${env.externalDeliveryRetryCron}`);
+    this.logger.log(
+      `Scheduled external delivery retries with cron: ${env.externalDeliveryRetryCron}`,
+    );
   }
 
   private async process(job: Job) {
@@ -132,7 +150,10 @@ export class NotificationsQueueService implements OnModuleInit, OnModuleDestroy 
     }
     if (job.name === RETRY_EXTERNAL_DELIVERIES_JOB) {
       const { companyId } = job.data as TenantJobData;
-      return this.notificationsService.retryFailedExternalDeliveries(25, companyId);
+      return this.notificationsService.retryFailedExternalDeliveries(
+        25,
+        companyId,
+      );
     }
     this.logger.warn(`Unknown notification job: ${job.name}`);
     return { ignored: true };

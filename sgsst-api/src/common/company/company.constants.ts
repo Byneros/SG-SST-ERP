@@ -18,5 +18,6 @@ export const COMPANY_DEFAULTS = {
   DEFAULT_LOCALE: 'en-US',
 } as const;
 
-export type CompanyStatus = typeof COMPANY_STATUSES[keyof typeof COMPANY_STATUSES];
-export type CompanyType = typeof COMPANY_TYPES[keyof typeof COMPANY_TYPES];
+export type CompanyStatus =
+  (typeof COMPANY_STATUSES)[keyof typeof COMPANY_STATUSES];
+export type CompanyType = (typeof COMPANY_TYPES)[keyof typeof COMPANY_TYPES];

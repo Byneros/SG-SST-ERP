@@ -5,6 +5,10 @@ import { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { CreateCorrectiveActionDto } from './dto/create-corrective-action.dto';
 import { CreateFindingDto } from './dto/create-finding.dto';
 import { CreateSgsstAuditDto } from './dto/create-sgsst-audit.dto';
+import { CreateAuditProgramDto } from './dto/create-audit-program.dto';
+import { ReplaceAuditChecklistDto } from './dto/replace-audit-checklist.dto';
+import { UpdateAuditProgramDto } from './dto/update-audit-program.dto';
+import { UpdateAuditChecklistItemDto } from './dto/update-audit-checklist-item.dto';
 import { UpdateCorrectiveActionDto } from './dto/update-corrective-action.dto';
 import { UpdateFindingDto } from './dto/update-finding.dto';
 import { UpdateSgsstAuditDto } from './dto/update-sgsst-audit.dto';
@@ -141,5 +145,101 @@ export class SgsstAuditsService {
     this.companyScope.validate(user, action.finding.audit.companyId);
 
     return this.repository.updateAction(actionId, dto);
+  }
+
+  // ----- FASE 7.1: programas de auditoría -----------------------------------
+
+  async findPrograms(
+    user: AuthenticatedUser,
+    query: ListQueryDto,
+    companyId?: string,
+  ) {
+    const scope = this.companyScope.resolveCompanyId(user, companyId);
+
+    if (!scope) {
+      return [];
+    }
+
+    return this.repository.findPrograms(scope, query);
+  }
+
+  async findProgramById(user: AuthenticatedUser, id: string) {
+    const program = await this.repository.findProgramByIdScoped(
+      id,
+      this.companyScope.resolveCompanyId(user),
+    );
+
+    if (!program) {
+      throw new NotFoundException('Audit program not found');
+    }
+
+    this.companyScope.validate(user, program.companyId);
+
+    return program;
+  }
+
+  async createProgram(user: AuthenticatedUser, dto: CreateAuditProgramDto) {
+    const companyId = this.companyScope.resolveCompanyId(user, dto.companyId);
+
+    if (!companyId) {
+      throw new NotFoundException('Company ID is required');
+    }
+
+    return this.repository.createProgram({ ...dto, companyId });
+  }
+
+  async updateProgram(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateAuditProgramDto,
+  ) {
+    await this.findProgramById(user, id);
+
+    return this.repository.updateProgram(id, dto);
+  }
+
+  async removeProgram(user: AuthenticatedUser, id: string) {
+    await this.findProgramById(user, id);
+
+    return this.repository.removeProgram(id);
+  }
+
+  // ----- FASE 7.1: checklist de auditoría -----------------------------------
+
+  async findChecklist(user: AuthenticatedUser, auditId: string) {
+    await this.findOne(user, auditId);
+
+    return this.repository.findChecklist(auditId);
+  }
+
+  async replaceChecklist(
+    user: AuthenticatedUser,
+    auditId: string,
+    dto: ReplaceAuditChecklistDto,
+  ) {
+    await this.findOne(user, auditId);
+
+    return this.repository.replaceChecklist(auditId, dto);
+  }
+
+  async updateChecklistItem(
+    user: AuthenticatedUser,
+    itemId: string,
+    dto: UpdateAuditChecklistItemDto,
+  ) {
+    const item = await this.repository.findChecklistItemById(itemId);
+
+    if (!item) {
+      throw new NotFoundException('Checklist item not found');
+    }
+
+    // Aislamiento: el item de otra empresa no existe para el actor (404).
+    if (item.audit.companyId !== this.companyScope.resolveCompanyId(user)) {
+      throw new NotFoundException('Checklist item not found');
+    }
+
+    this.companyScope.validate(user, item.audit.companyId);
+
+    return this.repository.updateChecklistItem(itemId, dto);
   }
 }

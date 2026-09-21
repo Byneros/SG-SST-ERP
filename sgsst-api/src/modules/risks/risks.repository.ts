@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateRiskDto } from './dto/create-risk.dto';
 import { UpdateRiskDto } from './dto/update-risk.dto';
@@ -14,11 +13,7 @@ export class RisksRepository {
     return this.prisma.risk.findMany({
       where: {
         companyId,
-        ...(siteId
-          ? siteId === 'none'
-            ? { siteId: null }
-            : { siteId }
-          : {}),
+        ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
       },
       include: siteInclude,
       orderBy: { createdAt: 'desc' },
@@ -31,7 +26,10 @@ export class RisksRepository {
 
   /** Variante con aislamiento por empresa. */
   findByIdScoped(id: string, companyId: string) {
-    return this.prisma.risk.findFirst({ where: { id, companyId }, include: siteInclude });
+    return this.prisma.risk.findFirst({
+      where: { id, companyId },
+      include: siteInclude,
+    });
   }
 
   /** Updates restrictivos: el riesgo debe pertenecer a la empresa del actor. */
@@ -48,7 +46,10 @@ export class RisksRepository {
     if (result.count === 0) {
       return null;
     }
-    return this.prisma.risk.findFirst({ where: { id, companyId }, include: siteInclude });
+    return this.prisma.risk.findFirst({
+      where: { id, companyId },
+      include: siteInclude,
+    });
   }
 
   async removeScoped(id: string, companyId: string) {

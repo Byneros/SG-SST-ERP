@@ -13,11 +13,7 @@ export class TrainingsRepository {
     return this.prisma.training.findMany({
       where: {
         companyId,
-        ...(siteId
-          ? siteId === 'none'
-            ? { siteId: null }
-            : { siteId }
-          : {}),
+        ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
       },
       include: siteInclude,
       orderBy: { date: 'desc' },
@@ -25,12 +21,18 @@ export class TrainingsRepository {
   }
 
   findById(id: string) {
-    return this.prisma.training.findUnique({ where: { id }, include: siteInclude });
+    return this.prisma.training.findUnique({
+      where: { id },
+      include: siteInclude,
+    });
   }
 
   /** Variante con aislamiento por empresa. */
   findByIdScoped(id: string, companyId: string) {
-    return this.prisma.training.findFirst({ where: { id, companyId }, include: siteInclude });
+    return this.prisma.training.findFirst({
+      where: { id, companyId },
+      include: siteInclude,
+    });
   }
 
   /** Updates restrictivos: la capacitación debe pertenecer a la empresa del actor. */
@@ -47,7 +49,10 @@ export class TrainingsRepository {
     if (result.count === 0) {
       return null;
     }
-    return this.prisma.training.findFirst({ where: { id, companyId }, include: siteInclude });
+    return this.prisma.training.findFirst({
+      where: { id, companyId },
+      include: siteInclude,
+    });
   }
 
   async removeScoped(id: string, companyId: string) {

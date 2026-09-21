@@ -11,7 +11,6 @@ import {
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { AuditService } from '../audit/audit.service';
-import { PrismaService } from '../../database/prisma.service';
 import { CreateSiteDto } from './dto/create-site.dto';
 import { UpdateSiteDto } from './dto/update-site.dto';
 import { SitesRepository } from './sites.repository';
@@ -31,10 +30,7 @@ export class SitesService {
   async findOne(id: string, user?: AuthenticatedUser) {
     // Aislamiento: una sede de otra empresa no existe para el actor (404).
     const site = user
-      ? await this.sitesRepository.findByIdScoped(
-          id,
-          resolveCompanyScope(user),
-        )
+      ? await this.sitesRepository.findByIdScoped(id, resolveCompanyScope(user))
       : await this.sitesRepository.findById(id);
     if (!site) {
       throw new NotFoundException('Site not found');
@@ -98,10 +94,7 @@ export class SitesService {
     }
     if (dto.code && dto.code !== before.code) {
       const scope = user ? resolveCompanyScope(user) : before.companyId;
-      const existing = await this.sitesRepository.findByCode(
-        scope,
-        dto.code,
-      );
+      const existing = await this.sitesRepository.findByCode(scope, dto.code);
       if (existing && existing.id !== id) {
         throw new ConflictException('Site code is already registered');
       }
@@ -143,10 +136,7 @@ export class SitesService {
       await this.sitesRepository.remove(id);
     }
     const updated = user
-      ? await this.sitesRepository.findByIdScoped(
-          id,
-          resolveCompanyScope(user),
-        )
+      ? await this.sitesRepository.findByIdScoped(id, resolveCompanyScope(user))
       : await this.sitesRepository.findById(id);
     await this.auditService.log({
       user,

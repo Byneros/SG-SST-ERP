@@ -125,7 +125,7 @@ export class SitesRepository {
   ) {
     const result = await this.prisma.site.updateMany({
       where: { id, companyId },
-      data: this.toPrismaData(dto) as Prisma.SiteUncheckedUpdateInput,
+      data: this.toPrismaData(dto),
     });
     if (result.count === 0) {
       return null;
@@ -136,7 +136,9 @@ export class SitesRepository {
       await this.prisma.site.update({
         where: { id },
         data: {
-          employees: { set: employeeIds.map((employeeId) => ({ id: employeeId })) },
+          employees: {
+            set: employeeIds.map((employeeId) => ({ id: employeeId })),
+          },
         },
       });
     }

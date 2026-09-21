@@ -1,4 +1,8 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CompaniesService } from './companies.service';
 
 /**
@@ -84,9 +88,9 @@ describe('CompaniesService (scope multi-tenant)', () => {
     // detalle exige contexto de empresa activa (postura de f7879fb).
     companiesRepository.findById.mockResolvedValue(companyB);
 
-    await expect(service.findOne('company-b', superAdmin)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.findOne('company-b', superAdmin),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('returns 404 for SUPER_ADMIN when a selected active company is not the target', async () => {
@@ -102,10 +106,7 @@ describe('CompaniesService (scope multi-tenant)', () => {
     companiesRepository.findByNit.mockResolvedValue(companyA);
 
     await expect(
-      service.create(
-        { name: 'Nueva S.A.S.', nit: '900000001-1' },
-        superAdmin,
-      ),
+      service.create({ name: 'Nueva S.A.S.', nit: '900000001-1' }, superAdmin),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(companiesRepository.create).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();

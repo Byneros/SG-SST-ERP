@@ -13,6 +13,12 @@ describe('DashboardService - KPIs por sede', () => {
     risk: { count: jest.fn(), groupBy: jest.fn() },
     incident: { count: jest.fn(), groupBy: jest.fn() },
     training: { count: jest.fn(), groupBy: jest.fn() },
+    // Fase 7.4: modelos del bloque de cumplimiento.
+    audit: { count: jest.fn() },
+    auditFinding: { count: jest.fn() },
+    correctiveAction: { count: jest.fn() },
+    sgsstEvaluation: { aggregate: jest.fn() },
+    indicator: { findMany: jest.fn() },
     site: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -43,14 +49,19 @@ describe('DashboardService - KPIs por sede', () => {
 
   function mockTransaction() {
     // Primer $transaction: conteos globales del resumen.
-    prisma.$transaction.mockImplementationOnce(async (ops: unknown[]) =>
+    prisma.$transaction.mockImplementationOnce((ops: unknown[]) =>
       (ops as Array<Promise<number>>).map(() => 0),
     );
     // Segundo $transaction: sedes + groupBy de empleados/riesgos/incidentes/
     // capacitaciones/documentos.
-    prisma.$transaction.mockImplementationOnce(async () => [
+    prisma.$transaction.mockImplementationOnce(() => [
       [
-        { id: 'site-a', name: 'Planta Norte', code: 'SEDE-NORTE', isMain: true },
+        {
+          id: 'site-a',
+          name: 'Planta Norte',
+          code: 'SEDE-NORTE',
+          isMain: true,
+        },
         { id: 'site-b', name: 'Bodega Sur', code: 'SEDE-SUR', isMain: false },
       ],
       [{ siteId: 'site-a', _count: { _all: 12 } }],
@@ -59,6 +70,21 @@ describe('DashboardService - KPIs por sede', () => {
       [{ siteId: 'site-a', _count: { _all: 4 } }],
       [{ siteId: 'site-b', _count: { _all: 7 } }],
     ]);
+    // Tercer $transaction: bloque de cumplimiento (fase 7.4).
+    prisma.$transaction.mockImplementationOnce(() => [
+      0, // pendingAudits
+      0, // openFindings
+      0, // overdueCorrectiveActions
+      { _count: { _all: 0 }, _avg: { compliancePercent: null } },
+      [], // indicadores
+    ]);
+  }
+
+  /** Primer argumento capturado por un mock, tipado para evitar `any` inseguro. */
+  function firstCallArg<T>(mock: {
+    mock: { calls: unknown[][] };
+  }): T | undefined {
+    return mock.mock.calls[0]?.[0] as T | undefined;
   }
 
   beforeEach(() => {
@@ -70,10 +96,20 @@ describe('DashboardService - KPIs por sede', () => {
     const service = new DashboardService(prisma as never);
     // Evita Redis real en pruebas unitarias (la conexion puede quedar colgada).
     jest
-      .spyOn(service as unknown as { getCachedSummary: (key: string) => Promise<unknown> }, 'getCachedSummary')
+      .spyOn(
+        service as unknown as {
+          getCachedSummary: (key: string) => Promise<unknown>;
+        },
+        'getCachedSummary',
+      )
       .mockResolvedValue(null);
     jest
-      .spyOn(service as unknown as { setCachedSummary: (key: string, value: unknown) => Promise<void> }, 'setCachedSummary')
+      .spyOn(
+        service as unknown as {
+          setCachedSummary: (key: string, value: unknown) => Promise<void>;
+        },
+        'setCachedSummary',
+      )
       .mockResolvedValue(undefined);
     return service;
   }
@@ -82,7 +118,7 @@ describe('DashboardService - KPIs por sede', () => {
     mockTransaction();
     const service = createService();
 
-    const summary = await service.summary(adminA as never);
+    const summary = await service.summary(adminA);
 
     expect(summary.siteKpis).toEqual([
       {
@@ -110,17 +146,24 @@ describe('DashboardService - KPIs por sede', () => {
     ]);
 
     // Aislamiento: los groupBy agregan por sede dentro del scope de la empresa.
-    const riskGroupBy = prisma.risk.groupBy.mock.calls[0][0];
-    const incidentGroupBy = prisma.incident.groupBy.mock.calls[0][0];
-    const employeeGroupBy = prisma.employee.groupBy.mock.calls[0][0];
-    expect(riskGroupBy.where.companyId).toBe('company-a');
-    expect(incidentGroupBy.where.companyId).toBe('company-a');
-    expect(employeeGroupBy.where.companyId).toBe('company-a');
-    expect(prisma.site.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ companyId: 'company-a', isActive: true }),
-      }),
+    const riskGroupBy = firstCallArg<{ where: { companyId: string } }>(
+      prisma.risk.groupBy,
     );
+    const incidentGroupBy = firstCallArg<{ where: { companyId: string } }>(
+      prisma.incident.groupBy,
+    );
+    const employeeGroupBy = firstCallArg<{ where: { companyId: string } }>(
+      prisma.employee.groupBy,
+    );
+    expect(riskGroupBy?.where.companyId).toBe('company-a');
+    expect(incidentGroupBy?.where.companyId).toBe('company-a');
+    expect(employeeGroupBy?.where.companyId).toBe('company-a');
+
+    const siteFindManyArgs = firstCallArg<{
+      where: { companyId: string; isActive: boolean };
+    }>(prisma.site.findMany);
+    expect(siteFindManyArgs?.where.companyId).toBe('company-a');
+    expect(siteFindManyArgs?.where.isActive).toBe(true);
   });
 
   it('blocks SUPER_ADMIN without an active company before computing KPIs', async () => {
@@ -138,7 +181,7 @@ describe('DashboardService - KPIs por sede', () => {
     mockTransaction();
     const service = createService();
 
-    const summary = await service.summary(adminA as never);
+    const summary = await service.summary(adminA);
 
     const bodegaSur = summary.siteKpis.find(
       (kpi: SiteKpi) => kpi.siteId === 'site-b',

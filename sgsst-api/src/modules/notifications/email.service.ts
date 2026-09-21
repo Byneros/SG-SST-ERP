@@ -21,7 +21,9 @@ export class EmailService {
     }
 
     if (!env.smtpHost || !env.smtpFrom) {
-      this.logger.warn('Email is enabled but SMTP_HOST or SMTP_FROM is missing');
+      this.logger.warn(
+        'Email is enabled but SMTP_HOST or SMTP_FROM is missing',
+      );
       return { sent: false, misconfigured: true };
     }
 

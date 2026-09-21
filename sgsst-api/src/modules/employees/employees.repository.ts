@@ -20,11 +20,7 @@ export class EmployeesRepository {
     const where: Prisma.EmployeeWhereInput = {
       companyId,
       isActive: query.isActive,
-      ...(siteId
-        ? siteId === 'none'
-          ? { siteId: null }
-          : { siteId }
-        : {}),
+      ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
       ...(search
         ? {
             OR: [
@@ -62,7 +58,10 @@ export class EmployeesRepository {
   findById(id: string) {
     return this.prisma.employee.findUnique({
       where: { id },
-      include: { company: { select: { id: true, name: true, nit: true } }, site: { select: { id: true, name: true, code: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        site: { select: { id: true, name: true, code: true } },
+      },
     });
   }
 
@@ -70,7 +69,10 @@ export class EmployeesRepository {
   findByIdScoped(id: string, companyId: string) {
     return this.prisma.employee.findFirst({
       where: { id, companyId },
-      include: { company: { select: { id: true, name: true, nit: true } }, site: { select: { id: true, name: true, code: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        site: { select: { id: true, name: true, code: true } },
+      },
     });
   }
 
@@ -107,7 +109,10 @@ export class EmployeesRepository {
   create(dto: CreateEmployeeDto) {
     return this.prisma.employee.create({
       data: this.toPrismaData(dto) as Prisma.EmployeeUncheckedCreateInput,
-      include: { company: { select: { id: true, name: true, nit: true } }, site: { select: { id: true, name: true, code: true } } },
+      include: {
+        company: { select: { id: true, name: true, nit: true } },
+        site: { select: { id: true, name: true, code: true } },
+      },
     });
   }
 

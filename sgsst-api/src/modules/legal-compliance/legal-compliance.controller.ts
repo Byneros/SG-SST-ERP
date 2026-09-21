@@ -28,7 +28,9 @@ import { LegalComplianceService } from './legal-compliance.service';
 @Controller('legal-compliance')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class LegalComplianceController {
-  constructor(private readonly legalComplianceService: LegalComplianceService) {}
+  constructor(
+    private readonly legalComplianceService: LegalComplianceService,
+  ) {}
 
   @Get('norms')
   @Roles('ADMIN', 'SST', 'AUDITOR')
@@ -44,7 +46,10 @@ export class LegalComplianceController {
 
   @Patch('norms/:id')
   @Roles('ADMIN')
-  updateNorm(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateLegalNormDto) {
+  updateNorm(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateLegalNormDto,
+  ) {
     return this.legalComplianceService.updateNorm(id, dto);
   }
 
@@ -94,7 +99,11 @@ export class LegalComplianceController {
     @Param('companyId', ParseUUIDPipe) companyId: string,
     @Query() query: CompanyLegalRequirementsQueryDto,
   ) {
-    return this.legalComplianceService.findCompanyRequirements(user, companyId, query);
+    return this.legalComplianceService.findCompanyRequirements(
+      user,
+      companyId,
+      query,
+    );
   }
 
   @Post('companies/:companyId/requirements/sync')

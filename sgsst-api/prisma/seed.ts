@@ -172,13 +172,17 @@ async function main() {
   }
 
   const risk = await prisma.risk.findFirst({
-    where: { companyId: company.id, title: 'Trabajo en alturas en zona de mantenimiento' },
+    where: {
+      companyId: company.id,
+      title: 'Trabajo en alturas en zona de mantenimiento',
+    },
   });
   if (!risk) {
     await prisma.risk.create({
       data: {
         title: 'Trabajo en alturas en zona de mantenimiento',
-        description: 'Riesgo de caida por actividades sobre plataformas y escaleras.',
+        description:
+          'Riesgo de caida por actividades sobre plataformas y escaleras.',
         level: RiskLevel.HIGH,
         companyId: company.id,
         siteId: mainSite.id,
@@ -203,7 +207,10 @@ async function main() {
   }
 
   const training = await prisma.training.findFirst({
-    where: { companyId: company.id, title: 'Induccion SG-SST personal operativo' },
+    where: {
+      companyId: company.id,
+      title: 'Induccion SG-SST personal operativo',
+    },
   });
   if (!training) {
     await prisma.training.create({
@@ -218,13 +225,17 @@ async function main() {
   }
 
   const document = await prisma.document.findFirst({
-    where: { companyId: company.id, name: 'Politica de seguridad y salud en el trabajo' },
+    where: {
+      companyId: company.id,
+      name: 'Politica de seguridad y salud en el trabajo',
+    },
   });
   if (!document) {
     await prisma.document.create({
       data: {
         name: 'Politica de seguridad y salud en el trabajo',
-        description: 'Documento base publicado para consulta y auditoria SG-SST.',
+        description:
+          'Documento base publicado para consulta y auditoria SG-SST.',
         category: DocumentCategory.POLICY,
         status: DocumentStatus.PUBLISHED,
         fileUrl: 'https://example.com/sgsst/politica-sst.pdf',

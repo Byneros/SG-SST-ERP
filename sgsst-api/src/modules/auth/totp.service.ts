@@ -28,7 +28,9 @@ export class TotpService {
       return false;
     }
     const step = Math.floor(Date.now() / 30_000);
-    return [-1, 0, 1].some((offset) => this.generateCode(secret, step + offset) === normalized);
+    return [-1, 0, 1].some(
+      (offset) => this.generateCode(secret, step + offset) === normalized,
+    );
   }
 
   otpauthUrl(email: string, secret: string) {
@@ -39,7 +41,9 @@ export class TotpService {
   private generateCode(secret: string, step: number) {
     const counter = Buffer.alloc(8);
     counter.writeBigUInt64BE(BigInt(step));
-    const hmac = createHmac('sha1', this.decodeBase32(secret)).update(counter).digest();
+    const hmac = createHmac('sha1', this.decodeBase32(secret))
+      .update(counter)
+      .digest();
     const offset = hmac[hmac.length - 1] & 0xf;
     const binary =
       ((hmac[offset] & 0x7f) << 24) |

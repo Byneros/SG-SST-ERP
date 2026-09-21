@@ -38,16 +38,16 @@ export class AuditService {
     const where: Prisma.AuditLogWhereInput = {
       actor: { companyId: resolveCompanyScope(user) },
       ...(search
-      ? {
-          OR: [
-            { action: { contains: search, mode: 'insensitive' } },
-            { entity: { contains: search, mode: 'insensitive' } },
-            { entityId: { contains: search, mode: 'insensitive' } },
-            { actor: { email: { contains: search, mode: 'insensitive' } } },
-            { actor: { name: { contains: search, mode: 'insensitive' } } },
-          ],
-        }
-      : {}),
+        ? {
+            OR: [
+              { action: { contains: search, mode: 'insensitive' } },
+              { entity: { contains: search, mode: 'insensitive' } },
+              { entityId: { contains: search, mode: 'insensitive' } },
+              { actor: { email: { contains: search, mode: 'insensitive' } } },
+              { actor: { name: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
     };
     const [data, total] = await this.prisma.$transaction([
       this.prisma.auditLog.findMany({

@@ -26,7 +26,9 @@ export class WhatsAppService {
     }
 
     if (!env.whatsappPhoneNumberId || !env.whatsappAccessToken) {
-      this.logger.warn('WhatsApp is enabled but WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN is missing');
+      this.logger.warn(
+        'WhatsApp is enabled but WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN is missing',
+      );
       return { sent: false, misconfigured: true };
     }
 
@@ -53,7 +55,10 @@ export class WhatsAppService {
 
     if (!response.ok) {
       const body = await this.parseResponse(response);
-      throw new WhatsAppDeliveryError(`WhatsApp API failed with ${response.status}`, body);
+      throw new WhatsAppDeliveryError(
+        `WhatsApp API failed with ${response.status}`,
+        body,
+      );
     }
 
     return { sent: true, response: await this.parseResponse(response) };

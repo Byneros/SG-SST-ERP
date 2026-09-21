@@ -11,6 +11,14 @@ export class LegalRequirementsQueryDto extends ListQueryDto {
   riskLevel?: string;
 
   @IsOptional()
-  @IsIn(['ONCE', 'ANNUAL', 'SEMIANNUAL', 'QUARTERLY', 'MONTHLY', 'EVENT_BASED', 'CONTINUOUS'])
+  @IsIn([
+    'ONCE',
+    'ANNUAL',
+    'SEMIANNUAL',
+    'QUARTERLY',
+    'MONTHLY',
+    'EVENT_BASED',
+    'CONTINUOUS',
+  ])
   frequency?: string;
 }

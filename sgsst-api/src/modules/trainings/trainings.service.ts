@@ -63,10 +63,7 @@ export class TrainingsService {
     if (dto.siteId) {
       await this.assertSiteInScope(dto.siteId, companyId);
     }
-    return this.trainingsRepository.create(
-      dto,
-      companyId,
-    );
+    return this.trainingsRepository.create(dto, companyId);
   }
 
   async update(

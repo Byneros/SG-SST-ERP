@@ -6,7 +6,9 @@ export interface CompanyContext {
   metadata?: Record<string, unknown>;
 }
 
-export function createCompanyContext(data: Partial<CompanyContext>): CompanyContext {
+export function createCompanyContext(
+  data: Partial<CompanyContext>,
+): CompanyContext {
   return {
     companyId: data.companyId ?? '',
     companyName: data.companyName ?? '',

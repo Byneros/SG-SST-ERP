@@ -27,7 +27,9 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('SG-SST ERP API')
-    .setDescription('API para gestion de empresas, empleados y procesos SG-SST.')
+    .setDescription(
+      'API para gestion de empresas, empleados y procesos SG-SST.',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -38,4 +40,4 @@ async function bootstrap() {
 
   await app.listen(env.port);
 }
-bootstrap();
+void bootstrap();

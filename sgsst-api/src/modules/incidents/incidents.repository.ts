@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
@@ -12,15 +11,16 @@ const siteInclude = { site: { select: { id: true, name: true, code: true } } };
 export class IncidentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(user: AuthenticatedUser, companyId: string, query: ListQueryDto, siteId?: string) {
+  findAll(
+    user: AuthenticatedUser,
+    companyId: string,
+    query: ListQueryDto,
+    siteId?: string,
+  ) {
     return this.prisma.incident.findMany({
       where: {
         companyId,
-        ...(siteId
-          ? siteId === 'none'
-            ? { siteId: null }
-            : { siteId }
-          : {}),
+        ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
       },
       include: siteInclude,
       orderBy: { date: 'desc' },
@@ -28,12 +28,18 @@ export class IncidentsRepository {
   }
 
   findById(id: string) {
-    return this.prisma.incident.findUnique({ where: { id }, include: siteInclude });
+    return this.prisma.incident.findUnique({
+      where: { id },
+      include: siteInclude,
+    });
   }
 
   /** Variante con aislamiento por empresa. */
   findByIdScoped(id: string, companyId: string) {
-    return this.prisma.incident.findFirst({ where: { id, companyId }, include: siteInclude });
+    return this.prisma.incident.findFirst({
+      where: { id, companyId },
+      include: siteInclude,
+    });
   }
 
   /** Updates restrictivos: el incidente debe pertenecer a la empresa del actor. */
@@ -51,7 +57,10 @@ export class IncidentsRepository {
     if (result.count === 0) {
       return null;
     }
-    return this.prisma.incident.findFirst({ where: { id, companyId }, include: siteInclude });
+    return this.prisma.incident.findFirst({
+      where: { id, companyId },
+      include: siteInclude,
+    });
   }
 
   async removeScoped(id: string, companyId: string) {

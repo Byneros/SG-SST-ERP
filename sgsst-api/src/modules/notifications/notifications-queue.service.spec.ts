@@ -18,20 +18,32 @@ describe('NotificationsQueueService', () => {
   });
 
   it('scopes manually requested due alerts to the authenticated company', async () => {
-    notificationsService.generateDueAlertsForCompany.mockResolvedValue({ success: true });
-    const service = new NotificationsQueueService(notificationsService as never);
+    notificationsService.generateDueAlertsForCompany.mockResolvedValue({
+      success: true,
+    });
+    const service = new NotificationsQueueService(
+      notificationsService as never,
+    );
 
     await service.enqueueDueAlerts(user);
 
-    expect(notificationsService.generateDueAlertsForCompany).toHaveBeenCalledWith('company-a');
+    expect(
+      notificationsService.generateDueAlertsForCompany,
+    ).toHaveBeenCalledWith('company-a');
   });
 
   it('scopes manual external delivery retries to the authenticated company', async () => {
-    notificationsService.retryFailedExternalDeliveries.mockResolvedValue({ success: true });
-    const service = new NotificationsQueueService(notificationsService as never);
+    notificationsService.retryFailedExternalDeliveries.mockResolvedValue({
+      success: true,
+    });
+    const service = new NotificationsQueueService(
+      notificationsService as never,
+    );
 
     await service.enqueueExternalDeliveryRetries(user);
 
-    expect(notificationsService.retryFailedExternalDeliveries).toHaveBeenCalledWith(25, 'company-a');
+    expect(
+      notificationsService.retryFailedExternalDeliveries,
+    ).toHaveBeenCalledWith(25, 'company-a');
   });
 });

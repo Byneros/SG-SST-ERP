@@ -18,7 +18,8 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   @Matches(/^\d{7,10}-\d$/, {
-    message: 'nit must use Colombian format without dots, for example 900123456-7',
+    message:
+      'nit must use Colombian format without dots, for example 900123456-7',
   })
   nit?: string;
 
@@ -85,7 +86,8 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   @Matches(/^\+?[1-9]\d{7,14}$/, {
-    message: 'whatsappAlertPhone must use international format, for example 573001112233',
+    message:
+      'whatsappAlertPhone must use international format, for example 573001112233',
   })
   whatsappAlertPhone?: string;
 

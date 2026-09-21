@@ -1,4 +1,13 @@
-import { Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -22,25 +31,37 @@ export class ReportsController {
 
   @Get('exports')
   @Roles('ADMIN', 'SST', 'AUDITOR')
-  findExports(@CurrentUser() user: AuthenticatedUser, @Query() query: ReportExportsQueryDto) {
+  findExports(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ReportExportsQueryDto,
+  ) {
     return this.reportsService.findExports(user, query);
   }
 
   @Get('metrics')
   @Roles('ADMIN', 'SST', 'AUDITOR')
-  metrics(@CurrentUser() user: AuthenticatedUser, @Query() query: ReportExportsQueryDto) {
+  metrics(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ReportExportsQueryDto,
+  ) {
     return this.reportsService.metrics(user, query);
   }
 
   @Get('metrics/history')
   @Roles('ADMIN')
-  metricHistory(@CurrentUser() user: AuthenticatedUser, @Query() query: ReportExportsQueryDto) {
+  metricHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ReportExportsQueryDto,
+  ) {
     return this.reportsService.metricHistory(user, query);
   }
 
   @Post('exports/:id/retry')
   @Roles('ADMIN', 'SST', 'AUDITOR')
-  async retryExport(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  async retryExport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     const reportExport = await this.reportsService.prepareRetry(user, id);
     return this.reportsQueueService.enqueue({
       user,
@@ -58,9 +79,17 @@ export class ReportsController {
     @Param('id') id: string,
     @Res() response: Response,
   ) {
-    const reportExport = await this.reportsService.getDownloadableExport(user, id);
-    const content = await this.documentsStorageService.readReport(reportExport.storageKey!);
-    response.setHeader('Content-Type', reportExport.mimeType ?? 'application/octet-stream');
+    const reportExport = await this.reportsService.getDownloadableExport(
+      user,
+      id,
+    );
+    const content = await this.documentsStorageService.readReport(
+      reportExport.storageKey!,
+    );
+    response.setHeader(
+      'Content-Type',
+      reportExport.mimeType ?? 'application/octet-stream',
+    );
     response.setHeader(
       'Content-Disposition',
       `attachment; filename*=UTF-8''${encodeURIComponent(reportExport.fileName!)}`,
@@ -77,15 +106,21 @@ export class ReportsController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    const content = await this.generateAndAudit(() => this.reportsService.csv(user, kind, companyId), {
-      user,
-      kind,
-      format: 'csv',
-      companyId,
-      request,
-    });
+    const content = await this.generateAndAudit(
+      () => this.reportsService.csv(user, kind, companyId),
+      {
+        user,
+        kind,
+        format: 'csv',
+        companyId,
+        request,
+      },
+    );
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    response.setHeader('Content-Disposition', `attachment; filename="${kind}.csv"`);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${kind}.csv"`,
+    );
     response.send(content);
   }
 
@@ -98,15 +133,21 @@ export class ReportsController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    const content = await this.generateAndAudit(() => this.reportsService.pdf(user, kind, companyId), {
-      user,
-      kind,
-      format: 'pdf',
-      companyId,
-      request,
-    });
+    const content = await this.generateAndAudit(
+      () => this.reportsService.pdf(user, kind, companyId),
+      {
+        user,
+        kind,
+        format: 'pdf',
+        companyId,
+        request,
+      },
+    );
     response.setHeader('Content-Type', 'application/pdf');
-    response.setHeader('Content-Disposition', `attachment; filename="${kind}.pdf"`);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${kind}.pdf"`,
+    );
     response.send(content);
   }
 

@@ -22,6 +22,11 @@ import { UsersService } from '../src/modules/users/users.service';
 
 const jwtSecret = 'test-secret';
 
+/** Body de una respuesta supertest, tipado para evitar `any` inseguro. */
+function body<T>(response: { body: unknown }): T {
+  return response.body as T;
+}
+
 type MemoryUser = {
   id: string;
   name: string;
@@ -65,7 +70,9 @@ class MemoryUsersRepository {
     const data = this.store.users
       .filter((user) => !companyId || user.companyId === companyId)
       .filter((user) =>
-        search ? `${user.name} ${user.email}`.toLowerCase().includes(search) : true,
+        search
+          ? `${user.name} ${user.email}`.toLowerCase().includes(search)
+          : true,
       )
       .map((user) => this.safeUser(user));
     return Promise.resolve({
@@ -89,14 +96,21 @@ class MemoryUsersRepository {
   }
 
   findAuthById(id: string) {
-    return Promise.resolve(this.store.users.find((item) => item.id === id) ?? null);
+    return Promise.resolve(
+      this.store.users.find((item) => item.id === id) ?? null,
+    );
   }
 
   findByEmail(email: string) {
-    return Promise.resolve(this.store.users.find((item) => item.email === email) ?? null);
+    return Promise.resolve(
+      this.store.users.find((item) => item.email === email) ?? null,
+    );
   }
 
-  create(dto: { name: string; email: string; role: string; companyId?: string }, password: string) {
+  create(
+    dto: { name: string; email: string; role: string; companyId?: string },
+    password: string,
+  ) {
     const now = new Date();
     const user: MemoryUser = {
       id: randomUUID(),
@@ -114,7 +128,16 @@ class MemoryUsersRepository {
     return Promise.resolve(this.safeUser(user));
   }
 
-  update(id: string, dto: { name?: string; email?: string; role?: string; companyId?: string; isActive?: boolean }) {
+  update(
+    id: string,
+    dto: {
+      name?: string;
+      email?: string;
+      role?: string;
+      companyId?: string;
+      isActive?: boolean;
+    },
+  ) {
     const user = this.store.users.find((item) => item.id === id);
     if (!user) {
       throw new Error('User not found');
@@ -126,7 +149,11 @@ class MemoryUsersRepository {
       companyId: dto.companyId ?? user.companyId,
       isActive: dto.isActive ?? user.isActive,
       deletedAt:
-        dto.isActive === undefined ? user.deletedAt : dto.isActive ? null : new Date(),
+        dto.isActive === undefined
+          ? user.deletedAt
+          : dto.isActive
+            ? null
+            : new Date(),
       updatedAt: new Date(),
     });
     return Promise.resolve(this.safeUser(user));
@@ -182,7 +209,9 @@ class MemoryCompaniesRepository {
     const pageSize = query.pageSize ?? 10;
     const search = query.search?.toLowerCase();
     const data = this.store.companies.filter((company) =>
-      search ? `${company.name} ${company.nit}`.toLowerCase().includes(search) : true,
+      search
+        ? `${company.name} ${company.nit}`.toLowerCase().includes(search)
+        : true,
     );
     return Promise.resolve({
       data: data.slice((page - 1) * pageSize, page * pageSize),
@@ -196,11 +225,15 @@ class MemoryCompaniesRepository {
   }
 
   findById(id: string) {
-    return Promise.resolve(this.store.companies.find((item) => item.id === id) ?? null);
+    return Promise.resolve(
+      this.store.companies.find((item) => item.id === id) ?? null,
+    );
   }
 
   findByNit(nit: string) {
-    return Promise.resolve(this.store.companies.find((item) => item.nit === nit) ?? null);
+    return Promise.resolve(
+      this.store.companies.find((item) => item.nit === nit) ?? null,
+    );
   }
 
   create(dto: { name: string; nit: string; arl?: string; riskClass?: string }) {
@@ -228,7 +261,11 @@ class MemoryCompaniesRepository {
     Object.assign(company, {
       ...dto,
       deletedAt:
-        dto.isActive === undefined ? company.deletedAt : dto.isActive ? null : new Date(),
+        dto.isActive === undefined
+          ? company.deletedAt
+          : dto.isActive
+            ? null
+            : new Date(),
       updatedAt: new Date(),
     });
     return Promise.resolve(company);
@@ -278,7 +315,13 @@ class MemoryAuditService {
     const pageSize = query.pageSize ?? 10;
     const search = query.search?.toLowerCase();
     const data = this.store.auditLogs.filter((log) =>
-      search ? `${log.action} ${log.entity} ${log.entityId}`.toLowerCase().includes(search) : true,
+      search
+        ? [log.action, log.entity, log.entityId]
+            .map((part) => String(part))
+            .join(' ')
+            .toLowerCase()
+            .includes(search)
+        : true,
     );
     return Promise.resolve({
       data: data.slice((page - 1) * pageSize, page * pageSize),
@@ -317,15 +360,26 @@ describe('security and permissions (e2e)', () => {
           signOptions: { expiresIn: '1d' },
         }),
       ],
-      controllers: [AuthController, CompaniesController, UsersController, AuditController],
+      controllers: [
+        AuthController,
+        CompaniesController,
+        UsersController,
+        AuditController,
+      ],
       providers: [
         AuthService,
         CompaniesService,
         UsersService,
         JwtAuthGuard,
         RolesGuard,
-        { provide: UsersRepository, useValue: new MemoryUsersRepository(store) },
-        { provide: CompaniesRepository, useValue: new MemoryCompaniesRepository(store) },
+        {
+          provide: UsersRepository,
+          useValue: new MemoryUsersRepository(store),
+        },
+        {
+          provide: CompaniesRepository,
+          useValue: new MemoryCompaniesRepository(store),
+        },
         { provide: AuditService, useValue: new MemoryAuditService(store) },
         {
           provide: PrismaService,
@@ -344,8 +398,7 @@ describe('security and permissions (e2e)', () => {
           },
         },
       ],
-    })
-      .compile();
+    }).compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -368,7 +421,7 @@ describe('security and permissions (e2e)', () => {
       .post('/api/v1/auth/login')
       .send({ email, password })
       .expect(201);
-    return response.body.accessToken as string;
+    return body<{ accessToken: string }>(response).accessToken;
   }
 
   it('runs login, permissions, soft delete and audit log flow over HTTP', async () => {
@@ -390,7 +443,7 @@ describe('security and permissions (e2e)', () => {
       })
       .expect(201);
 
-    const companyId = companyResponse.body.id as string;
+    const companyId = body<{ id: string }>(companyResponse).id;
     const admin = store.users.find((user) => user.email === 'admin@sgsst.com');
     if (!admin) {
       throw new Error('Test administrator was not created');
@@ -423,8 +476,11 @@ describe('security and permissions (e2e)', () => {
       .set('Authorization', `Bearer ${scopedAdminToken}`)
       .expect(200);
 
-    expect(deletedResponse.body.isActive).toBe(false);
-    expect(deletedResponse.body.deletedAt).toBeTruthy();
+    const deleted = body<{ isActive: boolean; deletedAt: unknown }>(
+      deletedResponse,
+    );
+    expect(deleted.isActive).toBe(false);
+    expect(deleted.deletedAt).toBeTruthy();
 
     await request(app.getHttpServer())
       .get('/api/v1/audit-logs')
@@ -436,9 +492,13 @@ describe('security and permissions (e2e)', () => {
       .set('Authorization', `Bearer ${scopedAdminToken}`)
       .expect(200);
 
-    expect(auditResponse.body.data).toEqual(
+    expect(body<{ data: unknown }>(auditResponse).data).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ action: 'CREATE', entity: 'Company', entityId: companyId }),
+        expect.objectContaining({
+          action: 'CREATE',
+          entity: 'Company',
+          entityId: companyId,
+        }),
         expect.objectContaining({
           action: 'DEACTIVATE',
           entity: 'Company',

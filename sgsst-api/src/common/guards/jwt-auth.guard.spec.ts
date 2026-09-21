@@ -16,7 +16,9 @@ function contextWithAuthorization(authorization?: string) {
 describe('JwtAuthGuard', () => {
   it('attaches verified JWT payload to request user', async () => {
     const jwtService = {
-      verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-1', role: 'ADMIN' }),
+      verifyAsync: jest
+        .fn()
+        .mockResolvedValue({ sub: 'user-1', role: 'ADMIN' }),
     };
     const guard = new JwtAuthGuard(jwtService as never);
     const { request, context } = contextWithAuthorization('Bearer token');

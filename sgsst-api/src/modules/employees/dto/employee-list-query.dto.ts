@@ -1,9 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsOptional,
-  IsUUID,
-  ValidateIf,
-} from 'class-validator';
+import { IsOptional, IsUUID, ValidateIf } from 'class-validator';
 import { ListQueryDto } from '../../../common/dto/list-query.dto';
 
 /**
@@ -13,7 +9,7 @@ import { ListQueryDto } from '../../../common/dto/list-query.dto';
  */
 export class EmployeeListQueryDto extends ListQueryDto {
   @IsOptional()
-  @ValidateIf((o) => o.siteId !== 'none')
+  @ValidateIf((o: { siteId?: string }) => o.siteId !== 'none')
   @IsUUID()
   @Type(() => String)
   siteId?: string;

@@ -8,6 +8,22 @@ import { CreateSgsstAuditDto } from './dto/create-sgsst-audit.dto';
 import { UpdateCorrectiveActionDto } from './dto/update-corrective-action.dto';
 import { UpdateFindingDto } from './dto/update-finding.dto';
 import { UpdateSgsstAuditDto } from './dto/update-sgsst-audit.dto';
+import { CreateAuditProgramDto } from './dto/create-audit-program.dto';
+import { ReplaceAuditChecklistDto } from './dto/replace-audit-checklist.dto';
+import { UpdateAuditProgramDto } from './dto/update-audit-program.dto';
+import { UpdateAuditChecklistItemDto } from './dto/update-audit-checklist-item.dto';
+
+const auditInclude = {
+  company: { select: { id: true, name: true, nit: true } },
+  program: { select: { id: true, name: true, period: true } },
+  findings: {
+    include: { actions: true },
+    orderBy: { createdAt: 'desc' as const },
+  },
+  checklist: {
+    orderBy: [{ order: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+};
 
 @Injectable()
 export class SgsstAuditsRepository {
@@ -34,13 +50,7 @@ export class SgsstAuditsRepository {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.audit.findMany({
         where,
-        include: {
-          company: { select: { id: true, name: true, nit: true } },
-          findings: {
-            include: { actions: true },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
+        include: auditInclude,
         orderBy: { scheduledAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -56,13 +66,7 @@ export class SgsstAuditsRepository {
   findById(id: string) {
     return this.prisma.audit.findUnique({
       where: { id },
-      include: {
-        company: { select: { id: true, name: true, nit: true } },
-        findings: {
-          include: { actions: true },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
+      include: auditInclude,
     });
   }
 
@@ -174,6 +178,109 @@ export class SgsstAuditsRepository {
         closedAt: dto.status === 'COMPLETED' ? new Date() : undefined,
       },
     });
+  }
+
+  // ----- FASE 7.1: programas de auditoría ---------------------------------
+
+  findPrograms(companyId: string, query: ListQueryDto = new ListQueryDto()) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 50;
+    const search = query.search?.trim();
+    const where: Prisma.AuditProgramWhereInput = {
+      companyId,
+      isActive: query.isActive,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { objective: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+    return this.prisma.auditProgram.findMany({
+      where,
+      include: { _count: { select: { audits: true } } },
+      orderBy: [{ period: 'desc' }, { createdAt: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+  }
+
+  findProgramById(id: string) {
+    return this.prisma.auditProgram.findUnique({
+      where: { id },
+      include: { _count: { select: { audits: true } } },
+    });
+  }
+
+  /** Variante aislada: el programa solo existe si pertenece a la empresa del actor. */
+  findProgramByIdScoped(id: string, companyId: string) {
+    return this.prisma.auditProgram.findFirst({ where: { id, companyId } });
+  }
+
+  createProgram(dto: CreateAuditProgramDto) {
+    return this.prisma.auditProgram.create({ data: dto });
+  }
+
+  updateProgram(id: string, dto: UpdateAuditProgramDto) {
+    return this.prisma.auditProgram.update({
+      where: { id },
+      data: {
+        ...dto,
+        deletedAt:
+          dto.isActive === undefined
+            ? undefined
+            : dto.isActive
+              ? null
+              : new Date(),
+      },
+    });
+  }
+
+  removeProgram(id: string) {
+    return this.prisma.auditProgram.update({
+      where: { id },
+      data: { isActive: false, deletedAt: new Date() },
+    });
+  }
+
+  // ----- FASE 7.1: checklist por auditoría ---------------------------------
+
+  findChecklist(auditId: string) {
+    return this.prisma.auditChecklistItem.findMany({
+      where: { auditId },
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /** Reemplaza el checklist completo en una transacción. */
+  async replaceChecklist(auditId: string, dto: ReplaceAuditChecklistDto) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.auditChecklistItem.deleteMany({ where: { auditId } });
+      if (dto.items.length > 0) {
+        await tx.auditChecklistItem.createMany({
+          data: dto.items.map((item, index) => ({
+            auditId,
+            order: item.order ?? index + 1,
+            section: item.section,
+            question: item.question,
+          })),
+        });
+      }
+    });
+    return this.findChecklist(auditId);
+  }
+
+  findChecklistItemById(id: string) {
+    return this.prisma.auditChecklistItem.findUnique({
+      where: { id },
+      include: { audit: { select: { id: true, companyId: true } } },
+    });
+  }
+
+  updateChecklistItem(id: string, dto: UpdateAuditChecklistItemDto) {
+    return this.prisma.auditChecklistItem.update({ where: { id }, data: dto });
   }
 
   private toAuditData(dto: CreateSgsstAuditDto | UpdateSgsstAuditDto) {

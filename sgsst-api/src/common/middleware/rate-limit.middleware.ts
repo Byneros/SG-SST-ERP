@@ -40,11 +40,13 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   private async incrementRedisBucket(key: string) {
-    redis = redis ?? new IORedis(env.redisUrl, {
-      lazyConnect: true,
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-    });
+    redis =
+      redis ??
+      new IORedis(env.redisUrl, {
+        lazyConnect: true,
+        enableOfflineQueue: false,
+        maxRetriesPerRequest: 1,
+      });
     if (redis.status === 'wait') {
       await redis.connect();
     }
@@ -72,11 +74,17 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   private setHeaders(response: Response, count: number) {
     response.setHeader('X-RateLimit-Limit', env.rateLimitMaxRequests);
-    response.setHeader('X-RateLimit-Remaining', Math.max(0, env.rateLimitMaxRequests - count));
+    response.setHeader(
+      'X-RateLimit-Remaining',
+      Math.max(0, env.rateLimitMaxRequests - count),
+    );
   }
 
   private reject(): never {
-    throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+    throw new HttpException(
+      'Rate limit exceeded',
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   private resolveKey(request: Request) {
