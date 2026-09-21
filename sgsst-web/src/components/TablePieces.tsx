@@ -123,6 +123,20 @@ export function ActiveChip({ active }: { active: boolean }) {
  * Chip de filtro activo (p. ej. sede desde el dashboard): muestra el nombre
  * del filtro aplicado y permite quitarlo con la X.
  */
+export function ViewBreadcrumb({ view }: { view: string }) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+      <Typography variant="body2" color="text.secondary">Dashboard</Typography>
+      <Typography variant="body2" color="text.secondary">/</Typography>
+      <Typography variant="subtitle2" color="primary">{view}</Typography>
+    </Stack>
+  )
+}
+
+/**
+ * Chip de filtro activo (p. ej. sede desde el dashboard): muestra el nombre
+ * del filtro aplicado y permite quitarlo con la X.
+ */
 export function ActiveSiteFilterChip({
   siteName,
   onClear,

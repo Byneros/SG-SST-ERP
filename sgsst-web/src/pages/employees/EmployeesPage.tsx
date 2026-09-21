@@ -2,7 +2,7 @@ import { Delete, Edit, RestoreFromTrash } from '@mui/icons-material'
 import { Button, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
 import { contractTypeLabels } from '../../constants/catalogs'
-import { ActiveChip, ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveChip, ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
 import type { Employee, PageMeta, Site, TableState } from '../../types'
 
 export function EmployeesPage(props: {
@@ -28,6 +28,7 @@ export function EmployeesPage(props: {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
+      <ViewBreadcrumb view="Empleados" />
       <TableHeader title="CRUD Empleados" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
       {props.siteFilter !== 'all' && (
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>

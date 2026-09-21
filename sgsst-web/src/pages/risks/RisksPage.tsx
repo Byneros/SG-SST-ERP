@@ -1,6 +1,6 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Chip, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
-import { ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
 import { riskLevelLabels } from '../../constants/catalogs'
 import type { PageMeta, Risk, Site, TableState } from '../../types'
 
@@ -25,6 +25,7 @@ export function RisksPage(props: {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
+      <ViewBreadcrumb view="Riesgos" />
       <TableHeader title="Matriz de riesgos" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
       {props.siteFilter !== 'all' && (
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
