@@ -48,6 +48,7 @@ import {
 import { AppLayout } from './layout/AppLayout'
 import {
   AuditPage,
+  ExternalDeliveriesPage,
   CompaniesPage,
   CompanyDialog,
   DashboardPage,
@@ -91,6 +92,8 @@ import { ViewErrorBoundary } from './components/ViewErrorBoundary'
 import type {
   AppNotification,
   AuditLog,
+  ExternalDelivery,
+  ExternalDeliveryFilters,
   AuthUser,
   Company,
   DashboardSummary,
@@ -173,6 +176,11 @@ function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [notificationUnread, setNotificationUnread] = useState(0)
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [externalDeliveries, setExternalDeliveries] = useState<ExternalDelivery[]>([])
+  const [externalDeliveryMeta, setExternalDeliveryMeta] = useState(emptyMeta)
+  const [externalDeliveryTable, setExternalDeliveryTable] = useState(initialTableState)
+  const [externalDeliveryFilters, setExternalDeliveryFilters] = useState<ExternalDeliveryFilters>({ provider: 'all', status: 'all', companyId: '' })
+  const [externalDeliveryDialog, setExternalDeliveryDialog] = useState<ExternalDelivery | null>(null)
   const [dashboardSummary, setDashboardSummary] = useState(emptySummary)
   const [companyMeta, setCompanyMeta] = useState(emptyMeta)
   const [siteMeta, setSiteMeta] = useState(emptyMeta)
@@ -281,6 +289,7 @@ function App() {
   const canViewUsers = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canManageUsers = isPlatformAdmin || user?.role === 'ADMIN'
   const canViewAudit = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
+  const canRetryDeliveries = user?.role === 'ADMIN'
 
   const selectedTitle =
     view === 'dashboard'
@@ -341,7 +350,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -443,6 +452,19 @@ function App() {
       const auditRequest = canViewAudit
         ? api.get<Paginated<AuditLog>>('/audit-logs', { params: tableParams(auditTable) })
         : Promise.resolve({ data: { data: [] as AuditLog[], meta: emptyMeta } })
+      const externalDeliveryRequest = canRetryDeliveries && hasCompanyScope
+        ? api.get<Paginated<ExternalDelivery>>('/notifications/external-deliveries', {
+            params: {
+              ...tableParams(externalDeliveryTable),
+              ...(externalDeliveryFilters.provider !== 'all' ? { provider: externalDeliveryFilters.provider } : {}),
+              ...(externalDeliveryFilters.status !== 'all' ? { status: externalDeliveryFilters.status } : {}),
+              ...(isPlatformAdmin
+                ? externalDeliveryFilters.companyId
+                  ? { companyId: externalDeliveryFilters.companyId } : {}
+                : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as ExternalDelivery[], meta: emptyMeta } })
       const sgsstAuditRequest = canViewDocuments && hasCompanyScope
         ? api.get<Paginated<SgsstAudit>>('/sgsst-audits', {
             params: {
@@ -508,6 +530,7 @@ function App() {
         reportMetricHistoryResponse,
         userResponse,
         auditResponse,
+        externalDeliveryResponse,
         notificationResponse,
         summaryResponse,
       ] = await Promise.all([
@@ -526,6 +549,7 @@ function App() {
         reportMetricHistoryRequest,
         userRequest,
         auditRequest,
+        externalDeliveryRequest,
         notificationRequest,
         summaryRequest,
       ])
@@ -591,6 +615,10 @@ function App() {
       setUsers(userResponse.data.data)
       setUserMeta(userResponse.data.meta)
       setAuditLogs(auditResponse.data.data)
+      if (isPaginated<ExternalDelivery>(externalDeliveryResponse.data)) {
+        setExternalDeliveries(externalDeliveryResponse.data.data)
+        setExternalDeliveryMeta(externalDeliveryResponse.data.meta)
+      }
       setAuditMeta(auditResponse.data.meta)
       setNotifications(notificationResponse.data.data)
       setNotificationUnread(notificationResponse.data.meta.unread ?? 0)
@@ -728,6 +756,8 @@ function App() {
     setNotifications([])
     setNotificationUnread(0)
     setAuditLogs([])
+    setExternalDeliveries([])
+    setExternalDeliveryMeta(emptyMeta)
     setDashboardSummary(emptySummary)
     setView('dashboard')
   }
@@ -1418,6 +1448,10 @@ function App() {
     await saveRecord(() => api.delete(`/sgsst-evaluations/${id}`).then())
   }
 
+  async function retryDelivery(id: string) {
+    await saveRecord(() => api.post(`/notifications/external-deliveries/${id}/retry`).then())
+  }
+
   function confirmDeleteSgsstAudit(audit: SgsstAudit) {
     openConfirmDialog(
       'Eliminar auditoría',
@@ -1669,6 +1703,7 @@ function App() {
           canViewDocuments={canViewDocuments}
           canViewReports={canViewReports}
           canViewAudit={canViewAudit}
+          canRetryDeliveries={canRetryDeliveries}
           canGenerateNotifications={canManageDocuments}
           notifications={notifications}
           notificationUnread={notificationUnread}
@@ -2008,6 +2043,22 @@ function App() {
             )}
             {view === 'audit' && (
               <AuditPage logs={auditLogs} meta={auditMeta} tableState={auditTable} onTableChange={setAuditTable} />
+            )}
+            {view === 'externalDeliveries' && canRetryDeliveries && (
+              <ExternalDeliveriesPage
+                deliveries={externalDeliveries}
+                meta={externalDeliveryMeta}
+                tableState={externalDeliveryTable}
+                filters={externalDeliveryFilters}
+                companies={companies}
+                onTableChange={setExternalDeliveryTable}
+                onFiltersChange={setExternalDeliveryFilters}
+                onRetry={(id) => retryDelivery(id)}
+                onRetryAll={() => retryDelivery('all')}
+                onOpen={setExternalDeliveryDialog}
+                selected={externalDeliveryDialog}
+                onClose={() => setExternalDeliveryDialog(null)}
+              />
             )}
             <CompanyDialog
               open={companyDialog.open}

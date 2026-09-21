@@ -7,7 +7,7 @@ este plan recalibra el trabajo restante. Las Fases 1–8 cubrieron el producto
 Fase 9 cierra plataforma: soporte operativo, continuidad, despliegue e
 identidad empresarial.
 
-## 9.1 Consola de entregas externas — cerrar detalles
+## 9.1 Consola de entregas externas — implementado
 
 *Estado real (verificado):*
 - `POST /notifications/external-deliveries/:id/retry` existe en
@@ -18,19 +18,22 @@ identidad empresarial.
 - `GET /notifications/external-deliveries` con filtros `provider`/`status`,
   búsqueda y `companyId` resuelto por scope (`resolveCompanyScope`).
 - Frontend `ExternalDeliveriesPage`: botón "Reintentar" por fila y
-  "Reintentar fallidas" (`POST retry-external-deliveries`), filtro de empresa.
+  "Reintentar fallidas" (`POST retry-external-deliveries`), filtro de empresa,
+  botón "Ver detalle" y diálogo `ExternalDeliveryDialog` (estado, destino,
+  empresa, entidad, tiempos, payload/respuesta/error en JSON).
+- Vista cableada en `App.tsx` (estado, fetch con scope de empresa, reintento
+  individual/masivo, diálogo) y navegación "Entregas externas" para ADMIN.
 - Reintentos automáticos por cron (`EXTERNAL_DELIVERY_RETRY_CRON`).
+- Auditoría `EXTERNAL_DELIVERY_RETRY` en el reintento manual: registra estado
+  e intentos previos y resultantes, más el error final.
+- Tests unitarios del reintento (404, aislamiento multi-tenant 403 entre
+  empresas y SUPER_ADMIN, camino feliz con auditoría, sin auditoría al ser
+  rechazado por scope).
 
-*Pendiente (el trabajo real de este punto):*
-1. **Diálogo de detalle** en la página: hoy solo se ve `error ?? subject` en la
-   tabla. Agregar diálogo con payload, respuesta, error completo, intentos y
-   próxima fecha (el tipo `ExternalDelivery` ya lo expone).
-2. **Auditoría del reintento manual**: registrar acción
-   `EXTERNAL_DELIVERY_RETRY` en `audit-logs` (el módulo audit ya existe; el
-   servicio de notificaciones no escribe auditoría).
-3. **Tests**: no existe ningún spec de entregas externas. Agregar unitarios de
-   `retryExternalDeliveryForUser` y e2e de aislamiento (una empresa no puede
-   reintentar entregas de otra → 404).
+*Resta (opcional):*
+- e2e de entregas en el harness multi-tenant: el aislamiento ya queda cubierto
+  por unitarios; el harness e2e aún no monta el módulo de notificaciones.
+- QA visual en navegador de la consola completa.
 
 ## 9.2 Backups externos cifrados — implementado (verificado en vivo)
 
@@ -86,9 +89,8 @@ prueba de restauración programada mensual.
 
 ## Prioridades ajustadas
 
-1. **9.1 (cierre)** — el grueso ya funciona en producción de datos; el resto es
-   diálogo de detalle + auditoría + tests: poco esfuerzo, valor operativo alto
-   y cierra el ciclo con QA (≈ medio ciclo).
+1. **9.1 — completado**: diálogo de detalle, auditoría `EXTERNAL_DELIVERY_RETRY`,
+   unitarios del reintento y wiring completo de la vista en `App.tsx`.
 2. **9.3 (cierre)** — compose.prod + documentación de rollback sobre un
    workflow que ya publica (≈ medio ciclo).
 3. **9.2 Backups cifrados** — implementado; solo falta canal de alerta y

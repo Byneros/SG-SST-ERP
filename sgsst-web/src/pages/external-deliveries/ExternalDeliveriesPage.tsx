@@ -1,6 +1,7 @@
-import { Replay } from '@mui/icons-material'
+import { Replay, VisibilityOutlined } from '@mui/icons-material'
 import { Button, Chip, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography } from '@mui/material'
 import { Pager } from '../../components/TablePieces'
+import { ExternalDeliveryDialog } from './ExternalDeliveryDialog'
 import type { Company, ExternalDelivery, ExternalDeliveryFilters, ExternalDeliveryStatus, PageMeta, TableState } from '../../types'
 
 const statusColor: Record<ExternalDeliveryStatus, 'default' | 'primary' | 'success' | 'error' | 'warning'> = {
@@ -20,6 +21,9 @@ export function ExternalDeliveriesPage(props: {
   onFiltersChange: (filters: ExternalDeliveryFilters) => void
   onRetry: (id: string) => void
   onRetryAll: () => void
+  onOpen: (delivery: ExternalDelivery) => void
+  selected: ExternalDelivery | null
+  onClose: () => void
 }) {
   return (
     <Paper className="panel" variant="outlined">
@@ -119,14 +123,19 @@ export function ExternalDeliveriesPage(props: {
                 </TableCell>
                 <TableCell>{item.entity ? `${item.entity}:${item.entityId ?? '-'}` : '-'}</TableCell>
                 <TableCell align="right">
-                  <Button
-                    size="small"
-                    startIcon={<Replay />}
-                    disabled={item.status !== 'FAILED'}
-                    onClick={() => props.onRetry(item.id)}
-                  >
-                    Reintentar
-                  </Button>
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button size="small" startIcon={<VisibilityOutlined />} onClick={() => props.onOpen(item)}>
+                      Ver detalle
+                    </Button>
+                    <Button
+                      size="small"
+                      startIcon={<Replay />}
+                      disabled={item.status !== 'FAILED'}
+                      onClick={() => props.onRetry(item.id)}
+                    >
+                      Reintentar
+                    </Button>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}
@@ -134,6 +143,7 @@ export function ExternalDeliveriesPage(props: {
         </Table>
       </TableContainer>
       <Pager meta={props.meta} state={props.tableState} onChange={props.onTableChange} />
+      <ExternalDeliveryDialog delivery={props.selected} onRetry={props.onRetry} onClose={props.onClose} />
     </Paper>
   )
 }

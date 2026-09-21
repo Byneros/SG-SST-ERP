@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import {
   ExternalDeliveryProvider,
   ExternalDeliveryStatus,
@@ -39,6 +40,7 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly auditService: AuditService,
   ) {}
 
   async findForUser(user: AuthenticatedUser, query: ListQueryDto) {
@@ -450,7 +452,24 @@ export class NotificationsService {
       throw new NotFoundException('External delivery not found');
     }
     assertCompanyScope(user, delivery.companyId);
-    return this.retryExternalDelivery(id, { force: true });
+    const result = await this.retryExternalDelivery(id, { force: true });
+    // Reintento manual: queda registrado para trazabilidad operativa.
+    void this.auditService.log({
+      user,
+      action: 'EXTERNAL_DELIVERY_RETRY',
+      entity: 'ExternalDelivery',
+      entityId: id,
+      before: {
+        status: delivery.status,
+        attemptCount: delivery.attemptCount,
+      },
+      after: {
+        status: result.status,
+        attemptCount: result.attemptCount,
+        error: result.error,
+      },
+    });
+    return result;
   }
 
   private nextRetryDate(attemptCount: number) {
