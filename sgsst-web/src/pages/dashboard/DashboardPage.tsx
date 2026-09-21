@@ -14,6 +14,8 @@ export function DashboardPage({
   onOpenSite,
   onOpenSiteIncidents,
   onOpenSiteRisks,
+  onOpenSiteTrainings,
+  onOpenSiteDocuments,
   onDownloadReport,
   onScheduleReport,
 }: {
@@ -26,6 +28,8 @@ export function DashboardPage({
   onOpenSite?: (siteId: string) => void
   onOpenSiteIncidents?: (siteId: string) => void
   onOpenSiteRisks?: (siteId: string) => void
+  onOpenSiteTrainings?: (siteId: string) => void
+  onOpenSiteDocuments?: (siteId: string) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
 }) {
@@ -108,6 +112,8 @@ export function DashboardPage({
                   <TableCell align="right">Empleados</TableCell>
                   <TableCell align="right">Riesgos criticos</TableCell>
                   <TableCell align="right">Incidentes abiertos</TableCell>
+                  <TableCell align="right">Capacitaciones</TableCell>
+                  <TableCell align="right">Documentos</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -132,44 +138,44 @@ export function DashboardPage({
                       </Stack>
                     </TableCell>
                     <TableCell align="right">{kpi.employees}</TableCell>
-                    <TableCell
-                      align="right"
-                      onClick={
-                        onOpenSiteRisks
-                          ? (event) => {
-                              // El click en el conteo manda a Riesgos, no a Empleados.
-                              event.stopPropagation()
-                              onOpenSiteRisks(kpi.siteId)
-                            }
-                          : undefined
-                      }
-                      sx={
-                        onOpenSiteRisks
-                          ? { cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }
-                          : undefined
-                      }
-                    >
-                      {kpi.criticalRisks}
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      onClick={
-                        onOpenSiteIncidents
-                          ? (event) => {
-                              // El click en el conteo manda a Incidentes, no a Empleados.
-                              event.stopPropagation()
-                              onOpenSiteIncidents(kpi.siteId)
-                            }
-                          : undefined
-                      }
-                      sx={
-                        onOpenSiteIncidents
-                          ? { cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }
-                          : undefined
-                      }
-                    >
-                      {kpi.openIncidents}
-                    </TableCell>
+                    {[
+                      {
+                        value: kpi.criticalRisks,
+                        onOpen: onOpenSiteRisks,
+                      },
+                      {
+                        value: kpi.openIncidents,
+                        onOpen: onOpenSiteIncidents,
+                      },
+                      {
+                        value: kpi.trainings,
+                        onOpen: onOpenSiteTrainings,
+                      },
+                      {
+                        value: kpi.documents,
+                        onOpen: onOpenSiteDocuments,
+                      },
+                    ].map(({ value, onOpen }) => (
+                      <TableCell
+                        align="right"
+                        onClick={
+                          onOpen
+                            ? (event) => {
+                                // El click en el conteo manda a su vista, no a Empleados.
+                                event.stopPropagation()
+                                onOpen(kpi.siteId)
+                              }
+                            : undefined
+                        }
+                        sx={
+                          onOpen
+                            ? { cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }
+                            : undefined
+                        }
+                      >
+                        {value}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>

@@ -9,10 +9,10 @@ describe('DashboardService - KPIs por sede', () => {
     company: { count: jest.fn() },
     employee: { count: jest.fn(), groupBy: jest.fn() },
     user: { count: jest.fn() },
-    document: { count: jest.fn() },
+    document: { count: jest.fn(), groupBy: jest.fn() },
     risk: { count: jest.fn(), groupBy: jest.fn() },
     incident: { count: jest.fn(), groupBy: jest.fn() },
-    training: { count: jest.fn() },
+    training: { count: jest.fn(), groupBy: jest.fn() },
     site: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -46,7 +46,8 @@ describe('DashboardService - KPIs por sede', () => {
     prisma.$transaction.mockImplementationOnce(async (ops: unknown[]) =>
       (ops as Array<Promise<number>>).map(() => 0),
     );
-    // Segundo $transaction: sedes + groupBy de empleados/riesgos/incidentes.
+    // Segundo $transaction: sedes + groupBy de empleados/riesgos/incidentes/
+    // capacitaciones/documentos.
     prisma.$transaction.mockImplementationOnce(async () => [
       [
         { id: 'site-a', name: 'Planta Norte', code: 'SEDE-NORTE', isMain: true },
@@ -55,6 +56,8 @@ describe('DashboardService - KPIs por sede', () => {
       [{ siteId: 'site-a', _count: { _all: 12 } }],
       [{ siteId: 'site-b', _count: { _all: 2 } }],
       [{ siteId: 'site-a', _count: { _all: 3 } }],
+      [{ siteId: 'site-a', _count: { _all: 4 } }],
+      [{ siteId: 'site-b', _count: { _all: 7 } }],
     ]);
   }
 
@@ -90,6 +93,8 @@ describe('DashboardService - KPIs por sede', () => {
         employees: 12,
         criticalRisks: 0,
         openIncidents: 3,
+        trainings: 4,
+        documents: 0,
       },
       {
         siteId: 'site-b',
@@ -99,6 +104,8 @@ describe('DashboardService - KPIs por sede', () => {
         employees: 0,
         criticalRisks: 2,
         openIncidents: 0,
+        trainings: 0,
+        documents: 7,
       },
     ]);
 
@@ -144,6 +151,8 @@ describe('DashboardService - KPIs por sede', () => {
       employees: 0,
       criticalRisks: 2,
       openIncidents: 0,
+      trainings: 0,
+      documents: 7,
     });
   });
 });

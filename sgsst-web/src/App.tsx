@@ -1514,6 +1514,8 @@ function App() {
                 onOpenSite={(siteId) => openSiteView('employees', siteId)}
                 onOpenSiteIncidents={(siteId) => openSiteView('incidents', siteId)}
                 onOpenSiteRisks={(siteId) => openSiteView('risks', siteId)}
+                onOpenSiteTrainings={(siteId) => openSiteView('trainings', siteId)}
+                onOpenSiteDocuments={(siteId) => openSiteView('documents', siteId)}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
                 canExport={canExportReports}
                 onDownloadReport={(format) => handleDownloadReport('summary', format)}

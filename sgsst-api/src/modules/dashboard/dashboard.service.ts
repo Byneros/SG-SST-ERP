@@ -15,6 +15,8 @@ export type SiteKpi = {
   employees: number;
   criticalRisks: number;
   openIncidents: number;
+  trainings: number;
+  documents: number;
 };
 
 @Injectable()
@@ -115,9 +117,9 @@ export class DashboardService implements OnModuleDestroy {
     };
   }
 
-  /** KPIs por sede de la empresa: empleados activos, riesgos criticos e incidentes abiertos. */
+  /** KPIs por sede de la empresa: empleados, riesgos, incidentes, capacitaciones y documentos. */
   private async computeSiteKpis(companyId: string): Promise<SiteKpi[]> {
-    const [sites, employeeGroups, criticalRiskGroups, openIncidentGroups] =
+    const [sites, employeeGroups, criticalRiskGroups, openIncidentGroups, trainingGroups, documentGroups] =
       (await this.prisma.$transaction([
         // Sedes activas de la empresa (el scope lo garantiza el where).
         this.prisma.site.findMany({
@@ -144,8 +146,22 @@ export class DashboardService implements OnModuleDestroy {
           },
           _count: { _all: true },
         }),
+        // Capacitaciones proximas (no vencidas) por sede.
+        this.prisma.training.groupBy({
+          by: ['siteId'],
+          where: { companyId, date: { gte: new Date() }, siteId: { not: null } },
+          _count: { _all: true },
+        }),
+        // Documentos activos por sede.
+        this.prisma.document.groupBy({
+          by: ['siteId'],
+          where: { companyId, isActive: true, siteId: { not: null } },
+          _count: { _all: true },
+        }),
       ])) as [
         Array<{ id: string; name: string; code: string | null; isMain: boolean }>,
+        Array<{ siteId: string | null; _count: { _all: number } }>,
+        Array<{ siteId: string | null; _count: { _all: number } }>,
         Array<{ siteId: string | null; _count: { _all: number } }>,
         Array<{ siteId: string | null; _count: { _all: number } }>,
         Array<{ siteId: string | null; _count: { _all: number } }>,
@@ -156,6 +172,8 @@ export class DashboardService implements OnModuleDestroy {
     const employeesBySite = countBySite(employeeGroups);
     const risksBySite = countBySite(criticalRiskGroups);
     const incidentsBySite = countBySite(openIncidentGroups);
+    const trainingsBySite = countBySite(trainingGroups);
+    const documentsBySite = countBySite(documentGroups);
 
     return sites.map((site) => ({
       siteId: site.id,
@@ -165,6 +183,8 @@ export class DashboardService implements OnModuleDestroy {
       employees: employeesBySite.get(site.id) ?? 0,
       criticalRisks: risksBySite.get(site.id) ?? 0,
       openIncidents: incidentsBySite.get(site.id) ?? 0,
+      trainings: trainingsBySite.get(site.id) ?? 0,
+      documents: documentsBySite.get(site.id) ?? 0,
     }));
   }
 

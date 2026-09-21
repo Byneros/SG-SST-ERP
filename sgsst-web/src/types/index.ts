@@ -580,6 +580,8 @@ export type SiteKpi = {
   employees: number
   criticalRisks: number
   openIncidents: number
+  trainings: number
+  documents: number
 }
 
 export type IncidentFormValues = {
