@@ -32,11 +32,16 @@ identidad empresarial.
    `retryExternalDeliveryForUser` y e2e de aislamiento (una empresa no puede
    reintentar entregas de otra → 404).
 
-## 9.2 Backups externos cifrados — intacto
+## 9.2 Backups externos cifrados — implementado (verificado en vivo)
 
-*Estado real:* el servicio `postgres-backup` (perfil `backup`) genera dumps
-custom locales en `./backups/postgres` con retención por días. Sin salida del
-host ni cifrado; `docs/backups-postgresql.md` lo lista como pendiente.
+*Estado real:* imagen dedicada `docker/postgres-backup` (postgres + age +
+rclone) con ciclo completo probado contra MinIO: dump custom validado,
+cifrado age, subida S3-compatible con verificación de tamaño, manifiesto
+sha256 local y en el bucket, retención y alerta de obsolescencia.
+Restauración probada: descifrado + `pg_restore` (3 usuarios, 32 tablas).
+
+*Resta:* alerta hacia un canal real (hoy queda en el log del contenedor) y
+prueba de restauración programada mensual.
 
 1. Tras cada dump, cifrar con `age` (clave pública en
    `BACKUP_ENCRYPTION_PUBLIC_KEY`) y subir a bucket S3-compatible
@@ -86,8 +91,8 @@ host ni cifrado; `docs/backups-postgresql.md` lo lista como pendiente.
    y cierra el ciclo con QA (≈ medio ciclo).
 2. **9.3 (cierre)** — compose.prod + documentación de rollback sobre un
    workflow que ya publica (≈ medio ciclo).
-3. **9.2 Backups cifrados** — continuidad de negocio; conviene antes de
-   crecer en clientes (≈ 1 ciclo).
+3. **9.2 Backups cifrados** — implementado; solo falta canal de alerta y
+   prueba de restauración programada.
 4. **9.4 SSO** — el más grande y con decisión comercial detrás (2 ciclos; OIDC
    primero).
 
