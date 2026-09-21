@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -320,6 +320,102 @@ export type SgsstAudit = {
   company?: Pick<Company, 'id' | 'name' | 'nit'>
   findings?: AuditFinding[]
 }
+
+export type EvaluationStatus = 'IN_PROGRESS' | 'COMPLETED'
+export type EvaluationItemStatus = 'PENDING' | 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT' | 'NOT_APPLICABLE'
+
+export type EvaluationItem = {
+  id: string
+  numeral?: string
+  section?: string
+  question: string
+  maxScore: number
+  score?: number | null
+  status: EvaluationItemStatus
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type SgsstEvaluation = {
+  id: string
+  name: string
+  standard: string
+  riskClass: string
+  period?: string
+  status: EvaluationStatus
+  score?: number | null
+  maxScore?: number | null
+  compliancePercent?: number | null
+  notes?: string
+  companyId: string
+  isActive: boolean
+  deletedAt?: string
+  createdAt: string
+  updatedAt: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  items?: EvaluationItem[]
+}
+
+export type SgsstEvaluationFormValues = {
+  name: string
+  riskClass: string
+  period: string
+  notes: string
+  companyId: string
+}
+
+export type IndicatorDirection = 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER'
+
+export type IndicatorTarget = {
+  id: string
+  indicatorId: string
+  period: string
+  target: number
+}
+
+export type IndicatorMeasurement = {
+  id: string
+  indicatorId: string
+  period: string
+  value: number
+  notes?: string
+  measuredAt: string
+}
+
+export type Indicator = {
+  id: string
+  name: string
+  code?: string
+  description?: string
+  unit?: string
+  value: number
+  formulaDefinition?: string
+  direction: IndicatorDirection
+  companyId: string
+  siteId?: string
+  isActive: boolean
+  deletedAt?: string
+  createdAt: string
+  updatedAt: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
+  targets?: IndicatorTarget[]
+  measurements?: IndicatorMeasurement[]
+}
+
+export type IndicatorFormValues = {
+  name: string
+  code: string
+  description: string
+  unit: string
+  formulaDefinition: string
+  direction: IndicatorDirection
+  siteId: string
+  companyId: string
+}
+
+export type IndicatorTargetInput = { period: string; target: number }
 
 export type LegalNorm = {
   id: string

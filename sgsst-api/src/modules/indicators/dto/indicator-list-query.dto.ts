@@ -1,9 +1,16 @@
-import { IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsOptional, IsUUID, ValidateIf } from 'class-validator';
 import { ListQueryDto } from '../../../common/dto/list-query.dto';
 
-/** El ValidationPipe global rechaza query params no declarados; aquí declaramos siteId. */
+/**
+ * Listado de indicadores: extiende la paginacion comun con el filtro por sede.
+ * 'none' filtra los indicadores sin sede asignada; cualquier otro valor debe
+ * ser un UUID de sede del scope del actor (el service lo valida con 404).
+ */
 export class IndicatorListQueryDto extends ListQueryDto {
-  /** Filtra por sede (UUID) o por "none" (sin sede asignada). */
+  @IsOptional()
+  @ValidateIf((o: { siteId?: string }) => o.siteId !== 'none')
   @IsUUID()
+  @Type(() => String)
   siteId?: string;
 }

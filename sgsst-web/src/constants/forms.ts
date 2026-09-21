@@ -4,9 +4,11 @@ import type {
   DocumentFormValues,
   EmployeeFormValues,
   IncidentFormValues,
+  IndicatorFormValues,
   PageMeta,
   RiskFormValues,
   SgsstAuditFormValues,
+  SgsstEvaluationFormValues,
   SiteFormValues,
   TableState,
   TrainingFormValues,
@@ -88,6 +90,25 @@ export const emptySgsstAudit: SgsstAuditFormValues = {
   auditorName: '',
   scheduledAt: '',
   result: '',
+  companyId: '',
+}
+
+export const emptySgsstEvaluation: SgsstEvaluationFormValues = {
+  name: '',
+  riskClass: 'I',
+  period: '',
+  notes: '',
+  companyId: '',
+}
+
+export const emptyIndicator: IndicatorFormValues = {
+  name: '',
+  code: '',
+  description: '',
+  unit: '',
+  formulaDefinition: '',
+  direction: 'LOWER_IS_BETTER',
+  siteId: '',
   companyId: '',
 }
 

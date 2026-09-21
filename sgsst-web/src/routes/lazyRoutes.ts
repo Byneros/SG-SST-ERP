@@ -11,6 +11,8 @@ const pageLoaders = {
   trainings: () => import('../pages/trainings/TrainingsPage'),
   documents: () => import('../pages/documents/DocumentsPage'),
   sgsstAudits: () => import('../pages/sgsst-audits/SgsstAuditsPage'),
+  sgsstEvaluations: () => import('../pages/sgsst-evaluations/SgsstEvaluationsPage'),
+  indicators: () => import('../pages/indicators/IndicatorsPage'),
   legalCompliance: () => import('../pages/legal-compliance/LegalCompliancePage'),
   reports: () => import('../pages/reports/ReportExportsPage'),
   users: () => import('../pages/users/UsersPage'),
@@ -27,6 +29,8 @@ const dialogLoaders = {
   training: () => import('../pages/trainings/TrainingDialog'),
   document: () => import('../pages/documents/DocumentDialog'),
   sgsstAudit: () => import('../pages/sgsst-audits/SgsstAuditDialog'),
+  sgsstEvaluation: () => import('../pages/sgsst-evaluations/SgsstEvaluationDialog'),
+  indicator: () => import('../pages/indicators/IndicatorDialog'),
   user: () => import('../pages/users/UserDialog'),
 }
 
@@ -56,6 +60,12 @@ export const DocumentsPage = lazy(() =>
 )
 export const SgsstAuditsPage = lazy(() =>
   pageLoaders.sgsstAudits().then((module) => ({ default: module.SgsstAuditsPage })),
+)
+export const SgsstEvaluationsPage = lazy(() =>
+  pageLoaders.sgsstEvaluations().then((module) => ({ default: module.SgsstEvaluationsPage })),
+)
+export const IndicatorsPage = lazy(() =>
+  pageLoaders.indicators().then((module) => ({ default: module.IndicatorsPage })),
 )
 export const LegalCompliancePage = lazy(() =>
   pageLoaders.legalCompliance().then((module) => ({ default: module.LegalCompliancePage })),
@@ -97,6 +107,12 @@ export const DocumentDialog = lazy(() =>
 export const SgsstAuditDialog = lazy(() =>
   dialogLoaders.sgsstAudit().then((module) => ({ default: module.SgsstAuditDialog })),
 )
+export const SgsstEvaluationDialog = lazy(() =>
+  dialogLoaders.sgsstEvaluation().then((module) => ({ default: module.SgsstEvaluationDialog })),
+)
+export const IndicatorDialog = lazy(() =>
+  dialogLoaders.indicator().then((module) => ({ default: module.IndicatorDialog })),
+)
 export const UserDialog = lazy(() =>
   dialogLoaders.user().then((module) => ({ default: module.UserDialog })),
 )
@@ -135,6 +151,14 @@ export function preloadDocumentDialog() {
 
 export function preloadSgsstAuditDialog() {
   void dialogLoaders.sgsstAudit()
+}
+
+export function preloadSgsstEvaluationDialog() {
+  void dialogLoaders.sgsstEvaluation()
+}
+
+export function preloadIndicatorDialog() {
+  void dialogLoaders.indicator()
 }
 
 export function preloadUserDialog() {

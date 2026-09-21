@@ -21,6 +21,7 @@ import { CreateCorrectiveActionDto } from './dto/create-corrective-action.dto';
 import { CreateFindingDto } from './dto/create-finding.dto';
 import { CreateSgsstAuditDto } from './dto/create-sgsst-audit.dto';
 import { CreateAuditProgramDto } from './dto/create-audit-program.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReplaceAuditChecklistDto } from './dto/replace-audit-checklist.dto';
 import { UpdateAuditChecklistItemDto } from './dto/update-audit-checklist-item.dto';
 import { UpdateAuditProgramDto } from './dto/update-audit-program.dto';
@@ -29,6 +30,8 @@ import { UpdateFindingDto } from './dto/update-finding.dto';
 import { UpdateSgsstAuditDto } from './dto/update-sgsst-audit.dto';
 import { SgsstAuditsService } from './SgsstAuditsService';
 
+@ApiTags('sgsst-audits')
+@ApiBearerAuth()
 @Controller('sgsst-audits')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SgsstAuditsController {
@@ -42,6 +45,18 @@ export class SgsstAuditsController {
     @Query('companyId') companyId?: string,
   ) {
     return this.service.findAll(user, query, companyId);
+  }
+
+  // Ruta estatica antes de ':id': si se registra despues, NestJS captura
+  // 'programs' como UUID y ParseUUIDPipe responde 400.
+  @Get('programs')
+  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
+  findPrograms(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListQueryDto,
+    @Query('companyId') companyId?: string,
+  ) {
+    return this.service.findPrograms(user, query, companyId);
   }
 
   @Get(':id')
@@ -122,16 +137,6 @@ export class SgsstAuditsController {
   }
 
   // ----- FASE 7.1: programas de auditoría -----------------------------------
-
-  @Get('programs')
-  @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
-  findPrograms(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
-    @Query('companyId') companyId?: string,
-  ) {
-    return this.service.findPrograms(user, query, companyId);
-  }
 
   @Get('programs/:id')
   @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')

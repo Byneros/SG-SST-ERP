@@ -33,10 +33,12 @@ import {
   emptyDocument,
   emptyEmployee,
   emptyIncident,
+  emptyIndicator,
   emptyMeta,
   emptyReportMetrics,
   emptyRisk,
   emptySgsstAudit,
+  emptySgsstEvaluation,
   emptySite,
   emptySummary,
   emptyTraining,
@@ -54,18 +56,24 @@ import {
   EmployeeDialog,
   EmployeesPage,
   IncidentDialog,
+  IndicatorDialog,
+  IndicatorsPage,
   IncidentsPage,
   LegalCompliancePage,
   ReportExportsPage,
   RiskDialog,
   RisksPage,
   SgsstAuditDialog,
+  SgsstEvaluationDialog,
+  SgsstEvaluationsPage,
   SgsstAuditsPage,
   preloadSgsstAuditDialog,
+  preloadSgsstEvaluationDialog,
   preloadCompanyDialog,
   preloadDocumentDialog,
   preloadEmployeeDialog,
   preloadIncidentDialog,
+  preloadIndicatorDialog,
   preloadRiskDialog,
   preloadSiteDialog,
   preloadTrainingDialog,
@@ -96,10 +104,13 @@ import type {
   ReportExportMetrics,
   Risk,
   SgsstAudit,
+  SgsstEvaluation,
+  Indicator,
   Site,
   SystemUser,
   Training,
   View,
+  EvaluationItemStatus,
 } from './types'
 import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
 
@@ -119,6 +130,8 @@ const ALL_VIEWS: View[] = [
   'trainings',
   'documents',
   'sgsstAudits',
+  'sgsstEvaluations',
+  'indicators',
   'legalCompliance',
   'reports',
   'users',
@@ -151,6 +164,8 @@ function App() {
   const [trainings, setTrainings] = useState<Training[]>([])
   const [documents, setDocuments] = useState<SgsstDocument[]>([])
   const [sgsstAudits, setSgsstAudits] = useState<SgsstAudit[]>([])
+  const [sgsstEvaluations, setSgsstEvaluations] = useState<SgsstEvaluation[]>([])
+  const [indicators, setIndicators] = useState<Indicator[]>([])
   const [reportExports, setReportExports] = useState<ReportExport[]>([])
   const [reportMetrics, setReportMetrics] = useState<ReportExportMetrics>(emptyReportMetrics)
   const [reportMetricHistory, setReportMetricHistory] = useState<ReportExportMetricSnapshot[]>([])
@@ -167,6 +182,8 @@ function App() {
   const [trainingMeta, setTrainingMeta] = useState(emptyMeta)
   const [documentMeta, setDocumentMeta] = useState(emptyMeta)
   const [sgsstAuditMeta, setSgsstAuditMeta] = useState(emptyMeta)
+  const [sgsstEvaluationMeta, setSgsstEvaluationMeta] = useState(emptyMeta)
+  const [indicatorMeta, setIndicatorMeta] = useState(emptyMeta)
   const [reportExportMeta, setReportExportMeta] = useState(emptyMeta)
   const [userMeta, setUserMeta] = useState(emptyMeta)
   const [auditMeta, setAuditMeta] = useState(emptyMeta)
@@ -184,6 +201,8 @@ function App() {
   const [documentTable, setDocumentTable] = useState(initialTableState)
   const [documentSiteFilter, setDocumentSiteFilter] = useState(initialHash.view === 'documents' ? initialHash.site : 'all')
   const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
+  const [sgsstEvaluationTable, setSgsstEvaluationTable] = useState(initialTableState)
+  const [indicatorTable, setIndicatorTable] = useState(initialTableState)
   const [reportExportTable, setReportExportTable] = useState(initialTableState)
   const [reportExportFilters, setReportExportFilters] = useState<ReportExportFilters>({
     status: 'all',
@@ -225,6 +244,8 @@ function App() {
   const [trainingDialog, setTrainingDialog] = useState<{ open: boolean; item?: Training }>({ open: false })
   const [documentDialog, setDocumentDialog] = useState<{ open: boolean; item?: SgsstDocument }>({ open: false })
   const [sgsstAuditDialog, setSgsstAuditDialog] = useState<{ open: boolean; item?: SgsstAudit }>({ open: false })
+  const [sgsstEvaluationDialog, setSgsstEvaluationDialog] = useState<{ open: boolean; item?: SgsstEvaluation }>({ open: false })
+  const [indicatorDialog, setIndicatorDialog] = useState<{ open: boolean; item?: Indicator }>({ open: false })
   const [userDialog, setUserDialog] = useState<{ open: boolean; item?: SystemUser }>({ open: false })
   const [companyForm, setCompanyForm] = useState(emptyCompany)
   const [siteForm, setSiteForm] = useState(emptySite)
@@ -234,6 +255,8 @@ function App() {
   const [trainingForm, setTrainingForm] = useState(emptyTraining)
   const [documentForm, setDocumentForm] = useState(emptyDocument)
   const [sgsstAuditForm, setSgsstAuditForm] = useState(emptySgsstAudit)
+  const [sgsstEvaluationForm, setSgsstEvaluationForm] = useState(emptySgsstEvaluation)
+  const [indicatorForm, setIndicatorForm] = useState(emptyIndicator)
   const [userForm, setUserForm] = useState(emptyUser)
 
   const isPlatformAdmin = user?.role === 'SUPER_ADMIN'
@@ -278,6 +301,10 @@ function App() {
                   ? 'Documentos'
                   : view === 'sgsstAudits'
                     ? 'Auditorias SG-SST'
+                    : view === 'sgsstEvaluations'
+                      ? 'Evaluacion Res. 0312'
+                      : view === 'indicators'
+                        ? 'Indicadores SG-SST'
                     : view === 'legalCompliance'
                       ? 'Mapa normativo'
                       : view === 'reports'
@@ -314,7 +341,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, reportExportTable, reportExportFilters, userTable, auditTable])
+  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -424,6 +451,22 @@ function App() {
             },
           })
         : Promise.resolve({ data: { data: [] as SgsstAudit[], meta: emptyMeta } })
+      const sgsstEvaluationRequest = canViewDocuments && hasCompanyScope
+        ? api.get<Paginated<SgsstEvaluation>>('/sgsst-evaluations', {
+            params: {
+              ...tableParams(sgsstEvaluationTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as SgsstEvaluation[], meta: emptyMeta } })
+      const indicatorRequest = canViewDocuments && hasCompanyScope
+        ? api.get<Paginated<Indicator>>('/indicators', {
+            params: {
+              ...tableParams(indicatorTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Indicator[], meta: emptyMeta } })
       const reportExportsRequest = canViewReports && hasCompanyScope
         ? api.get<Paginated<ReportExport>>('/reports/exports', {
             params: reportExportParams(reportExportTable, reportExportFilters),
@@ -458,6 +501,8 @@ function App() {
         trainingsResponse,
         documentResponse,
         sgsstAuditResponse,
+        sgsstEvaluationResponse,
+        indicatorResponse,
         reportExportsResponse,
         reportMetricsResponse,
         reportMetricHistoryResponse,
@@ -474,6 +519,8 @@ function App() {
         trainingsRequest,
         documentRequest,
         sgsstAuditRequest,
+        sgsstEvaluationRequest,
+        indicatorRequest,
         reportExportsRequest,
         reportMetricsRequest,
         reportMetricHistoryRequest,
@@ -533,6 +580,10 @@ function App() {
       setDocumentMeta(documentResponse.data.meta)
       setSgsstAudits(sgsstAuditResponse.data.data)
       setSgsstAuditMeta(sgsstAuditResponse.data.meta)
+      setSgsstEvaluations(sgsstEvaluationResponse.data.data)
+      setSgsstEvaluationMeta(sgsstEvaluationResponse.data.meta)
+      setIndicators(indicatorResponse.data.data)
+      setIndicatorMeta(indicatorResponse.data.meta)
       setReportExports(reportExportsResponse.data.data)
       setReportExportMeta(reportExportsResponse.data.meta)
       setReportMetrics(reportMetricsResponse.data)
@@ -1232,6 +1283,141 @@ function App() {
     await saveRecord(() => api.patch(`/documents/${id}`, { isActive: true }).then())
   }
 
+  function openSgsstEvaluationForm(item?: SgsstEvaluation) {
+    setSgsstEvaluationForm(
+      item
+        ? {
+            name: item.name,
+            riskClass: item.riskClass,
+            period: item.period ?? '',
+            notes: item.notes ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptySgsstEvaluation, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setSgsstEvaluationDialog({ open: true, item })
+    preloadSgsstEvaluationDialog()
+  }
+
+  async function saveSgsstEvaluation() {
+    await saveRecord(async () => {
+      if (sgsstEvaluationDialog.item) {
+        await api.patch(`/sgsst-evaluations/${sgsstEvaluationDialog.item.id}`, sanitize(sgsstEvaluationForm))
+        setSgsstEvaluationDialog({ open: false })
+      } else {
+        const created = await api.post<SgsstEvaluation>('/sgsst-evaluations', sanitize(sgsstEvaluationForm))
+        setSgsstEvaluationForm({
+          name: created.data.name,
+          riskClass: created.data.riskClass,
+          period: created.data.period ?? '',
+          notes: created.data.notes ?? '',
+          companyId: created.data.companyId,
+        })
+        // El dialogo queda abierto sobre la evaluacion creada para responder items.
+        setSgsstEvaluationDialog({ open: true, item: created.data })
+      }
+    })
+  }
+
+  async function updateEvaluationItem(itemId: string, payload: { status: EvaluationItemStatus; notes?: string }) {
+    await saveRecord(async () => {
+      // La respuesta trae la evaluacion recalculada (score/compliancePercent).
+      const updated = await api.patch<SgsstEvaluation>(`/sgsst-evaluations/items/${itemId}`, payload)
+      setSgsstEvaluationDialog({ open: true, item: updated.data })
+    })
+  }
+
+  async function addEvaluationItem(evaluationId: string, payload: { numeral?: string; section?: string; question: string; maxScore?: number }) {
+    await saveRecord(async () => {
+      // addItems devuelve la evaluacion completa con los items creados.
+      const updated = await api.post<SgsstEvaluation>(`/sgsst-evaluations/${evaluationId}/items`, { items: [payload] })
+      setSgsstEvaluationDialog({ open: true, item: updated.data })
+    })
+  }
+
+  function openIndicatorForm(item?: Indicator) {
+    setIndicatorForm(
+      item
+        ? {
+            name: item.name,
+            code: item.code ?? '',
+            description: item.description ?? '',
+            unit: item.unit ?? '',
+            formulaDefinition: item.formulaDefinition ?? '',
+            direction: item.direction,
+            siteId: item.siteId ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyIndicator, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setIndicatorDialog({ open: true, item })
+  }
+
+  async function saveIndicator() {
+    await saveRecord(async () => {
+      if (indicatorDialog.item) {
+        await api.patch(`/indicators/${indicatorDialog.item.id}`, sanitize(indicatorForm))
+        setIndicatorDialog({ open: false })
+      } else {
+        const created = await api.post<Indicator>('/indicators', sanitize(indicatorForm))
+        setIndicatorForm({
+          name: created.data.name,
+          code: created.data.code ?? '',
+          description: created.data.description ?? '',
+          unit: created.data.unit ?? '',
+          formulaDefinition: created.data.formulaDefinition ?? '',
+          direction: created.data.direction,
+          siteId: created.data.siteId ?? '',
+          companyId: created.data.companyId,
+        })
+        // El dialogo queda abierto sobre el indicador creado para registrar metas y mediciones.
+        setIndicatorDialog({ open: true, item: created.data })
+      }
+    })
+  }
+
+  async function setIndicatorTargets(indicatorId: string, targets: { period: string; target: number }[]) {
+    await saveRecord(async () => {
+      await api.put(`/indicators/${indicatorId}/targets`, { targets })
+    })
+  }
+
+  async function addIndicatorMeasurement(indicatorId: string, payload: { measurements: { period: string; value: number; notes?: string }[] }) {
+    await saveRecord(async () => {
+      // addMeasurements devuelve el indicador con el value vigente recalculado.
+      const updated = await api.post<Indicator>(`/indicators/${indicatorId}/measurements`, payload)
+      setIndicatorDialog({ open: true, item: updated.data })
+    })
+  }
+
+  function confirmDeleteIndicator(indicator: Indicator) {
+    openConfirmDialog(
+      'Eliminar indicador',
+      `¿Seguro que deseas eliminar el indicador ${indicator.name || indicator.id}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeIndicator(indicator.id) },
+    )
+  }
+
+  async function removeIndicator(id: string) {
+    await saveRecord(() => api.delete(`/indicators/${id}`).then())
+  }
+
+  function confirmDeleteSgsstEvaluation(evaluation: SgsstEvaluation) {
+    openConfirmDialog(
+      'Eliminar evaluación',
+      `¿Seguro que deseas eliminar la evaluación ${evaluation.name || evaluation.id}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeSgsstEvaluation(evaluation.id) },
+    )
+  }
+
+  async function removeSgsstEvaluation(id: string) {
+    await saveRecord(() => api.delete(`/sgsst-evaluations/${id}`).then())
+  }
+
   function confirmDeleteSgsstAudit(audit: SgsstAudit) {
     openConfirmDialog(
       'Eliminar auditoría',
@@ -1386,7 +1572,7 @@ function App() {
   function selectView(nextView: View) {
     // Defensa en profundidad: el backend es la autoridad, aqui solo evitamos
     // navegaciones que producirian 403 para roles sin permisos.
-    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'legalCompliance', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
+    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
     if (isEmployee && employeeBlocked.includes(nextView)) {
       return
     }
@@ -1728,6 +1914,44 @@ function App() {
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
+            {view === 'sgsstEvaluations' && (
+              <SgsstEvaluationsPage
+                evaluations={sgsstEvaluations}
+                meta={sgsstEvaluationMeta}
+                tableState={sgsstEvaluationTable}
+                canManage={canManageDocuments}
+                onTableChange={setSgsstEvaluationTable}
+                onCreate={() => openSgsstEvaluationForm()}
+                onPreloadCreate={preloadSgsstEvaluationDialog}
+                onEdit={openSgsstEvaluationForm}
+                onDelete={(id) => {
+                  const evaluation = sgsstEvaluations.find((item) => item.id === id)
+                  if (evaluation) {
+                    confirmDeleteSgsstEvaluation(evaluation)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'indicators' && (
+              <IndicatorsPage
+                indicators={indicators}
+                meta={indicatorMeta}
+                tableState={indicatorTable}
+                canManage={canManageDocuments}
+                onTableChange={setIndicatorTable}
+                onCreate={() => openIndicatorForm()}
+                onPreloadCreate={preloadIndicatorDialog}
+                onEdit={openIndicatorForm}
+                onDelete={(id) => {
+                  const indicator = indicators.find((item) => item.id === id)
+                  if (indicator) {
+                    confirmDeleteIndicator(indicator)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
             {view === 'legalCompliance' && canViewDocuments && (
               <LegalCompliancePage
                 user={user}
@@ -1886,6 +2110,37 @@ function App() {
               onChange={setSgsstAuditForm}
               onClose={() => setSgsstAuditDialog({ open: false })}
               onSave={saveSgsstAudit}
+            />
+            <SgsstEvaluationDialog
+              open={sgsstEvaluationDialog.open}
+              editing={Boolean(sgsstEvaluationDialog.item)}
+              values={sgsstEvaluationForm}
+              companies={companies}
+              item={sgsstEvaluationDialog.item}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              canRespond={canManageDocuments}
+              onChange={setSgsstEvaluationForm}
+              onClose={() => setSgsstEvaluationDialog({ open: false })}
+              onSave={saveSgsstEvaluation}
+              onUpdateItem={updateEvaluationItem}
+              onAddItem={addEvaluationItem}
+            />
+            <IndicatorDialog
+              open={indicatorDialog.open}
+              editing={Boolean(indicatorDialog.item)}
+              values={indicatorForm}
+              companies={companies}
+              sites={sites}
+              indicator={indicatorDialog.item}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              canManage={canManageDocuments}
+              onChange={setIndicatorForm}
+              onClose={() => setIndicatorDialog({ open: false })}
+              onSave={saveIndicator}
+              onSetTargets={setIndicatorTargets}
+              onAddMeasurement={addIndicatorMeasurement}
             />
             <ChangePasswordDialog
               open={passwordDialogOpen}
