@@ -1,5 +1,5 @@
 import { HealthAndSafety } from '@mui/icons-material'
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Paper, Stack, TextField, Typography } from '@mui/material'
 
 type LoginValues = { email: string; password: string }
 type MfaValues = { code: string }
@@ -21,6 +21,7 @@ export function LoginPage({
   onLogin,
   onVerifyMfa,
   onBootstrap,
+  onSsoLogin,
 }: {
   login: LoginValues
   mfa: MfaValues
@@ -37,6 +38,7 @@ export function LoginPage({
   onLogin: () => void
   onVerifyMfa: () => void
   onBootstrap: () => void
+  onSsoLogin?: () => void
 }) {
   return (
     <Box className="login-page">
@@ -67,6 +69,14 @@ export function LoginPage({
               <Button variant="contained" size="large" onClick={onLogin} disabled={loading || !login.email || !login.password}>
                 Iniciar sesion
               </Button>
+              {onSsoLogin && (
+                <>
+                  <Divider>o</Divider>
+                  <Button variant="outlined" size="large" onClick={onSsoLogin} disabled={loading}>
+                    Ingresar con SSO empresarial
+                  </Button>
+                </>
+              )}
             </>
           )}
           <Button onClick={onBootstrapOpen}>Crear primer administrador</Button>

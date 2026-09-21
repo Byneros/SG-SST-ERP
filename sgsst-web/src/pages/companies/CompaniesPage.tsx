@@ -1,4 +1,4 @@
-import { Delete, DeleteForever, Edit, RestoreFromTrash } from '@mui/icons-material'
+import { Delete, DeleteForever, Edit, Key, RestoreFromTrash } from '@mui/icons-material'
 import { IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip } from '@mui/material'
 import { riskClassLabels } from '../../constants/catalogs'
 import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
@@ -13,6 +13,7 @@ export function CompaniesPage(props: {
   onCreate: () => void
   onPreloadCreate?: () => void
   onEdit: (item: Company) => void
+  onConfigureSso?: (item: Company) => void
   onDelete: (id: string) => void
   onDeletePermanent: (id: string) => void
   onRestore: (id: string) => void
@@ -55,6 +56,13 @@ export function CompaniesPage(props: {
                       <Edit />
                     </IconButton>
                   </Tooltip>
+                  {props.onConfigureSso && (
+                    <Tooltip title="Configurar SSO OIDC">
+                      <IconButton disabled={!props.canManage} onClick={() => props.onConfigureSso?.(company)}>
+                        <Key />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   {company.isActive ? (
                     <Tooltip title="Desactivar empresa">
                       <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDelete(company.id)}>

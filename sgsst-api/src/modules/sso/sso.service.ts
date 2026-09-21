@@ -1,0 +1,388 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
+import * as bcrypt from 'bcrypt';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { env } from '../../config/env';
+import { PrismaService } from '../../database/prisma.service';
+import { AuthService } from '../auth/auth.service';
+import { decryptSecret } from './sso-crypto';
+
+export type SsoSession = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    companyId: string | null;
+    activeCompanyId: string | null;
+  };
+};
+
+type SsoProviderRecord = {
+  id: string;
+  companyId: string;
+  issuer: string;
+  clientId: string;
+  clientSecret: string;
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  userinfoEndpoint: string | null;
+  scopes: string;
+  defaultRole: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
+  jwksUri: string | null;
+  isActive: boolean;
+};
+
+const STATE_TTL_MINUTES = 10;
+
+function isSafeRedirect(value: string): boolean {
+  // Solo rutas relativas de la propia app: evita open redirects.
+  return value.startsWith('/') && !value.startsWith('//');
+}
+
+@Injectable()
+export class SsoService {
+  private readonly logger = new Logger(SsoService.name);
+  private readonly jwksCache = new Map<
+    string,
+    ReturnType<typeof createRemoteJWKSet>
+  >();
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
+
+  /** Inicia el flujo: state persistido + PKCE + redirect al IdP de la empresa. */
+  async beginLogin(companyId: string, redirect: string | undefined) {
+    const provider = await this.findActiveByCompany(companyId);
+    const stateId = randomUUID();
+    const codeVerifier = randomUUID() + randomUUID();
+    const codeChallenge = createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url');
+
+    await this.prisma.ssoState.create({
+      data: {
+        id: stateId,
+        companyId: provider.companyId,
+        expiresAt: new Date(Date.now() + STATE_TTL_MINUTES * 60 * 1000),
+        redirect: redirect && isSafeRedirect(redirect) ? redirect : null,
+      },
+    });
+
+    const url = new URL(provider.authorizationEndpoint);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', provider.clientId);
+    url.searchParams.set('redirect_uri', this.callbackUrl());
+    url.searchParams.set('scope', provider.scopes);
+    url.searchParams.set('state', stateId);
+    url.searchParams.set('code_challenge', codeChallenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+    return { authorizationUrl: url.toString() };
+  }
+
+  /** Callback del IdP: valida state, canjea el code, resuelve/crea usuario y emite sesion propia. */
+  async handleCallback(
+    code: string | undefined,
+    state: string | undefined,
+  ): Promise<{ redirect: string; session: SsoSession }> {
+    if (!code || !state) {
+      throw new BadRequestException('Missing code or state');
+    }
+    const stored = await this.prisma.ssoState.findUnique({
+      where: { id: state },
+    });
+    // One-shot: se consume siempre para evitar reuso del state.
+    await this.prisma.ssoState.deleteMany({ where: { id: state } });
+    if (!stored || stored.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired state');
+    }
+
+    const provider = await this.findActiveByCompany(stored.companyId);
+    const claims = await this.exchangeCode(code, provider);
+    const session = await this.resolveUserAndIssueSession(provider, claims);
+    const redirect =
+      stored.redirect && isSafeRedirect(stored.redirect)
+        ? stored.redirect
+        : '/';
+    return { redirect, session };
+  }
+
+  private async exchangeCode(
+    code: string,
+    provider: SsoProviderRecord,
+  ): Promise<{
+    sub: string;
+    email?: string;
+    name?: string;
+    redirect?: string;
+  }> {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id: provider.clientId,
+      client_secret: provider.clientSecret,
+      redirect_uri: this.callbackUrl(),
+    });
+    const response = await fetch(provider.tokenEndpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!response.ok) {
+      this.logger.warn(
+        `SSO token exchange failed for company ${provider.companyId}: ${response.status}`,
+      );
+      throw new BadRequestException('Token exchange failed');
+    }
+    const tokens = (await response.json()) as { id_token?: string };
+
+    if (tokens.id_token) {
+      // Firma y emisor verificados contra el JWKS del IdP; audience = client_id.
+      const verifyKey = this.jwksFor(provider);
+      const { payload } = await jwtVerify(tokens.id_token, verifyKey, {
+        issuer: provider.issuer,
+        audience: provider.clientId,
+      });
+      const sub = typeof payload.sub === 'string' ? payload.sub : '';
+      const email =
+        typeof payload.email === 'string' ? payload.email : undefined;
+      const name = typeof payload.name === 'string' ? payload.name : undefined;
+      if (!sub) {
+        throw new BadRequestException('ID token missing subject');
+      }
+      return { sub, email, name };
+    }
+
+    // Fallback: endpoint userinfo cuando el IdP no devuelve id_token utilizable.
+    if (provider.userinfoEndpoint) {
+      const userinfoResponse = await fetch(provider.userinfoEndpoint, {
+        headers: { authorization: `Bearer ${tokens.access_token ?? ''}` },
+      });
+      if (!userinfoResponse.ok) {
+        throw new BadRequestException('Userinfo request failed');
+      }
+      const userinfo = (await userinfoResponse.json()) as {
+        sub?: string;
+        email?: string;
+        name?: string;
+      };
+      if (!userinfo.sub) {
+        throw new BadRequestException('Userinfo missing subject');
+      }
+      return { sub: userinfo.sub, email: userinfo.email, name: userinfo.name };
+    }
+
+    throw new BadRequestException('IdP response missing id_token');
+  }
+
+  private async resolveUserAndIssueSession(
+    provider: SsoProviderRecord,
+    claims: { sub: string; email?: string; name?: string },
+  ): Promise<SsoSession> {
+    const subject = `${provider.issuer}|${claims.sub}`;
+    let user = await this.prisma.user.findUnique({
+      where: { ssoSubject: subject },
+    });
+
+    if (!user && claims.email) {
+      // Cuenta existente con el mismo correo: se vincula a la identidad federada.
+      const byEmail = await this.prisma.user.findUnique({
+        where: { email: claims.email },
+      });
+      if (byEmail) {
+        if (!byEmail.isActive) {
+          throw new ForbiddenException('User is inactive');
+        }
+        if (byEmail.companyId && byEmail.companyId !== provider.companyId) {
+          throw new ForbiddenException('User belongs to another company');
+        }
+        user = await this.prisma.user.update({
+          where: { id: byEmail.id },
+          data: { ssoSubject: subject },
+        });
+      }
+    }
+
+    if (!user) {
+      if (!claims.email) {
+        throw new BadRequestException('IdP did not provide an email');
+      }
+      // Aprovisionamiento JIT dentro de la empresa del proveedor.
+      user = await this.prisma.user.create({
+        data: {
+          email: claims.email,
+          name: claims.name ?? claims.email,
+          role: provider.defaultRole,
+          password: await bcrypt.hash(randomUUID() + randomUUID(), 12),
+          companyId: provider.companyId,
+          ssoSubject: subject,
+        },
+      });
+    }
+
+    if (!user.isActive) {
+      throw new ForbiddenException('User is inactive');
+    }
+    if (user.companyId && user.companyId !== provider.companyId) {
+      throw new ForbiddenException('User belongs to another company');
+    }
+    // Integridad: todo usuario de sesion SSO debe tener nombre, empresa y rol.
+    if (!user.name || !user.companyId || !user.role) {
+      throw new Error('SSO user record is incomplete');
+    }
+
+    // Misma sesion que login/refresh: JWT de acceso + refresh hasheado en BD.
+    return this.authService.issueSession(user, user.companyId);
+  }
+
+  /** Config para el panel admin (secreto nunca sale; indicador de presencia). */
+  async findProviderByCompany(companyId: string) {
+    const provider = await this.prisma.ssoProvider.findUnique({
+      where: { companyId },
+    });
+    if (!provider) {
+      return null;
+    }
+    return { ...provider, clientSecret: '***', configured: true };
+  }
+
+  /** Opciones de login SSO activas: solo datos publicos del IdP. */
+  async listActiveLoginOptions() {
+    const providers = await this.prisma.ssoProvider.findMany({
+      where: { isActive: true },
+      select: {
+        companyId: true,
+        issuer: true,
+        authorizationEndpoint: true,
+      },
+    });
+    const companies = await this.prisma.company.findMany({
+      where: { isActive: true, ssoProviderId: { not: null } },
+      select: { id: true, name: true, ssoProviderId: true },
+    });
+    const byProviderId = new Map(
+      companies.map((c) => [c.ssoProviderId, c.name]),
+    );
+    return providers
+      .filter((provider) => byProviderId.has(provider.id))
+      .map((provider) => ({
+        companyId: provider.companyId,
+        companyName: byProviderId.get(provider.id) ?? provider.companyId,
+      }));
+  }
+
+  async findProviderById(id: string) {
+    const provider = await this.prisma.ssoProvider.findUnique({
+      where: { id },
+    });
+    if (!provider) {
+      throw new NotFoundException('SSO provider not found');
+    }
+    return provider;
+  }
+
+  async upsertProvider(
+    companyId: string,
+    dto: {
+      issuer: string;
+      clientId: string;
+      clientSecret: string;
+      authorizationEndpoint: string;
+      tokenEndpoint: string;
+      jwksUri?: string;
+      userinfoEndpoint?: string;
+      scopes?: string;
+      defaultRole?: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
+    },
+    encrypt: (plain: string) => string,
+  ) {
+    const data = {
+      issuer: dto.issuer,
+      clientId: dto.clientId,
+      clientSecret: encrypt(dto.clientSecret),
+      authorizationEndpoint: dto.authorizationEndpoint,
+      tokenEndpoint: dto.tokenEndpoint,
+      jwksUri: dto.jwksUri ?? null,
+      userinfoEndpoint: dto.userinfoEndpoint ?? null,
+      scopes: dto.scopes ?? 'openid email profile',
+      defaultRole: dto.defaultRole ?? 'EMPLOYEE',
+    };
+    const existing = await this.prisma.ssoProvider.findUnique({
+      where: { companyId },
+    });
+    if (existing) {
+      return this.prisma.ssoProvider.update({
+        where: { id: existing.id },
+        data,
+      });
+    }
+    return this.prisma.ssoProvider.create({
+      data: { ...data, companyId },
+    });
+  }
+
+  async updateProvider(
+    id: string,
+    companyId: string,
+    dto: Record<string, unknown>,
+    encrypt: (plain: string) => string,
+  ) {
+    const data: Record<string, unknown> = { ...dto };
+    if (typeof data.clientSecret === 'string' && data.clientSecret) {
+      data.clientSecret = encrypt(data.clientSecret);
+    } else {
+      delete data.clientSecret;
+    }
+    if (data.isActive !== undefined) {
+      data.isActive = data.isActive === 'true';
+    }
+    // jwksUri/userinfoEndpoint admiten explicitamente null para limpiar.
+    return this.prisma.ssoProvider.update({ where: { id }, data });
+  }
+
+  async deleteProvider(id: string) {
+    // La FK de Company es ON DELETE SET NULL; el provider si se elimina.
+    await this.prisma.ssoProvider.delete({ where: { id } });
+  }
+
+  private async findActiveByCompany(
+    companyId: string,
+  ): Promise<SsoProviderRecord> {
+    const provider = await this.prisma.ssoProvider.findFirst({
+      where: { companyId, isActive: true },
+    });
+    if (!provider) {
+      throw new NotFoundException('SSO is not configured for this company');
+    }
+    // El secreto se guarda cifrado en reposo; se descifra solo para usarlo.
+    return { ...provider, clientSecret: decryptSecret(provider.clientSecret) };
+  }
+
+  private jwksFor(provider: SsoProviderRecord) {
+    if (!provider.jwksUri) {
+      throw new BadRequestException('SSO provider has no jwksUri configured');
+    }
+    let jwks = this.jwksCache.get(provider.id);
+    if (!jwks) {
+      jwks = createRemoteJWKSet(new URL(provider.jwksUri));
+      this.jwksCache.set(provider.id, jwks);
+    }
+    return jwks;
+  }
+
+  private callbackUrl(): string {
+    return `${env.publicBaseUrl}/api/v1/auth/sso/callback`;
+  }
+}

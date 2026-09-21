@@ -22,6 +22,7 @@ model User {
   passwordResetExpiresAt DateTime?
   mfaSecret              String?
   mfaEnabled             Boolean        @default(false)
+  ssoSubject             String?        @unique
   auditLogs              AuditLog[]
   notifications          Notification[]
   reportExports          ReportExport[]
@@ -50,6 +51,7 @@ model Company {
   reportStorageAlertBytes       Int?
   whatsappAlertsEnabled         Boolean                      @default(false)
   whatsappAlertPhone            String?
+  ssoProvider                   SsoProvider?
   audits                        Audit[]
   legalRequirements             CompanyLegalRequirement[]
   documents                     Document[]
@@ -753,4 +755,32 @@ enum EvaluationItemStatus {
   PARTIAL
   NON_COMPLIANT
   NOT_APPLICABLE
+}
+
+model SsoProvider {
+  id                    String   @id @default(uuid())
+  companyId             String   @unique
+  issuer                String
+  clientId              String
+  clientSecret          String
+  authorizationEndpoint String
+  tokenEndpoint         String
+  userinfoEndpoint      String?
+  scopes                String   @default("openid email profile")
+  defaultRole           Role     @default(EMPLOYEE)
+  jwksUri               String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id])
+
+  @@index([issuer])
+}
+
+model SsoState {
+  id        String   @id
+  companyId String
+  redirect  String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 }

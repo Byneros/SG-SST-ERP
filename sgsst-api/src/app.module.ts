@@ -22,6 +22,7 @@ import { RisksModule } from './modules/risks/risks.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { SgsstAuditsModule } from './modules/sgsst-audits/sgsst-audits.module';
 import { SgsstEvaluationsModule } from './modules/sgsst-evaluations/sgsst-evaluations.module';
+import { SsoModule } from './modules/sso/sso.module';
 import { IndicatorsModule } from './modules/indicators/indicators.module';
 import { TrainingsModule } from './modules/trainings/trainings.module';
 import { UsersModule } from './modules/users/users.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './modules/users/users.module';
     SitesModule,
     SgsstAuditsModule,
     SgsstEvaluationsModule,
+    SsoModule,
     IndicatorsModule,
     TrainingsModule,
     IncidentsModule,

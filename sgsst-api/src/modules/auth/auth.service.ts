@@ -234,7 +234,8 @@ export class AuthService {
     );
   }
 
-  private async issueSession(
+  /** Publico para reuso (p. ej. SSO OIDC emite la misma sesion JWT/refresh). */
+  async issueSession(
     user: {
       id: string;
       name: string;

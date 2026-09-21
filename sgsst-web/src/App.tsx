@@ -9,7 +9,7 @@ import {
   SpaceDashboard,
   WarningAmber,
 } from '@mui/icons-material'
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CssBaseline, ThemeProvider } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CssBaseline, Stack, ThemeProvider, Typography } from '@mui/material'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import {
   api,
@@ -28,6 +28,8 @@ import {
 import { ChangePasswordDialog, type ChangePasswordValues } from './auth/ChangePasswordDialog'
 import { LoginPage } from './auth/LoginPage'
 import { MfaSettingsDialog } from './auth/MfaSettingsDialog'
+import { SsoConfigDialog, emptySsoConfig } from './auth/SsoConfigDialog'
+import type { SsoConfigValues } from './auth/ssoConfig'
 import {
   emptyCompany,
   emptyDocument,
@@ -229,6 +231,13 @@ function App() {
   const [mfaSettingsOpen, setMfaSettingsOpen] = useState(false)
   const [mfaSetup, setMfaSetup] = useState({ secret: '', otpauthUrl: '', code: '' })
   const [bootstrapOpen, setBootstrapOpen] = useState(false)
+  const [ssoOptions, setSsoOptions] = useState<Array<{ companyId: string; companyName: string }>>([])
+  const [ssoOptionsOpen, setSsoOptionsOpen] = useState(false)
+  const [ssoConfigOpen, setSsoConfigOpen] = useState(false)
+  const [ssoConfigCompany, setSsoConfigCompany] = useState<Company | null>(null)
+  const [ssoConfigured, setSsoConfigured] = useState(false)
+  const [ssoProviderId, setSsoProviderId] = useState('')
+  const [ssoConfigValues, setSsoConfigValues] = useState<SsoConfigValues>(emptySsoConfig)
   const [bootstrap, setBootstrap] = useState({ name: '', email: '', password: '' })
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState({
@@ -665,6 +674,102 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // --- SSO OIDC ----------------------------------------------------------------
+  // El callback del backend regresa a "/{redirect}#access_token=...".
+  useEffect(() => {
+    if (window.location.hash.includes('access_token=')) {
+      const params = new URLSearchParams(window.location.hash.slice(1))
+      const accessToken = params.get('access_token')
+      const refreshToken = params.get('refresh_token')
+      const userRaw = params.get('user')
+      window.history.replaceState(null, '', window.location.pathname)
+      if (accessToken && userRaw) {
+        try {
+          const ssoUser = JSON.parse(userRaw) as AuthUser
+          saveSession(accessToken, ssoUser, refreshToken ?? undefined)
+          setToken(accessToken)
+          setUser(ssoUser)
+        } catch {
+          setError('Sesion SSO invalida')
+        }
+      }
+    } else if (window.location.search.includes('sso=error')) {
+      window.history.replaceState(null, '', window.location.pathname)
+      setError('El ingreso con SSO fallo. Intenta de nuevo o usa tus credenciales.')
+    }
+  }, [])
+
+  async function handleSsoOptionsOpen() {
+    setSsoOptionsOpen(true)
+    try {
+      const response = await api.get('/sso/login-options')
+      setSsoOptions(response.data)
+    } catch {
+      setSsoOptions([])
+    }
+  }
+
+  function handleSsoCompanySelected(companyId: string) {
+    setSsoOptionsOpen(false)
+    void api
+      .get('/auth/sso/authorize', { params: { companyId, redirect: '/' } })
+      .then((response: { data: { authorizationUrl: string } }) => {
+        window.location.href = response.data.authorizationUrl
+      })
+      .catch(() => setError('No fue posible iniciar el ingreso SSO'))
+  }
+
+  async function openSsoConfig(company: Company) {
+    setSsoConfigCompany(company)
+    setSsoConfigOpen(true)
+    setSsoConfigValues(emptySsoConfig)
+    setSsoProviderId('')
+    try {
+      const response = await api.get('/sso/providers', { params: { companyId: company.id } })
+      setSsoConfigured(Boolean(response.data.configured))
+      setSsoProviderId(response.data.id ?? '')
+      if (response.data.configured) {
+        setSsoConfigValues({
+          issuer: response.data.issuer ?? '',
+          clientId: response.data.clientId ?? '',
+          clientSecret: '',
+          authorizationEndpoint: response.data.authorizationEndpoint ?? '',
+          tokenEndpoint: response.data.tokenEndpoint ?? '',
+          jwksUri: response.data.jwksUri ?? '',
+          userinfoEndpoint: response.data.userinfoEndpoint ?? '',
+          scopes: response.data.scopes ?? 'openid email profile',
+          defaultRole: response.data.defaultRole ?? 'EMPLOYEE',
+          isActive: response.data.isActive ?? true,
+        })
+      }
+    } catch {
+      setSsoConfigured(false)
+    }
+  }
+
+  async function saveSsoConfig() {
+    if (!ssoConfigCompany) return
+    // Los campos vacios van como undefined (el DTO los trata como opcionales).
+    const payload = {
+      issuer: ssoConfigValues.issuer,
+      clientId: ssoConfigValues.clientId,
+      clientSecret: ssoConfigValues.clientSecret || undefined,
+      authorizationEndpoint: ssoConfigValues.authorizationEndpoint,
+      tokenEndpoint: ssoConfigValues.tokenEndpoint,
+      jwksUri: ssoConfigValues.jwksUri || undefined,
+      userinfoEndpoint: ssoConfigValues.userinfoEndpoint || undefined,
+      scopes: ssoConfigValues.scopes || undefined,
+      defaultRole: ssoConfigValues.defaultRole,
+      isActive: ssoConfigValues.isActive,
+    }
+    await saveRecord(() =>
+      ssoConfigured && ssoProviderId
+        ? api.patch(`/sso/providers/${ssoProviderId}`, payload).then()
+        : api.post('/sso/providers', { companyId: ssoConfigCompany.id, ...payload }).then(),
+    )
+    setSsoConfigOpen(false)
   }
 
   async function handleBootstrap() {
@@ -1687,6 +1792,7 @@ function App() {
           onLogin={handleLogin}
           onVerifyMfa={handleVerifyMfa}
           onBootstrap={handleBootstrap}
+          onSsoLogin={handleSsoOptionsOpen}
         />
       ) : (
         <AppLayout
@@ -1754,6 +1860,7 @@ function App() {
                 onCreate={() => openCompanyForm()}
                 onPreloadCreate={preloadCompanyDialog}
                 onEdit={openCompanyForm}
+                onConfigureSso={openSsoConfig}
                 onDelete={(id) => {
                   const company = companies.find((item) => item.id === id)
                   if (company) {
@@ -2060,6 +2167,36 @@ function App() {
                 onClose={() => setExternalDeliveryDialog(null)}
               />
             )}
+            <Dialog open={ssoOptionsOpen} onClose={() => setSsoOptionsOpen(false)} fullWidth maxWidth="xs">
+              <DialogTitle>Ingresar con SSO</DialogTitle>
+              <DialogContent dividers>
+                <Stack spacing={1}>
+                  {ssoOptions.length === 0 && (
+                    <Typography color="text.secondary">No hay empresas con SSO configurado.</Typography>
+                  )}
+                  {ssoOptions.map((option) => (
+                    <Button
+                      key={option.companyId}
+                      variant="outlined"
+                      onClick={() => handleSsoCompanySelected(option.companyId)}
+                    >
+                      {option.companyName}
+                    </Button>
+                  ))}
+                </Stack>
+              </DialogContent>
+            </Dialog>
+            <SsoConfigDialog
+              companyId={ssoConfigCompany?.id ?? ''}
+              companyName={ssoConfigCompany?.name ?? ''}
+              open={ssoConfigOpen}
+              loading={loading}
+              configured={ssoConfigured}
+              values={ssoConfigValues}
+              onChange={setSsoConfigValues}
+              onClose={() => setSsoConfigOpen(false)}
+              onSave={() => { void saveSsoConfig() }}
+            />
             <CompanyDialog
               open={companyDialog.open}
               editing={Boolean(companyDialog.item)}
