@@ -102,7 +102,8 @@ Config acepta certificado directo o metadata XML del IdP (`saml-metadata.ts`
 extrae cert + URL SSO); cert normalizado (PEM o body). Cache de instancias SAML
 por empresa con fingerprint de config (no queda stale al reconfigurar el IdP).
 Frontend: selector de protocolo en el diálogo de configuración y arranque SAML
-desde el selector de empresa del login. Metadata SP del backend para registrar
+desde el selector de empresa del login. Guía de administración (config OIDC/SAML,
+mapeo de grupos, ciclo de vida y troubleshooting): `docs/sso-mapeo-grupos.md`. Metadata SP del backend para registrar
 el SP en el IdP. Unitarios de state/aislamiento tenant/expiración/config incompleta y
 cache invalidada (11 casos).
 
