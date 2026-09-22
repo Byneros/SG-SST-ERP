@@ -155,7 +155,33 @@ function readHashLocation(): { view: View; site: string } {
   return { view, site }
 }
 
+// Tokens que el callback SSO entrega en el fragmento (#access_token=...).
+// Se lee una sola vez al arrancar, ANTES de que el efecto de routing reescriba el hash.
+function consumeSsoFragment(): { token?: string; refreshToken?: string; user?: AuthUser; error?: boolean } {
+  if (window.location.hash.includes('access_token=')) {
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const token = params.get('access_token') ?? undefined
+    const refreshToken = params.get('refresh_token') ?? undefined
+    const userRaw = params.get('user')
+    let user: AuthUser | undefined
+    try {
+      user = userRaw ? (JSON.parse(userRaw) as AuthUser) : undefined
+    } catch {
+      user = undefined
+    }
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    if (token && user) return { token, refreshToken, user }
+    return { error: true }
+  }
+  if (window.location.search.includes('sso=error')) {
+    window.history.replaceState(null, '', window.location.pathname)
+    return { error: true }
+  }
+  return {}
+}
+
 function App() {
+  const [ssoFragment] = useState(() => consumeSsoFragment())
   const [token, setToken] = useState(() => getStoredSession().token)
   const [user, setUser] = useState<AuthUser | null>(() => getStoredSession().user)
   const [initialHash] = useState(() => readHashLocation())
@@ -677,29 +703,18 @@ function App() {
   }
 
   // --- SSO OIDC ----------------------------------------------------------------
-  // El callback del backend regresa a "/{redirect}#access_token=...".
+  // El callback del backend regresa a "https://<web>/{redirect}#access_token=...".
+  // El fragmento se consume en el primer render (consumeSsoFragment), antes de que
+  // el efecto de routing reescriba el hash con la vista activa.
   useEffect(() => {
-    if (window.location.hash.includes('access_token=')) {
-      const params = new URLSearchParams(window.location.hash.slice(1))
-      const accessToken = params.get('access_token')
-      const refreshToken = params.get('refresh_token')
-      const userRaw = params.get('user')
-      window.history.replaceState(null, '', window.location.pathname)
-      if (accessToken && userRaw) {
-        try {
-          const ssoUser = JSON.parse(userRaw) as AuthUser
-          saveSession(accessToken, ssoUser, refreshToken ?? undefined)
-          setToken(accessToken)
-          setUser(ssoUser)
-        } catch {
-          setError('Sesion SSO invalida')
-        }
-      }
-    } else if (window.location.search.includes('sso=error')) {
-      window.history.replaceState(null, '', window.location.pathname)
+    if (ssoFragment.token && ssoFragment.user) {
+      saveSession(ssoFragment.token, ssoFragment.user, ssoFragment.refreshToken)
+      setToken(ssoFragment.token)
+      setUser(ssoFragment.user)
+    } else if (ssoFragment.error) {
       setError('El ingreso con SSO fallo. Intenta de nuevo o usa tus credenciales.')
     }
-  }, [])
+  }, [ssoFragment])
 
   async function handleSsoOptionsOpen() {
     setSsoOptionsOpen(true)
@@ -1775,6 +1790,26 @@ function App() {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* Opciones de SSO: fuera del condicional de sesion para que sea accesible desde LoginPage. */}
+      <Dialog open={ssoOptionsOpen} onClose={() => setSsoOptionsOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Ingresar con SSO</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1}>
+            {ssoOptions.length === 0 && (
+              <Typography color="text.secondary">No hay empresas con SSO configurado.</Typography>
+            )}
+            {ssoOptions.map((option) => (
+              <Button
+                key={option.companyId}
+                variant="outlined"
+                onClick={() => handleSsoCompanySelected(option.companyId)}
+              >
+                {option.companyName}
+              </Button>
+            ))}
+          </Stack>
+        </DialogContent>
+      </Dialog>
       {!user || !token ? (
         <LoginPage
           login={login}
@@ -2165,29 +2200,8 @@ function App() {
                 onOpen={setExternalDeliveryDialog}
                 selected={externalDeliveryDialog}
                 onClose={() => setExternalDeliveryDialog(null)}
-              />
-            )}
-            <Dialog open={ssoOptionsOpen} onClose={() => setSsoOptionsOpen(false)} fullWidth maxWidth="xs">
-              <DialogTitle>Ingresar con SSO</DialogTitle>
-              <DialogContent dividers>
-                <Stack spacing={1}>
-                  {ssoOptions.length === 0 && (
-                    <Typography color="text.secondary">No hay empresas con SSO configurado.</Typography>
-                  )}
-                  {ssoOptions.map((option) => (
-                    <Button
-                      key={option.companyId}
-                      variant="outlined"
-                      onClick={() => handleSsoCompanySelected(option.companyId)}
-                    >
-                      {option.companyName}
-                    </Button>
-                  ))}
-                </Stack>
-              </DialogContent>
-            </Dialog>
-            <SsoConfigDialog
-              companyId={ssoConfigCompany?.id ?? ''}
+              />            )}
+            <SsoConfigDialog              companyId={ssoConfigCompany?.id ?? ''}
               companyName={ssoConfigCompany?.name ?? ''}
               open={ssoConfigOpen}
               loading={loading}

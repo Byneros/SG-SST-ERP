@@ -1,5 +1,6 @@
 import { Role } from '@prisma/client';
 import {
+  IsBoolean,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -50,4 +51,8 @@ export class CreateSsoProviderDto {
   @IsOptional()
   @IsIn(assignableRoles)
   defaultRole?: Role;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

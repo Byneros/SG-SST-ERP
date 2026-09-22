@@ -24,6 +24,28 @@ El proveedor de despliegue tambien debe configurar las variables de ejecucion de
 5. Ejecutar **Post-deploy smoke test** para comprobar `/health`, `/ready` y `/metrics` protegido.
 6. Repetir el flujo para `production`; la aprobacion del ambiente debe ocurrir antes de exponer secretos o ejecutar migraciones.
 
+## Compose de referencia para el servidor del ambiente
+
+`docker-compose.prod.yml` (raiz del repo) es el compose de referencia que consume las imagenes publicadas en GHCR fijadas por etiqueta SHA, sin `build:`. Incluye API, worker (misma imagen de API con comando `node dist/src/worker.js`), web, PostgreSQL y Redis, con los healthchecks del compose local.
+
+Requisitos en el servidor:
+
+1. Copiar `docker-compose.prod.yml` y crear un `.env` junto a el. Variables obligatorias (el compose falla si faltan): `GHCR_OWNER`, `IMAGE_TAG` (formato `sha-<commit>`), `POSTGRES_PASSWORD`, `JWT_SECRET`, `METRICS_TOKEN`, `CORS_ORIGINS`, `PUBLIC_BASE_URL` y `WEB_BASE_URL`. `VITE_API_URL` ya viene compilada dentro de la imagen web y no se configura en runtime.
+2. Autenticarse contra GHCR con un PAT con permiso `read:packages`.
+3. `docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d`.
+4. Las migraciones NO las ejecuta el compose: las aplica el job `migrate` del workflow de release contra la base del ambiente. Mantener ese orden: migrar primero, desplegar despues.
+
+## Promocion entre ambientes
+
+- **staging -> production**: ejecutar el workflow de release dos veces (una por ambiente). Cada ejecucion publica una etiqueta `sha-<commit>` inmutable. La "promocion" consiste en desplegar EN PRODUCCION la MISMA etiqueta `sha-<commit>` ya validada en staging, nunca reconstruir desde otra rama o commit.
+- Verificar que la etiqueta desplegada coincide con `git rev-parse HEAD` del commit liberado: `docker inspect ghcr.io/<owner>/sgsst-api:sha-<commit>`.
+- `latest` nunca se usa como referencia de despliegue.
+
 ## Reversion
+
+1. Identificar la ultima etiqueta `sha-<commit>` sana (registro de despliegues del ambiente o `docker compose -f docker-compose.prod.yml images`).
+2. Cambiar `IMAGE_TAG` en el `.env` del servidor a esa etiqueta y ejecutar `docker compose -f docker-compose.prod.yml up -d`. API, worker y web deben SIEMPRE rodar juntas la misma etiqueta.
+3. `VITE_API_URL` esta compilada en la imagen web: si la URL de la API cambio entre versiones, la web se re-despliega con su etiqueta anterior correspondiente (misma pareja de etiquetas del release original).
+4. Las migraciones Prisma no se revierten automaticamente: cualquier cambio de esquema debe seguir una estrategia compatible hacia atras (expand/contract) y contar con plan de restauracion probado (`docs/backups-postgresql.md`).
 
 Revertir API, worker y web a la etiqueta SHA anterior conocida como sana. Las migraciones Prisma no se revierten automaticamente: cualquier cambio de esquema debe seguir una estrategia compatible hacia atras y contar con plan de restauracion probado.

@@ -1,5 +1,5 @@
 import { Role } from '@prisma/client';
-import { IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 const assignableRoles: Role[] = ['EMPLOYEE', 'SST', 'AUDITOR', 'ADMIN'];
 
@@ -44,6 +44,6 @@ export class UpdateSsoProviderDto {
   defaultRole?: Role;
 
   @IsOptional()
-  @IsIn(['true', 'false'])
-  isActive?: 'true' | 'false';
+  @IsBoolean()
+  isActive?: boolean;
 }

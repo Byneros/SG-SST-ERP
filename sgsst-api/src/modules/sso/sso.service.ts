@@ -62,7 +62,7 @@ export class SsoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-  ) { }
+  ) {}
 
   /** Inicia el flujo: state persistido + PKCE + redirect al IdP de la empresa. */
   async beginLogin(companyId: string, redirect: string | undefined) {
@@ -315,6 +315,7 @@ export class SsoService {
       userinfoEndpoint?: string;
       scopes?: string;
       defaultRole?: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
+      isActive?: boolean;
     },
     encrypt: (plain: string) => string,
   ) {
@@ -328,6 +329,7 @@ export class SsoService {
       userinfoEndpoint: dto.userinfoEndpoint ?? null,
       scopes: dto.scopes ?? 'openid email profile',
       defaultRole: dto.defaultRole ?? 'EMPLOYEE',
+      isActive: dto.isActive ?? true,
     };
     const existing = await this.prisma.ssoProvider.findUnique({
       where: { companyId },
@@ -360,15 +362,14 @@ export class SsoService {
     }
 
     if (data.isActive !== undefined) {
-      data.isActive = data.isActive === 'true';
+      data.isActive = data.isActive === true || (data.isActive as unknown) === 'true';
     }
 
+    // jwksUri/userinfoEndpoint admiten explicitamente null para limpiar.
     return this.prisma.ssoProvider.update({
       where: { id },
       data,
     });
-    // jwksUri/userinfoEndpoint admiten explicitamente null para limpiar.
-    return this.prisma.ssoProvider.update({ where: { id }, data });
   }
 
   async deleteProvider(id: string) {

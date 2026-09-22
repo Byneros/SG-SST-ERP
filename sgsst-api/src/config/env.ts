@@ -15,6 +15,8 @@ export const env = {
   publicBaseUrl:
     process.env.PUBLIC_BASE_URL ??
     `http://localhost:${process.env.PORT ?? 3001}`,
+  /** Base publica de la app web para redirects del navegador (p. ej. callback SSO). */
+  webBaseUrl: process.env.WEB_BASE_URL ?? process.env.PUBLIC_BASE_URL ?? '/',
   uploadsPath: process.env.UPLOADS_PATH ?? 'uploads',
   documentStorageDriver: process.env.DOCUMENT_STORAGE_DRIVER ?? 'local',
   maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES ?? 10 * 1024 * 1024),

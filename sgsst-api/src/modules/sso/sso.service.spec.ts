@@ -88,14 +88,16 @@ describe('SsoService', () => {
       expect(url.searchParams.get('code_challenge_method')).toBe('S256');
       expect(url.searchParams.get('code_challenge')).toBeTruthy();
       expect(url.searchParams.get('scope')).toBe('openid email profile');
+      const stateId = url.searchParams.get('state');
+      expect(stateId).toBeTruthy();
       expect(prisma.ssoState.create).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({
+          id: stateId,
           companyId: 'company-a',
           redirect: '/dashboard',
         }),
       });
-      const stateId = prisma.ssoState.create.mock.calls[0][0].data.id;
-      expect(url.searchParams.get('state')).toBe(stateId);
     });
 
     it('drops unsafe redirect targets', async () => {
@@ -104,6 +106,7 @@ describe('SsoService', () => {
       await buildService().beginLogin('company-a', '//evil.example.test');
 
       expect(prisma.ssoState.create).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({ redirect: null }),
       });
     });
@@ -207,6 +210,7 @@ describe('SsoService', () => {
       await buildService().handleCallback('auth-code', 'state-1');
 
       expect(prisma.user.create).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({
           email: 'nuevo@company.test',
           role: 'EMPLOYEE',

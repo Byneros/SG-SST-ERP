@@ -1,0 +1,243 @@
+# Compose de REFERENCIA para produccion: consume las imagenes inmutables publicadas
+# por .github/workflows/release.yml en GHCR, fijadas por etiqueta SHA (sin `build:`).
+#
+# Uso en el servidor del ambiente:
+#   1. Crear .env junto a este archivo (ver docs/despliegue-por-ambientes.md y
+#      docs/operacion-produccion.md). Variables obligatorias: IMAGE_TAG, GHCR_OWNER,
+#      POSTGRES_PASSWORD, JWT_SECRET, METRICS_TOKEN, VITE_API_URL (ya compilada en la
+#      imagen web), WEB_BASE_URL.
+#   2. docker compose -f docker-compose.prod.yml pull
+#   3. docker compose -f docker-compose.prod.yml up -d
+#
+# Las etiquetas `{staging|production}-latest` existen para conveniencia, pero el
+# despliegue SIEMPRE debe fijar IMAGE_TAG=sha-<commit> (inmutabilidad y rollback
+# predecible). Ver docs/despliegue-por-ambientes.md.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sgsst_prod_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be configured}
+      POSTGRES_DB: ${POSTGRES_DB:-sgsst}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-sgsst}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sgsst_prod_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be configured}/sgsst-api:${IMAGE_TAG:?IMAGE_TAG must be a sha-<commit> tag}
+    container_name: sgsst_prod_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${API_PORT:-3001}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sgsst}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be configured}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      PASSWORD_RESET_EXPIRES_MINUTES: ${PASSWORD_RESET_EXPIRES_MINUTES:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must be configured}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL must be configured}
+      WEB_BASE_URL: ${WEB_BASE_URL:?WEB_BASE_URL must be configured}
+      UPLOADS_PATH: ${UPLOADS_PATH:-uploads}
+      DOCUMENT_STORAGE_DRIVER: ${DOCUMENT_STORAGE_DRIVER:-local}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION:-AES256}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      METRICS_TOKEN: ${METRICS_TOKEN:?METRICS_TOKEN must be configured}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-120}
+      DASHBOARD_CACHE_TTL_SECONDS: ${DASHBOARD_CACHE_TTL_SECONDS:-30}
+      NOTIFICATIONS_QUEUE_ENABLED: ${NOTIFICATIONS_QUEUE_ENABLED:-true}
+      NOTIFICATIONS_WORKER_ENABLED: "false"
+      NOTIFICATIONS_CRON: ${NOTIFICATIONS_CRON:-0 7 * * *}
+      REPORTS_QUEUE_ENABLED: ${REPORTS_QUEUE_ENABLED:-true}
+      REPORTS_WORKER_ENABLED: "false"
+      REPORTS_CLEANUP_CRON: ${REPORTS_CLEANUP_CRON:-0 3 * * *}
+      REPORTS_METRICS_CRON: ${REPORTS_METRICS_CRON:-30 3 * * *}
+      REPORTS_ALERTS_CRON: ${REPORTS_ALERTS_CRON:-0 4 * * *}
+      REPORT_ALERTS_ENABLED: ${REPORT_ALERTS_ENABLED:-true}
+      REPORT_FAILURE_RATE_ALERT_PERCENT: ${REPORT_FAILURE_RATE_ALERT_PERCENT:-20}
+      REPORT_STORAGE_ALERT_BYTES: ${REPORT_STORAGE_ALERT_BYTES:-1073741824}
+      REPORT_EXPORT_EXPIRATION_DAYS: ${REPORT_EXPORT_EXPIRATION_DAYS:-7}
+      REPORT_EXPORT_RETENTION_DAYS: ${REPORT_EXPORT_RETENTION_DAYS:-7}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-v20.0}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      EXTERNAL_DELIVERY_RETRY_CRON: ${EXTERNAL_DELIVERY_RETRY_CRON:-*/10 * * * *}
+      EXTERNAL_DELIVERY_MAX_ATTEMPTS: ${EXTERNAL_DELIVERY_MAX_ATTEMPTS:-3}
+      EXTERNAL_DELIVERY_RETRY_BASE_SECONDS: ${EXTERNAL_DELIVERY_RETRY_BASE_SECONDS:-300}
+    ports:
+      - "${API_PORT:-3001}:${API_PORT:-3001}"
+    volumes:
+      - document_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:' + (process.env.PORT || 3001) + '/api/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    image: ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be configured}/sgsst-api:${IMAGE_TAG:?IMAGE_TAG must be a sha-<commit> tag}
+    container_name: sgsst_prod_worker
+    restart: unless-stopped
+    command: ["node", "dist/src/worker.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sgsst}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be configured}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      PASSWORD_RESET_EXPIRES_MINUTES: ${PASSWORD_RESET_EXPIRES_MINUTES:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must be configured}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL must be configured}
+      WEB_BASE_URL: ${WEB_BASE_URL:?WEB_BASE_URL must be configured}
+      UPLOADS_PATH: ${UPLOADS_PATH:-uploads}
+      DOCUMENT_STORAGE_DRIVER: ${DOCUMENT_STORAGE_DRIVER:-local}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_SERVER_SIDE_ENCRYPTION: ${S3_SERVER_SIDE_ENCRYPTION:-AES256}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      METRICS_TOKEN: ${METRICS_TOKEN:?METRICS_TOKEN must be configured}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-120}
+      DASHBOARD_CACHE_TTL_SECONDS: ${DASHBOARD_CACHE_TTL_SECONDS:-30}
+      NOTIFICATIONS_QUEUE_ENABLED: ${NOTIFICATIONS_QUEUE_ENABLED:-true}
+      NOTIFICATIONS_WORKER_ENABLED: "true"
+      NOTIFICATIONS_CRON: ${NOTIFICATIONS_CRON:-0 7 * * *}
+      REPORTS_QUEUE_ENABLED: ${REPORTS_QUEUE_ENABLED:-true}
+      REPORTS_WORKER_ENABLED: "true"
+      REPORTS_CLEANUP_CRON: ${REPORTS_CLEANUP_CRON:-0 3 * * *}
+      REPORTS_METRICS_CRON: ${REPORTS_METRICS_CRON:-30 3 * * *}
+      REPORTS_ALERTS_CRON: ${REPORTS_ALERTS_CRON:-0 4 * * *}
+      REPORT_ALERTS_ENABLED: ${REPORT_ALERTS_ENABLED:-true}
+      REPORT_FAILURE_RATE_ALERT_PERCENT: ${REPORT_FAILURE_RATE_ALERT_PERCENT:-20}
+      REPORT_STORAGE_ALERT_BYTES: ${REPORT_STORAGE_ALERT_BYTES:-1073741824}
+      REPORT_EXPORT_EXPIRATION_DAYS: ${REPORT_EXPORT_EXPIRATION_DAYS:-7}
+      REPORT_EXPORT_RETENTION_DAYS: ${REPORT_EXPORT_RETENTION_DAYS:-7}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-v20.0}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      EXTERNAL_DELIVERY_RETRY_CRON: ${EXTERNAL_DELIVERY_RETRY_CRON:-*/10 * * * *}
+      EXTERNAL_DELIVERY_MAX_ATTEMPTS: ${EXTERNAL_DELIVERY_MAX_ATTEMPTS:-3}
+      EXTERNAL_DELIVERY_RETRY_BASE_SECONDS: ${EXTERNAL_DELIVERY_RETRY_BASE_SECONDS:-300}
+    volumes:
+      - document_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be configured}/sgsst-web:${IMAGE_TAG:?IMAGE_TAG must be a sha-<commit> tag}
+    container_name: sgsst_prod_web
+    restart: unless-stopped
+    # VITE_API_URL ya viene compilada dentro de la imagen (build-arg del release).
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Backup cifrado opcional (misma imagen base que el compose local). En produccion
+  # se recomienda construir/publishar docker/postgres-backup como imagen propia.
+  postgres-backup:
+    image: postgres:16-alpine
+    container_name: sgsst_prod_postgres_backup
+    restart: unless-stopped
+    profiles:
+      - backup
+    entrypoint: ["sh", "/usr/local/bin/backup.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sgsst}
+      BACKUP_DIR: /backups
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_STALENESS_HOURS: ${BACKUP_STALENESS_HOURS:-24}
+      BACKUP_ENCRYPTION_PUBLIC_KEY: ${BACKUP_ENCRYPTION_PUBLIC_KEY:-}
+      BACKUP_ALERT_EMAIL_ENABLED: ${BACKUP_ALERT_EMAIL_ENABLED:-false}
+      BACKUP_ALERT_EMAIL_TO: ${BACKUP_ALERT_EMAIL_TO:-}
+      BACKUP_RESTORE_CHECK_DAYS: ${BACKUP_RESTORE_CHECK_DAYS:-30}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      BACKUP_S3_FORCE_PATH_STYLE: ${BACKUP_S3_FORCE_PATH_STYLE:-true}
+    volumes:
+      - ./backups/postgres:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  document_uploads:
+  redis_data:

@@ -75,7 +75,7 @@ La arquitectura SaaS aplicada esta documentada en:
 
 ## Roadmap tecnico inmediato
 
-1. Configurar el proveedor cloud para consumir imagenes GHCR por etiqueta SHA.
-2. Sincronizacion externa de backups a bucket cifrado.
-3. SSO OIDC/SAML para clientes empresariales.
-4. Consola administrativa para consultar entregas externas y reintentar casos puntuales.
+1. Configurar el proveedor cloud para desplegar `docker-compose.prod.yml` con las imagenes GHCR por etiqueta SHA (ver `docs/despliegue-por-ambientes.md`).
+2. SSO SAML para clientes empresariales (OIDC ya implementado; ver `docs/plan-fase-9-plataforma.md`).
+3. Overrides de rol por grupo del IdP y e2e de aislamiento SSO en el harness multi-tenant.
+4. Hardening de observabilidad: alertas de backup ya viajan por email (`BACKUP_ALERT_EMAIL_*`) y restore check mensual automatico (`BACKUP_RESTORE_CHECK_DAYS`).

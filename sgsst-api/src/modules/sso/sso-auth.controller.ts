@@ -1,6 +1,7 @@
 import { Controller, Get, Logger, Query, Res } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { env } from '../../config/env';
 import { SsoService } from './sso.service';
 
 @ApiTags('auth')
@@ -37,12 +38,13 @@ export class SsoAuthController {
         expires_in: session.expiresIn,
         user: JSON.stringify(session.user),
       });
-      return res.redirect(`${redirect}#${params.toString()}`);
+      // Redirect absoluto a la app web: el callback puede llegar por el dominio de la API.
+      return res.redirect(`${env.webBaseUrl}${redirect}#${params.toString()}`);
     } catch (error) {
       this.logger.warn(
         `SSO callback failed: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return res.redirect('/?sso=error');
+      return res.redirect(`${env.webBaseUrl}/?sso=error`);
     }
   }
 }
