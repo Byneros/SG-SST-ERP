@@ -28,6 +28,8 @@ El proveedor de despliegue tambien debe configurar las variables de ejecucion de
 
 `docker-compose.prod.yml` (raiz del repo) es el compose de referencia que consume las imagenes publicadas en GHCR fijadas por etiqueta SHA, sin `build:`. Incluye API, worker (misma imagen de API con comando `node dist/src/worker.js`), web, PostgreSQL y Redis, con los healthchecks del compose local.
 
+Guia paso a paso para levantar la pila en un servidor cloud (GHCR login, `.env` de referencia, TLS con reverse proxy, verificacion y checklist): `docs/despliegue-cloud.md`.
+
 Requisitos en el servidor:
 
 1. Copiar `docker-compose.prod.yml` y crear un `.env` junto a el. Variables obligatorias (el compose falla si faltan): `GHCR_OWNER`, `IMAGE_TAG` (formato `sha-<commit>`), `POSTGRES_PASSWORD`, `JWT_SECRET`, `METRICS_TOKEN`, `CORS_ORIGINS`, `PUBLIC_BASE_URL` y `WEB_BASE_URL`. `VITE_API_URL` ya viene compilada dentro de la imagen web y no se configura en runtime.

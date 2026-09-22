@@ -63,6 +63,7 @@ La arquitectura SaaS aplicada esta documentada en:
 - `docs/arquitectura-sgsst.md`
 - `docs/backups-postgresql.md`
 - `docs/operacion-produccion.md`
+- `docs/despliegue-cloud.md`
 - `docs/despliegue-por-ambientes.md`
 - `docs/correo-transaccional.md`
 - `docs/fase-2-inventario-modulos-sgsst.md`
