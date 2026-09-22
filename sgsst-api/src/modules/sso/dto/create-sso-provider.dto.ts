@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsIn,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   IsUrl,
@@ -16,24 +17,33 @@ export class CreateSsoProviderDto {
   @IsNotEmpty()
   companyId!: string;
 
-  @IsUrl({ require_tld: false })
-  issuer!: string;
+  // OIDC (por defecto) | SAML. Una fila solo usa los campos de su protocolo.
+  @IsOptional()
+  @IsIn(['OIDC', 'SAML'])
+  protocol?: 'OIDC' | 'SAML';
 
+  // --- OIDC ---
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  issuer?: string;
+
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(255)
-  clientId!: string;
+  clientId?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(2048)
-  clientSecret!: string;
+  clientSecret?: string;
 
+  @IsOptional()
   @IsUrl({ require_tld: false })
-  authorizationEndpoint!: string;
+  authorizationEndpoint?: string;
 
+  @IsOptional()
   @IsUrl({ require_tld: false })
-  tokenEndpoint!: string;
+  tokenEndpoint?: string;
 
   @IsOptional()
   @IsUrl({ require_tld: false })
@@ -48,9 +58,40 @@ export class CreateSsoProviderDto {
   @MaxLength(255)
   scopes?: string;
 
+  // --- SAML ---
+  @IsOptional()
+  @IsString()
+  @MaxLength(65535)
+  idpMetadata?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  idpEntityId?: string;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  idpSsoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(65535)
+  idpCertificate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  spEntityId?: string;
+
   @IsOptional()
   @IsIn(assignableRoles)
   defaultRole?: Role;
+
+  // Overrides de rol por grupo del IdP: { "grupo": "SST", ... }. Objeto JSON
+  // o string JSON; vacio/null = sin mapeo (todos con defaultRole).
+  @IsOptional()
+  @IsObject()
+  roleGroups?: Record<string, string>;
 
   @IsOptional()
   @IsBoolean()

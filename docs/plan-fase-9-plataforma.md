@@ -77,13 +77,13 @@ verificado en vivo (34 tablas restauradas en BD efímera).
 2. ~~Documentar promoción/rollback: qué etiqueta corre en cada entorno y cómo
    re-fijar un SHA anterior.~~ En `docs/despliegue-por-ambientes.md`.
 
-## 9.4 SSO OIDC/SAML — **OIDC cerrado (Sprints 1 y previos); SAML queda para
-una iteración futura**
+## 9.4 SSO OIDC/SAML — **OIDC cerrado (Sprints 1 y previos); SAML cerrado
+(iteración final 2026-09-22)**
 
 *Implementado:* módulo `sso` completo (provider por empresa, PKCE S256, state
 one-shot en BD, id_token verificado contra JWKS del IdP con `jose`, aprovisionamiento
 JIT con rol por defecto, secret cifrado en reposo, auditoría `SSO_PROVIDER_SAVE/DELETE`,
-unitarios). Frontend: configuración por empresa (Empresas → SSO OIDC) y "Ingresar
+unitarios). Frontend: configuración por empresa (Empresas → SSO) y "Ingresar
 con SSO empresarial" con selección de empresa. QA en navegador con IdP mock: flujo
 end-to-end OK (JIT `EMPLOYEE` + sesión JWT/refresh en la web).
 
@@ -91,8 +91,37 @@ end-to-end OK (JIT `EMPLOYEE` + sesión JWT/refresh en la web).
 SSO accesible desde `LoginPage`, fragmento `#access_token` consumido antes del
 routing, `WEB_BASE_URL` separada de `PUBLIC_BASE_URL` y proxy de callback en Vite.
 
-*Resta (futuro):* SAML (`@node-saml/passport-saml`), overrides de rol por
-grupo del IdP, e2e de aislamiento en el harness multi-tenant.
+*SAML (iteración 2026-09-22):* protocolo `SAML` sobre el mismo `SsoProvider`
+(migración `20260922200000_phase9_saml` con `protocol` + campos IdP/SP). Endpoints
+públicos `GET /auth/sso/saml/:companyId/metadata`, `GET .../authorize` y `POST
+.../acs` (`SamlAuthController`); validación del assertion con `@node-saml/node-saml`
+(assertions firmados, `sha256`, clock skew 5s) y RelayState one-shot en BD atado
+a la empresa. Resolución/creación de usuario y emisión de sesión reutilizadas de
+`SsoService.resolveUserAndIssueSession` (mismo JIT/vinculación por email que OIDC).
+Config acepta certificado directo o metadata XML del IdP (`saml-metadata.ts`
+extrae cert + URL SSO); cert normalizado (PEM o body). Cache de instancias SAML
+por empresa con fingerprint de config (no queda stale al reconfigurar el IdP).
+Frontend: selector de protocolo en el diálogo de configuración y arranque SAML
+desde el selector de empresa del login. Metadata SP del backend para registrar
+el SP en el IdP. Unitarios de state/aislamiento tenant/expiración/config incompleta y
+cache invalidada (11 casos).
+
+*Overrides de rol por grupo (iteración 2026-09-22):* campo `roleGroups` (JSONB)
+en `SsoProvider` con mapeo `{ "grupo-del-IdP": "ROL" }` (migración
+`20260922230000_sso_role_groups`). En OIDC se lee del claim `groups` (array o
+string separado por comas) del id_token/userinfo; en SAML de `memberOf`, `groups`
+y URIs estándar (`eduPerson`, claims de AD). El primer grupo del usuario presente
+en el mapa define el rol: en JIT fija el rol de alta y en cuentas existentes
+sincroniza el rol en cada login (promoción y degradación consciente); sin match
+se conserva el rol actual para no degradar roles asignados manualmente. Roles
+asignables: `EMPLOYEE/SST/AUDITOR/ADMIN` (nunca `SUPER_ADMIN` por vía automática).
+Frontend: campo JSON en el diálogo SSO con validación client-side. Unitarios:
+`sso-roles.spec.ts` (parseo/validación/resolución/extracción) y 3 casos de
+integración en `sso.service.spec.ts` (JIT con rol mapeado, degradación por grupo,
+conservación del rol sin match).
+
+*Resta (futuro):* e2e de aislamiento en el harness multi-tenant, QA en navegador
+con un IdP SAML real y con grupos (OIDC ya cubierto por unitarios).
 
 ## Prioridades ajustadas (ejecutadas)
 
@@ -103,8 +132,9 @@ grupo del IdP, e2e de aislamiento en el harness multi-tenant.
    rollback documentados.
 3. **9.2 — completado (Sprint 3)**: alerta SMTP + restore check mensual
    verificado en vivo.
-4. **9.4 — OIDC completado (Sprint 1)**: fix del QA visual + flujo E2E con
-   IdP mock. SAML pospuesto a iteración futura.
+4. **9.4 — OIDC completado (Sprint 1); SAML completado (2026-09-22)**: fix del
+   QA visual + flujo E2E con IdP mock (OIDC), e implementación SAML por empresa
+   con metadata SP, ACS y unitarios.
 
 Criterio de cierre de la fase: ~~QA en navegador~~ (hecho: entregas, SSO y
 login), ~~restauración real de un backup cifrado para 9.2~~ (hecho: restore

@@ -760,6 +760,8 @@ enum EvaluationItemStatus {
 model SsoProvider {
   id                    String   @id @default(uuid())
   companyId             String   @unique
+  // OIDC | SAML: una fila usa los campos de su protocolo.
+  protocol              String   @default("OIDC")
   issuer                String
   clientId              String
   clientSecret          String
@@ -769,12 +771,22 @@ model SsoProvider {
   scopes                String   @default("openid email profile")
   defaultRole           Role     @default(EMPLOYEE)
   jwksUri               String?
+  // SAML: metadata del IdP o triple entity/sso-url/cert; config SP del backend.
+  idpMetadata           String?
+  idpEntityId           String?
+  idpSsoUrl             String?
+  idpCertificate        String?
+  spEntityId            String?
+  // Overrides de rol por grupo del IdP: { "grupo": "SST", ... }. Los demas
+  // usuarios entran con defaultRole.
+  roleGroups            Json?
   isActive              Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   company               Company  @relation(fields: [companyId], references: [id])
 
   @@index([issuer])
+  @@index([protocol])
 }
 
 model SsoState {

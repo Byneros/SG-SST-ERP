@@ -29,6 +29,7 @@ const provider = {
   scopes: 'openid email profile',
   defaultRole: 'EMPLOYEE' as const,
   jwksUri: null,
+  roleGroups: null,
   isActive: true,
 };
 
@@ -263,6 +264,128 @@ describe('SsoService', () => {
         buildService().handleCallback('auth-code', 'state-1'),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(authService.issueSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('role group overrides', () => {
+    const stored = {
+      id: 'state-1',
+      companyId: 'company-a',
+      redirect: '/',
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+
+    it('provisions a JIT user with the role mapped from its IdP group', async () => {
+      prisma.ssoState.findUnique.mockResolvedValue(stored);
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.ssoProvider.findFirst.mockResolvedValue({
+        ...provider,
+        roleGroups: { 'SG-SST-Admins': 'ADMIN' },
+      });
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: 'user-5',
+        name: 'Admin JIT',
+        email: 'admin@company.test',
+        role: 'ADMIN',
+        companyId: 'company-a',
+        isActive: true,
+      });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            sub: 'sub-5',
+            email: 'admin@company.test',
+            groups: ['SG-SST-Admins'],
+          }),
+        );
+
+      await buildService().handleCallback('auth-code', 'state-1');
+
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          email: 'admin@company.test',
+          role: 'ADMIN',
+        }),
+      });
+    });
+
+    it('promotes an existing user when its group maps to another role', async () => {
+      prisma.ssoState.findUnique.mockResolvedValue(stored);
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.ssoProvider.findFirst.mockResolvedValue({
+        ...provider,
+        roleGroups: { Contratistas: 'EMPLOYEE' },
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-6',
+        ssoSubject: 'https://idp.example.test|sub-6',
+        email: 'jefe@company.test',
+        name: 'Jefe',
+        role: 'SST',
+        isActive: true,
+        companyId: 'company-a',
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'user-6',
+        name: 'Jefe',
+        email: 'jefe@company.test',
+        role: 'EMPLOYEE',
+        companyId: 'company-a',
+        isActive: true,
+      });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            sub: 'sub-6',
+            email: 'jefe@company.test',
+            groups: ['Contratistas'],
+          }),
+        );
+
+      await buildService().handleCallback('auth-code', 'state-1');
+
+      // Degradacion consciente: el grupo del IdP manda sobre el rol local.
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-6' },
+        data: { role: 'EMPLOYEE' },
+      });
+    });
+
+    it('keeps the existing role when no group matches the map', async () => {
+      prisma.ssoState.findUnique.mockResolvedValue(stored);
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.ssoProvider.findFirst.mockResolvedValue({
+        ...provider,
+        roleGroups: { 'SG-SST-Admins': 'ADMIN' },
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-7',
+        ssoSubject: 'https://idp.example.test|sub-7',
+        email: 'sst@company.test',
+        name: 'SST Local',
+        role: 'SST',
+        isActive: true,
+        companyId: 'company-a',
+      });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            sub: 'sub-7',
+            email: 'sst@company.test',
+            groups: ['Grupo-Sin-Mapeo'],
+          }),
+        );
+
+      await buildService().handleCallback('auth-code', 'state-1');
+
+      // Sin match no se toca el rol local (evita degradaciones accidentales).
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
   });
 });

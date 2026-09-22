@@ -8,10 +8,19 @@ import {
 import { createHash, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { Prisma } from '@prisma/client';
 import { env } from '../../config/env';
 import { PrismaService } from '../../database/prisma.service';
 import { AuthService } from '../auth/auth.service';
+import { parseIdpMetadata } from './saml/saml-metadata';
 import { decryptSecret } from './sso-crypto';
+import {
+  groupsFromClaim,
+  normalizeRoleGroupsInput,
+  parseRoleGroups,
+  resolveRoleFromGroups,
+  type RoleGroupMap,
+} from './sso-roles';
 import { UpdateSsoProviderDto } from './dto/update-sso-provider.dto';
 
 export type SsoSession = {
@@ -29,7 +38,7 @@ export type SsoSession = {
   };
 };
 
-type SsoProviderRecord = {
+export type SsoProviderRecord = {
   id: string;
   companyId: string;
   issuer: string;
@@ -41,10 +50,19 @@ type SsoProviderRecord = {
   scopes: string;
   defaultRole: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
   jwksUri: string | null;
+  roleGroups: RoleGroupMap | null;
   isActive: boolean;
 };
 
 const STATE_TTL_MINUTES = 10;
+
+/** Claims ampliados con grupos del IdP para overrides de rol. */
+export type SsoClaims = {
+  sub: string;
+  email?: string;
+  name?: string;
+  groups?: string[];
+};
 
 function isSafeRedirect(value: string): boolean {
   // Solo rutas relativas de la propia app: evita open redirects.
@@ -123,12 +141,7 @@ export class SsoService {
   private async exchangeCode(
     code: string,
     provider: SsoProviderRecord,
-  ): Promise<{
-    sub: string;
-    email?: string;
-    name?: string;
-    redirect?: string;
-  }> {
+  ): Promise<SsoClaims> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -165,10 +178,11 @@ export class SsoService {
       const email =
         typeof payload.email === 'string' ? payload.email : undefined;
       const name = typeof payload.name === 'string' ? payload.name : undefined;
+      const groups = groupsFromClaim(payload.groups);
       if (!sub) {
         throw new BadRequestException('ID token missing subject');
       }
-      return { sub, email, name };
+      return { sub, email, name, groups };
     }
 
     // Fallback: endpoint userinfo cuando el IdP no devuelve id_token utilizable.
@@ -183,19 +197,26 @@ export class SsoService {
         sub?: string;
         email?: string;
         name?: string;
+        groups?: unknown;
       };
       if (!userinfo.sub) {
         throw new BadRequestException('Userinfo missing subject');
       }
-      return { sub: userinfo.sub, email: userinfo.email, name: userinfo.name };
+      return {
+        sub: userinfo.sub,
+        email: userinfo.email,
+        name: userinfo.name,
+        groups: groupsFromClaim(userinfo.groups),
+      };
     }
 
     throw new BadRequestException('IdP response missing id_token');
   }
 
-  private async resolveUserAndIssueSession(
+  /** Publico para reuso: SAML consume esta misma resolucion/emision de sesion. */
+  async resolveUserAndIssueSession(
     provider: SsoProviderRecord,
-    claims: { sub: string; email?: string; name?: string },
+    claims: SsoClaims,
   ): Promise<SsoSession> {
     const subject = `${provider.issuer}|${claims.sub}`;
     let user = await this.prisma.user.findUnique({
@@ -221,6 +242,14 @@ export class SsoService {
       }
     }
 
+    // El grupo del IdP define el rol: primer match en el mapa; fallback al
+    // rol por defecto del proveedor. Aplica a JIT y a vinculacion por email.
+    const { role, fromGroupMatch } = resolveRoleFromGroups(
+      claims.groups,
+      provider.roleGroups,
+      provider.defaultRole,
+    );
+
     if (!user) {
       if (!claims.email) {
         throw new BadRequestException('IdP did not provide an email');
@@ -230,11 +259,19 @@ export class SsoService {
         data: {
           email: claims.email,
           name: claims.name ?? claims.email,
-          role: provider.defaultRole,
+          role,
           password: await bcrypt.hash(randomUUID() + randomUUID(), 12),
           companyId: provider.companyId,
           ssoSubject: subject,
         },
+      });
+    } else if (fromGroupMatch && user.role !== role) {
+      // Usuario existente: solo cuando el rol viene de un grupo del IdP se
+      // sincroniza en cada login (promocion/degradacion). Sin match, se
+      // conserva el rol actual (evita degradar roles asignados manualmente).
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role },
       });
     }
 
@@ -276,6 +313,7 @@ export class SsoService {
       select: {
         id: true,
         companyId: true,
+        protocol: true,
         issuer: true,
         authorizationEndpoint: true,
         company: {
@@ -290,6 +328,7 @@ export class SsoService {
     return providers.map((provider) => ({
       companyId: provider.companyId,
       companyName: provider.company.name,
+      protocol: provider.protocol,
     }));
   }
 
@@ -306,29 +345,70 @@ export class SsoService {
   async upsertProvider(
     companyId: string,
     dto: {
-      issuer: string;
-      clientId: string;
-      clientSecret: string;
-      authorizationEndpoint: string;
-      tokenEndpoint: string;
+      protocol?: 'OIDC' | 'SAML';
+      issuer?: string;
+      clientId?: string;
+      clientSecret?: string;
+      authorizationEndpoint?: string;
+      tokenEndpoint?: string;
       jwksUri?: string;
       userinfoEndpoint?: string;
       scopes?: string;
+      idpMetadata?: string;
+      idpEntityId?: string;
+      idpSsoUrl?: string;
+      idpCertificate?: string;
+      spEntityId?: string;
       defaultRole?: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
+      roleGroups?: Record<string, string> | string | null;
       isActive?: boolean;
     },
     encrypt: (plain: string) => string,
   ) {
+    const protocol = dto.protocol ?? 'OIDC';
+    if (protocol === 'SAML') {
+      // SAML requiere cert (directo o extraible de la metadata) y URL SSO.
+      const fromMetadata = dto.idpMetadata
+        ? parseIdpMetadata(dto.idpMetadata)
+        : null;
+      if (fromMetadata) {
+        // Metadata completa: rellena cert/URL si el admin no los pego.
+        dto.idpCertificate = dto.idpCertificate || fromMetadata.certificate;
+        dto.idpSsoUrl = dto.idpSsoUrl || fromMetadata.ssoUrl;
+      }
+      if (!dto.idpCertificate) {
+        throw new BadRequestException(
+          'SAML requires idpCertificate (or idpMetadata containing one)',
+        );
+      }
+      if (!dto.idpSsoUrl) {
+        throw new BadRequestException(
+          'SAML requires idpSsoUrl (or idpMetadata containing SingleSignOnService)',
+        );
+      }
+    } else if (!dto.issuer || !dto.clientId || !dto.clientSecret) {
+      throw new BadRequestException(
+        'OIDC requires issuer, clientId and clientSecret',
+      );
+    }
+    const roleGroups = normalizeRoleGroupsInput(dto.roleGroups);
     const data = {
-      issuer: dto.issuer,
-      clientId: dto.clientId,
-      clientSecret: encrypt(dto.clientSecret),
-      authorizationEndpoint: dto.authorizationEndpoint,
-      tokenEndpoint: dto.tokenEndpoint,
+      protocol,
+      issuer: dto.issuer ?? '',
+      clientId: dto.clientId ?? '',
+      clientSecret: encrypt(dto.clientSecret ?? '-'),
+      authorizationEndpoint: dto.authorizationEndpoint ?? '',
+      tokenEndpoint: dto.tokenEndpoint ?? '',
       jwksUri: dto.jwksUri ?? null,
       userinfoEndpoint: dto.userinfoEndpoint ?? null,
       scopes: dto.scopes ?? 'openid email profile',
+      idpMetadata: dto.idpMetadata ?? null,
+      idpEntityId: dto.idpEntityId ?? null,
+      idpSsoUrl: dto.idpSsoUrl ?? null,
+      idpCertificate: dto.idpCertificate ?? null,
+      spEntityId: dto.spEntityId ?? null,
       defaultRole: dto.defaultRole ?? 'EMPLOYEE',
+      roleGroups: roleGroups ?? Prisma.DbNull,
       isActive: dto.isActive ?? true,
     };
     const existing = await this.prisma.ssoProvider.findUnique({
@@ -362,10 +442,18 @@ export class SsoService {
     }
 
     if (data.isActive !== undefined) {
-      data.isActive = data.isActive === true || (data.isActive as unknown) === 'true';
+      data.isActive =
+        data.isActive === true || (data.isActive as unknown) === 'true';
     }
 
-    // jwksUri/userinfoEndpoint admiten explicitamente null para limpiar.
+    // El mapeo grupo->rol se normaliza/valida antes de persistir; objeto
+    // vacio o null limpia el mapeo (DbNull = SQL NULL).
+    if (data.roleGroups !== undefined) {
+      const roleGroups = normalizeRoleGroupsInput(data.roleGroups);
+      data.roleGroups = roleGroups ?? Prisma.DbNull;
+    }
+
+    // jwksUri/userinfoEndpoint y los campos SAML admiten null explicito para limpiar.
     return this.prisma.ssoProvider.update({
       where: { id },
       data,
@@ -386,8 +474,16 @@ export class SsoService {
     if (!provider) {
       throw new NotFoundException('SSO is not configured for this company');
     }
+    let roleGroups: RoleGroupMap | null = null;
+    if (provider.roleGroups) {
+      roleGroups = parseRoleGroups(provider.roleGroups);
+    }
     // El secreto se guarda cifrado en reposo; se descifra solo para usarlo.
-    return { ...provider, clientSecret: decryptSecret(provider.clientSecret) };
+    return {
+      ...provider,
+      clientSecret: decryptSecret(provider.clientSecret),
+      roleGroups,
+    };
   }
 
   private jwksFor(provider: SsoProviderRecord) {

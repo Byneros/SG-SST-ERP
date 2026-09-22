@@ -1,9 +1,22 @@
 import { Role } from '@prisma/client';
-import { IsBoolean, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+} from 'class-validator';
 
 const assignableRoles: Role[] = ['EMPLOYEE', 'SST', 'AUDITOR', 'ADMIN'];
 
 export class UpdateSsoProviderDto {
+  @IsOptional()
+  @IsIn(['OIDC', 'SAML'])
+  protocol?: 'OIDC' | 'SAML';
+
+  // --- OIDC ---
   @IsOptional()
   @IsUrl({ require_tld: false })
   issuer?: string;
@@ -39,9 +52,39 @@ export class UpdateSsoProviderDto {
   @MaxLength(255)
   scopes?: string;
 
+  // --- SAML ---
+  @IsOptional()
+  @IsString()
+  @MaxLength(65535)
+  idpMetadata?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  idpEntityId?: string | null;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  idpSsoUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(65535)
+  idpCertificate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  spEntityId?: string | null;
+
   @IsOptional()
   @IsIn(assignableRoles)
   defaultRole?: Role;
+
+  // Overrides de rol por grupo del IdP; objeto vacio o null para limpiar.
+  @IsOptional()
+  @IsObject()
+  roleGroups?: Record<string, string> | null;
 
   @IsOptional()
   @IsBoolean()

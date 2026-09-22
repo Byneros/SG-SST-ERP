@@ -77,6 +77,6 @@ La arquitectura SaaS aplicada esta documentada en:
 ## Roadmap tecnico inmediato
 
 1. Configurar el proveedor cloud para desplegar `docker-compose.prod.yml` con las imagenes GHCR por etiqueta SHA (ver `docs/despliegue-por-ambientes.md`).
-2. SSO SAML para clientes empresariales (OIDC ya implementado; ver `docs/plan-fase-9-plataforma.md`).
-3. Overrides de rol por grupo del IdP y e2e de aislamiento SSO en el harness multi-tenant.
+2. SSO SAML para clientes empresariales (implementado: `docs/plan-fase-9-plataforma.md`, seccion 9.4).
+3. Overrides de rol por grupo del IdP: implementado (`roleGroups` en SsoProvider; ver `docs/plan-fase-9-plataforma.md`, seccion 9.4). Resta e2e de aislamiento SSO en el harness multi-tenant.
 4. Hardening de observabilidad: alertas de backup ya viajan por email (`BACKUP_ALERT_EMAIL_*`) y restore check mensual automatico (`BACKUP_RESTORE_CHECK_DAYS`).

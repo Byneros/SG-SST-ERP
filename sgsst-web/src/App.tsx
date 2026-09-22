@@ -257,7 +257,7 @@ function App() {
   const [mfaSettingsOpen, setMfaSettingsOpen] = useState(false)
   const [mfaSetup, setMfaSetup] = useState({ secret: '', otpauthUrl: '', code: '' })
   const [bootstrapOpen, setBootstrapOpen] = useState(false)
-  const [ssoOptions, setSsoOptions] = useState<Array<{ companyId: string; companyName: string }>>([])
+  const [ssoOptions, setSsoOptions] = useState<Array<{ companyId: string; companyName: string; protocol: string }>>([])
   const [ssoOptionsOpen, setSsoOptionsOpen] = useState(false)
   const [ssoConfigOpen, setSsoConfigOpen] = useState(false)
   const [ssoConfigCompany, setSsoConfigCompany] = useState<Company | null>(null)
@@ -726,10 +726,15 @@ function App() {
     }
   }
 
-  function handleSsoCompanySelected(companyId: string) {
+  function handleSsoCompanySelected(option: { companyId: string; protocol: string }) {
     setSsoOptionsOpen(false)
+    // SAML: el backend responde con la URL del binding redirect del IdP; el
+    // endpoint y el flujo (RelayState) cambian segun protocolo.
+    const endpoint = option.protocol === 'SAML'
+      ? `/auth/sso/saml/${option.companyId}/authorize`
+      : '/auth/sso/authorize'
     void api
-      .get('/auth/sso/authorize', { params: { companyId, redirect: '/' } })
+      .get(endpoint, { params: { companyId: option.companyId, redirect: '/' } })
       .then((response: { data: { authorizationUrl: string } }) => {
         window.location.href = response.data.authorizationUrl
       })
@@ -747,6 +752,7 @@ function App() {
       setSsoProviderId(response.data.id ?? '')
       if (response.data.configured) {
         setSsoConfigValues({
+          protocol: response.data.protocol ?? 'OIDC',
           issuer: response.data.issuer ?? '',
           clientId: response.data.clientId ?? '',
           clientSecret: '',
@@ -755,7 +761,15 @@ function App() {
           jwksUri: response.data.jwksUri ?? '',
           userinfoEndpoint: response.data.userinfoEndpoint ?? '',
           scopes: response.data.scopes ?? 'openid email profile',
+          idpEntityId: response.data.idpEntityId ?? '',
+          idpSsoUrl: response.data.idpSsoUrl ?? '',
+          idpCertificate: response.data.idpCertificate ?? '',
+          spEntityId: response.data.spEntityId ?? '',
           defaultRole: response.data.defaultRole ?? 'EMPLOYEE',
+          // El backend guarda el mapeo como JSON; se muestra formateado.
+          roleGroups: response.data.roleGroups
+            ? JSON.stringify(response.data.roleGroups, null, 2)
+            : '',
           isActive: response.data.isActive ?? true,
         })
       }
@@ -766,17 +780,39 @@ function App() {
 
   async function saveSsoConfig() {
     if (!ssoConfigCompany) return
+    // Mapeo grupo->rol: se valida el JSON antes de enviar (feedback inmediato);
+    // vacio = sin overrides (null limpia el mapeo en el backend).
+    let roleGroups: Record<string, string> | null = null
+    if (ssoConfigValues.roleGroups.trim()) {
+      try {
+        roleGroups = JSON.parse(ssoConfigValues.roleGroups) as Record<string, string>
+      } catch {
+        setError('El mapeo de roles por grupo no es JSON valido.')
+        return
+      }
+    }
     // Los campos vacios van como undefined (el DTO los trata como opcionales).
+    const isSaml = ssoConfigValues.protocol === 'SAML'
+    // Los campos vacios van como undefined (el DTO los trata como opcionales);
+    // solo se envian los campos del protocolo elegido.
     const payload = {
-      issuer: ssoConfigValues.issuer,
-      clientId: ssoConfigValues.clientId,
-      clientSecret: ssoConfigValues.clientSecret || undefined,
-      authorizationEndpoint: ssoConfigValues.authorizationEndpoint,
-      tokenEndpoint: ssoConfigValues.tokenEndpoint,
-      jwksUri: ssoConfigValues.jwksUri || undefined,
-      userinfoEndpoint: ssoConfigValues.userinfoEndpoint || undefined,
-      scopes: ssoConfigValues.scopes || undefined,
+      protocol: ssoConfigValues.protocol,
+      // OIDC
+      issuer: isSaml ? undefined : ssoConfigValues.issuer,
+      clientId: isSaml ? undefined : ssoConfigValues.clientId,
+      clientSecret: isSaml ? undefined : ssoConfigValues.clientSecret || undefined,
+      authorizationEndpoint: isSaml ? undefined : ssoConfigValues.authorizationEndpoint,
+      tokenEndpoint: isSaml ? undefined : ssoConfigValues.tokenEndpoint,
+      jwksUri: isSaml ? undefined : ssoConfigValues.jwksUri || undefined,
+      userinfoEndpoint: isSaml ? undefined : ssoConfigValues.userinfoEndpoint || undefined,
+      scopes: isSaml ? undefined : ssoConfigValues.scopes || undefined,
+      // SAML
+      idpEntityId: isSaml ? ssoConfigValues.idpEntityId || undefined : undefined,
+      idpSsoUrl: isSaml ? ssoConfigValues.idpSsoUrl : undefined,
+      idpCertificate: isSaml ? ssoConfigValues.idpCertificate : undefined,
+      spEntityId: isSaml ? ssoConfigValues.spEntityId || undefined : undefined,
       defaultRole: ssoConfigValues.defaultRole,
+      roleGroups,
       isActive: ssoConfigValues.isActive,
     }
     await saveRecord(() =>
@@ -1802,7 +1838,7 @@ function App() {
               <Button
                 key={option.companyId}
                 variant="outlined"
-                onClick={() => handleSsoCompanySelected(option.companyId)}
+                onClick={() => handleSsoCompanySelected(option)}
               >
                 {option.companyName}
               </Button>
