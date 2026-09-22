@@ -121,8 +121,18 @@ Frontend: campo JSON en el diálogo SSO con validación client-side. Unitarios:
 integración en `sso.service.spec.ts` (JIT con rol mapeado, degradación por grupo,
 conservación del rol sin match).
 
-*Resta (futuro):* e2e de aislamiento en el harness multi-tenant, QA en navegador
-con un IdP SAML real y con grupos (OIDC ya cubierto por unitarios).
+*e2e de aislamiento SSO (2026-09-22):* suite `test/sso-multi-tenant.e2e-spec.ts`
+en el harness multi-tenant (dos empresas, provider OIDC por empresa, IdP mock
+sobre `fetch`, Prisma en memoria): flujo OIDC completo por empresa con JIT
+aterrizando en la empresa correcta, state one-shot (no reuso, expiracion,
+redirect unsafe descartado), aislamiento de states entre empresas, vinculacion
+por email rechazada cross-tenant, usuarios inactivos rechazados, RBAC del panel
+(EMPLOYEE 403, ADMIN de A sin acceso al provider de B, secreto nunca expuesto)
+y SAML cross-tenant (RelayState de A contra el ACS de B: rechazado y consumido).
+También `transformIgnorePatterns` para `jose` en `jest-e2e.json`.
+
+*Resta (futuro):* QA en navegador con un IdP SAML real y con grupos (OIDC ya
+cubierto por unitarios y e2e).
 
 ## Prioridades ajustadas (ejecutadas)
 
@@ -134,8 +144,8 @@ con un IdP SAML real y con grupos (OIDC ya cubierto por unitarios).
 3. **9.2 — completado (Sprint 3)**: alerta SMTP + restore check mensual
    verificado en vivo.
 4. **9.4 — OIDC completado (Sprint 1); SAML completado (2026-09-22)**: fix del
-   QA visual + flujo E2E con IdP mock (OIDC), e implementación SAML por empresa
-   con metadata SP, ACS y unitarios.
+   QA visual + flujo E2E con IdP mock (OIDC), SAML por empresa con metadata SP,
+   ACS, overrides de rol por grupo del IdP y e2e de aislamiento SSO.
 
 Criterio de cierre de la fase: ~~QA en navegador~~ (hecho: entregas, SSO y
 login), ~~restauración real de un backup cifrado para 9.2~~ (hecho: restore
