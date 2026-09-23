@@ -10,6 +10,16 @@ on:
         options:
           - staging
           - production
+      migrate_mode:
+        description: Modo de migraciones (auto = lo decide MIGRATE_VIA_SSH del ambiente)
+        required: false
+        type: choice
+        default: auto
+        options:
+          - auto
+          - direct
+          - ssh-tunnel
+          - disabled
 
 permissions:
   contents: read
@@ -108,7 +118,7 @@ jobs:
       #   "ssh-tunnel" -> abre un tunel SSH hacia la VM y aplica por 127.0.0.1:15432
       #   "disabled"   -> omite las migraciones (p. ej. primer release sin base aun)
       #   vacio u otro -> conexion directa (Postgres gestionado alcanzable desde Actions)
-      DB_MODE: ${{ vars.MIGRATE_VIA_SSH }}
+      DB_MODE: ${{ inputs.migrate_mode == 'auto' && vars.MIGRATE_VIA_SSH || inputs.migrate_mode }}
       # Secretos por ambiente (prefijo STAGING_/PRODUCTION_ segun inputs.target):
       #   <PREFIX>_SSH_HOST / <PREFIX>_SSH_USER / <PREFIX>_SSH_KEY  (obligatorios en tunel)
       #   <PREFIX>_SSH_PORT (defecto 22) / <PREFIX>_PG_TUNNEL_PORT (defecto 5432)
