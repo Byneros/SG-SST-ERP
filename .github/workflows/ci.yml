@@ -99,3 +99,18 @@ jobs:
 
       - name: Validate compose file
         run: docker compose config
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint shell scripts
+        run: |
+          scripts=$(git ls-files '*.sh')
+          test -n "$scripts" || { echo "No shell scripts found"; exit 1; }
+          echo "Linting: $scripts"
+          docker run --rm -v "$PWD:/mnt:ro" --workdir /mnt \
+            koalaman/shellcheck:stable $scripts
