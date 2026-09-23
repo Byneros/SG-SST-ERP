@@ -106,6 +106,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Modo de conexion a la base del ambiente. Variable del AMBIENTE (no secreto):
       #   "ssh-tunnel" -> abre un tunel SSH hacia la VM y aplica por 127.0.0.1:15432
+      #   "disabled"   -> omite las migraciones (p. ej. primer release sin base aun)
       #   vacio u otro -> conexion directa (Postgres gestionado alcanzable desde Actions)
       DB_MODE: ${{ vars.MIGRATE_VIA_SSH }}
       # Secretos por ambiente (prefijo STAGING_/PRODUCTION_ segun inputs.target):
@@ -129,11 +130,12 @@ jobs:
       - name: Resolve migration mode
         id: mode
         run: |
-          if [ "$DB_MODE" = "ssh-tunnel" ]; then
-            echo "mode=tunnel" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=direct" >> "$GITHUB_OUTPUT"
-          fi
+          case "$DB_MODE" in
+            ssh-tunnel)   echo "mode=tunnel"   >> "$GITHUB_OUTPUT" ;;
+            disabled|off) echo "mode=disabled" >> "$GITHUB_OUTPUT" ;;
+            *)            echo "mode=direct"   >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "Migration mode: $(cat "$GITHUB_OUTPUT" | cut -d= -f2)"
 
       - name: Validate database target
         run: |
@@ -147,6 +149,7 @@ jobs:
           esac
 
       - name: Set up Node
+        if: steps.mode.outputs.mode != 'disabled'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -154,6 +157,7 @@ jobs:
           cache-dependency-path: sgsst-api/package-lock.json
 
       - name: Install dependencies
+        if: steps.mode.outputs.mode != 'disabled'
         run: npm ci
 
       - name: Require tunnel secrets
@@ -231,6 +235,7 @@ jobs:
           '
 
       - name: Deploy migrations
+        if: steps.mode.outputs.mode != 'disabled'
         env:
           # Tunel: MIGRATE_DATABASE_URL (via GITHUB_ENV); directo: la original.
           DATABASE_URL: ${{ env.MIGRATE_DATABASE_URL || secrets.DATABASE_URL }}
