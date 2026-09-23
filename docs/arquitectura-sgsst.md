@@ -202,22 +202,27 @@ Ya aplicado:
 - DTO validation estricta.
 - CORS configurable.
 - Cabeceras básicas de seguridad.
-- Rate limit en memoria.
+- Rate limit distribuido con Redis (fallback en memoria).
 - Soft delete.
 - Audit logs.
 - Rechazo de `JWT_SECRET` inseguro en producción.
+- Refresh tokens rotativos.
+- MFA para `ADMIN`, `SST` y `AUDITOR`.
+- Encriptación de documentos en storage externo (SSE del proveedor).
+- Política de backups cifrados y prueba de restauración mensual automatizada.
+- Auditoría funcional de exportaciones y descargas.
 
 Mejoras pendientes para producción:
 
-- Refresh tokens rotativos.
-- MFA para `ADMIN`, `SST` y `AUDITOR`.
-- Rate limiting distribuido con Redis.
-- Gestor de secretos cloud.
-- Encriptación de documentos en storage externo.
+- Gestor de secretos cloud (hoy variables de entorno del servidor).
 - Mascaramiento de datos sensibles en logs.
-- Política de backups y pruebas de restauración.
-- Auditoría funcional de exportaciones y descargas.
 - Bloqueo temporal por intentos fallidos.
+
+(Estado revisado contra el código en 2026-09-23: los ítems movidos a "Ya
+aplicado" están verificados en `sgsst-api/src` — MFA y refresh rotativo en
+`modules/auth`, Redis en `common/middleware/rate-limit.middleware.ts`, SSE en
+`modules/documents/documents-storage.service.ts`, auditoría de exportaciones
+en `modules/reports`, backups age + restore check en la Fase 9.2.)
 
 ## 10. Integraciones futuras
 
