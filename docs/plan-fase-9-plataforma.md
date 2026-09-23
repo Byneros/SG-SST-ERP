@@ -35,8 +35,16 @@ identidad empresarial.
   rechazado por scope).
 
 *Resta (opcional):*
-- e2e de entregas en el harness multi-tenant: el aislamiento ya queda cubierto
-  por unitarios; el harness e2e aún no monta el módulo de notificaciones.
+- ~~e2e de entregas en el harness multi-tenant: el aislamiento ya queda cubierto
+  por unitarios; el harness e2e aún no monta el módulo de notificaciones.~~
+  **Hecho (2026-09-23):** `test/external-deliveries-multi-tenant.e2e-spec.ts`
+  monta el `NotificationsController` real con Prisma en memoria (mismo patrón
+  del harness SSO) y cola deshabilitada para el camino directo: 17 casos sobre
+  listado con scope/filtros/paginación, aislamiento A/B, RBAC (EMPLOYEE 403,
+  sin token 401, SUPER_ADMIN sin empresa activa 403), reintento individual
+  (SENT/FAILED+backoff/SKIPPED, agotada forzada, cross-tenant 403, 404) y
+  masivo (solo FAILED del alcance, respeta `maxAttempts` y backoff, auditoría
+  `EXTERNAL_DELIVERY_RETRY`).
 - ~~QA visual en navegador de la consola completa.~~ **Hecho (Sprint 4):** tabla,
   filtros, "Reintentar fallidas" y navegación renderizan sin errores de consola.
 
@@ -186,4 +194,27 @@ con un simulador de IdP (certificado autofirmado, assertions firmados con
 Criterio de cierre de la fase: ~~QA en navegador~~ (hecho: entregas, SSO y
 login), ~~restauración real de un backup cifrado para 9.2~~ (hecho: restore
 check con 34 tablas), y despliegue desde GHCR en un entorno limpio para 9.3
-(documentado; requiere proveedor cloud con las etiquetas publicadas).
+(hecho localmente el 2026-09-23, ver abajo; en cloud requiere la VM del
+proveedor, decision aplazada en `docs/despliegue-preparacion.md`).
+
+### Validación de despliegue y bootstrap (2026-09-23)
+
+Con Docker local se ejecutó por primera vez el flujo completo que usara
+staging, sin cloud y sin tocar la pila de desarrollo:
+
+1. **Smoke de `docker-compose.prod.yml`**: imágenes etiquetadas
+   `sha-a7463b5...` construidas localmente (API con tests dentro; web con
+   `VITE_API_URL` como build-arg), `.env` efímero en `/tmp` con project name
+   aislado, `prisma migrate deploy` contra postgres del compose, y los cinco
+   servicios healthy (api, worker, web, postgres, redis). Verificado:
+   `/health` y `/ready` OK (db+redis), `/metrics` 403 sin token y 200 con
+   `x-metrics-token`, web 200 sirviendo el bundle con la `VITE_API_URL`
+   compilada, worker con crons de colas registrados y rollback web simulado
+   re-fijando `IMAGE_TAG` (mecanismo; en local falló solo por no existir la
+   etiqueta en GHCR).
+2. **`deploy/bootstrap-vm.sh` probado en contenedor** Ubuntu 22.04 limpio
+   (`--privileged`, `--skip-firewall`, modo documentado en el propio script):
+   Docker Engine + compose v2, Caddy 2.11.4, `/opt/sgsst` con compose y
+   `.env` desde el ejemplo (chmod 600) y resumen de próximos pasos. Nota
+   Windows/Git Bash: usar `MSYS_NO_PATHCONV=1` para que no reescriba
+   `/repo/...` del contenedor.
