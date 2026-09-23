@@ -10,6 +10,14 @@ decidir/configurar antes de tocar un servidor.
 
 ## Lo que ya está listo (verificado)
 
+- [x] `deploy/staging.env.example`: `.env` de referencia para staging con todos
+      los secretos/URLs como placeholders y los binds loopback por defecto.
+- [x] `deploy/caddy/Caddyfile`: TLS de referencia (api. + app. del host de
+      staging, reenvía a los binds loopback del compose).
+- [x] `docker-compose.prod.yml`: API y web ahora publican SOLO en
+      `127.0.0.1` (defaults `API_HOST_PORT`/`WEB_HOST_PORT`), validado con
+      `docker compose config`; Postgres sigue sin exponer puertos al host.
+
 - [x] `.github/workflows/release.yml`: publica `sgsst-api` y `sgsst-web` a GHCR
       con tags `sha-<commit>` + `{staging|production}-latest`, valida
       `VITE_API_URL` y aplica migraciones con job separado (`migrate`).
@@ -24,6 +32,10 @@ decidir/configurar antes de tocar un servidor.
 
 ## Decisiones pendientes
 
+0. **Creación de la VM**: aplazada (decisión 2026-09-23). Los archivos de
+   deploy ya están preparados (`deploy/staging.env.example`,
+   `deploy/caddy/Caddyfile`); crear la VM es el único paso manual restante
+   cuando se disponga de cuenta/proveedor.
 1. **Proveedor cloud** (VM 2 vCPU / 4 GB RAM con Docker 24+, Ubuntu 22.04/24.04).
    El catálogo evaluado no aporta IaaS para esta pila (PostgreSQL + Redis +
    worker de larga ejecución descartan serverless): se recomienda una VM

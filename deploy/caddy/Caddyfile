@@ -1,0 +1,38 @@
+# Caddyfile de staging para SG-SST ERP.
+# Caddy termina TLS (certificados Let's Encrypt automaticos) y reenvia a los
+# puertos que el compose publica en 127.0.0.1 (ver deploy/staging.env.example:
+# API_PORT y WEB_PORT con bind loopback). Nunca exponer 3001/8080 en el
+# firewall: todo entra por 80/443 de Caddy.
+#
+# Reemplaza STAGING_HOST por el hostname real: dominio propio o el DNS
+# dinamico sslip.io/nip.io apuntando a la IP publica del servidor,
+# p. ej. app.203.0.113.10.sslip.io (el DNS resuelve la IP embebida).
+#
+# Uso en el servidor:
+#   sudo cp deploy/caddy/Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Requisitos de DNS: ambos hostnames deben resolver a la IP publica del
+# servidor ANTES de arrancar Caddy (emite certificados en el arranque).
+#
+# Alternativa gestionada: si el proveedor ofrece balanceador con certificado
+# administrado (ALB, Cloud Load Balancer), omitir Caddy y apuntar los targets
+# a 127.0.0.1:3001 (API) y 127.0.0.1:8080 (web) via los binds loopback del compose.
+
+app.STAGING_HOST {
+	# GZip/Brotli compresion para la web estatica.
+	encode zstd gzip
+
+	reverse_proxy 127.0.0.1:8080
+}
+
+api.STAGING_HOST {
+	encode zstd gzip
+
+	# La API detras del proxy: timeout largo para exportaciones PDF/CSV.
+	reverse_proxy 127.0.0.1:3001 {
+		transport http {
+			response_header_timeout 120s
+		}
+	}
+}

@@ -101,7 +101,9 @@ services:
       EXTERNAL_DELIVERY_MAX_ATTEMPTS: ${EXTERNAL_DELIVERY_MAX_ATTEMPTS:-3}
       EXTERNAL_DELIVERY_RETRY_BASE_SECONDS: ${EXTERNAL_DELIVERY_RETRY_BASE_SECONDS:-300}
     ports:
-      - "${API_PORT:-3001}:${API_PORT:-3001}"
+      # Bind loopback por defecto: el TLS lo termina Caddy delante (deploy/caddy/Caddyfile).
+      # Para cambiar el puerto del host usar API_HOST_PORT; nunca abrir 3001 al mundo.
+      - "${API_HOST_PORT:-127.0.0.1}:3001:3001"
     volumes:
       - document_uploads:/app/uploads
     depends_on:
@@ -193,7 +195,8 @@ services:
     restart: unless-stopped
     # VITE_API_URL ya viene compilada dentro de la imagen (build-arg del release).
     ports:
-      - "${WEB_PORT:-80}:80"
+      # Bind loopback por defecto (web publica en 8080 local; Caddy reenvia 443 -> 8080).
+      - "${WEB_HOST_PORT:-127.0.0.1}:8080:80"
     depends_on:
       api:
         condition: service_healthy

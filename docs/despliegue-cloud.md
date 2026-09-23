@@ -73,8 +73,11 @@ PUBLIC_BASE_URL=https://api.example.com
 WEB_BASE_URL=https://app.example.com
 
 # --- Opcionales con valor por defecto sano ---
-API_PORT=3001
-WEB_PORT=8080                      # solo escucha local del proxy; no abrir en el firewall
+# API y web publican SOLO en 127.0.0.1 (bind loopback); Caddy delante es la
+# unica puerta 80/443. Sobrescribir API_HOST_PORT/WEB_HOST_PORT solo si el
+# proveedor usa un balanceador privado que necesite otro bind.
+API_HOST_PORT=127.0.0.1
+WEB_HOST_PORT=127.0.0.1
 JWT_EXPIRES_IN=1h
 REFRESH_TOKEN_EXPIRES_IN=7d
 REDIS_URL=redis://redis:6379
@@ -122,7 +125,8 @@ migraciones NO corre este compose: ya las aplico el job `migrate` del workflow
 
 ## 6. TLS con reverse proxy (Caddy, recomendado)
 
-Opcion A: Caddy en el host o como servicio extra, con `Caddyfile`:
+Opcion A: Caddy en el host o como servicio extra, con `Caddyfile` de referencia
+en `deploy/caddy/Caddyfile` (apunta a `127.0.0.1:8080` web y `127.0.0.1:3001` API):
 
 ```caddyfile
 app.example.com {
