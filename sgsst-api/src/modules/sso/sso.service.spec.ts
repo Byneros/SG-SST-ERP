@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { encryptSecret } from './sso-crypto';
 import { SsoService } from './sso.service';
 
@@ -172,6 +178,94 @@ describe('SsoService', () => {
         buildService().handleCallback('auth-code', 'state-1'),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects a callback without code or state', async () => {
+      await expect(
+        buildService().handleCallback(undefined, 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        buildService().handleCallback('auth-code', undefined),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      // Sin state no hay nada que consumir ni proveedor que consultar.
+      expect(prisma.ssoState.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects an inactive user found by email during linking', async () => {
+      prisma.ssoState.findUnique.mockResolvedValue({
+        id: 'state-1',
+        companyId: 'company-a',
+        redirect: '/',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null) // por ssoSubject
+        .mockResolvedValueOnce({
+          id: 'user-inactivo-link',
+          email: 'user@company.test',
+          isActive: false,
+          companyId: 'company-a',
+        });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(
+          jsonResponse({ sub: 'sub-1', email: 'user@company.test' }),
+        );
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(authService.issueSession).not.toHaveBeenCalled();
+    });
+
+    it('rejects JIT provisioning when the IdP gives no email', async () => {
+      prisma.ssoState.findUnique.mockResolvedValue({
+        id: 'state-1',
+        companyId: 'company-a',
+        redirect: '/',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.user.findUnique.mockResolvedValue(null);
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(jsonResponse({ sub: 'sub-sin-email' }));
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a user whose ssoSubject identity belongs to another company', async () => {
+      prisma.ssoState.findUnique.mockResolvedValue({
+        id: 'state-1',
+        companyId: 'company-a',
+        redirect: '/',
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+      // El usuario existe por ssoSubject pero su companyId es de otra empresa.
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-cross',
+        ssoSubject: `${provider.issuer}|sub-1`,
+        email: 'user@company.test',
+        name: 'Cross',
+        role: 'EMPLOYEE',
+        isActive: true,
+        companyId: 'company-b',
+      });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(
+          jsonResponse({ sub: 'sub-1', email: 'user@company.test' }),
+        );
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(authService.issueSession).not.toHaveBeenCalled();
     });
 
     it('rejects an expired state', async () => {
@@ -386,6 +480,426 @@ describe('SsoService', () => {
       // Sin match no se toca el rol local (evita degradaciones accidentales).
       expect(prisma.user.update).not.toHaveBeenCalled();
       expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('provider administration (upsert/update/find/delete)', () => {
+    const encrypt = (plain: string) => `encrypted(${plain})`;
+
+    it('upsertProvider stores an OIDC provider with an encrypted secret', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue(null);
+      prisma.ssoProvider.create.mockImplementation((args: unknown) =>
+        Promise.resolve(args),
+      );
+
+      const result = await buildService().upsertProvider(
+        'company-a',
+        {
+          protocol: 'OIDC',
+          issuer: 'https://idp.example.test',
+          clientId: 'client-id',
+          clientSecret: 'raw-secret',
+          authorizationEndpoint: 'https://idp.example.test/authorize',
+          tokenEndpoint: 'https://idp.example.test/token',
+          defaultRole: 'SST',
+        },
+        encrypt,
+      );
+
+      const data = (result as { data: Record<string, unknown> }).data;
+      expect(data.clientSecret).toBe('encrypted(raw-secret)');
+      expect(data.scopes).toBe('openid email profile');
+      expect(data.defaultRole).toBe('SST');
+      expect(prisma.ssoProvider.create).toHaveBeenCalled();
+    });
+
+    it('upsertProvider updates when a provider already exists', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue({ id: 'provider-1' });
+      prisma.ssoProvider.update.mockResolvedValue({ id: 'provider-1' });
+
+      await buildService().upsertProvider(
+        'company-a',
+        {
+          protocol: 'OIDC',
+          issuer: 'https://idp.example.test',
+          clientId: 'client-id',
+          clientSecret: 'raw-secret',
+        },
+        encrypt,
+      );
+
+      expect(prisma.ssoProvider.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'provider-1' } }),
+      );
+      expect(prisma.ssoProvider.create).not.toHaveBeenCalled();
+    });
+
+    it('upsertProvider rejects OIDC without issuer/clientId/clientSecret', async () => {
+      await expect(
+        buildService().upsertProvider('company-a', {}, encrypt),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('upsertProvider rejects SAML without certificate or metadata', async () => {
+      await expect(
+        buildService().upsertProvider(
+          'company-a',
+          { protocol: 'SAML', idpSsoUrl: 'https://idp/sso/login' },
+          encrypt,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('upsertProvider rejects SAML without SSO URL', async () => {
+      await expect(
+        buildService().upsertProvider(
+          'company-a',
+          { protocol: 'SAML', idpCertificate: 'ABCDEF' },
+          encrypt,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('upsertProvider fills certificate and SSO URL from IdP metadata', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue(null);
+      prisma.ssoProvider.create.mockImplementation((args: unknown) =>
+        Promise.resolve(args),
+      );
+
+      const result = await buildService().upsertProvider(
+        'company-a',
+        {
+          protocol: 'SAML',
+          idpMetadata:
+            '<X509Certificate>META-CERT</X509Certificate><SingleSignOnService Location="https://idp/sso/post"/>',
+        },
+        encrypt,
+      );
+
+      const data = (result as { data: Record<string, unknown> }).data;
+      expect(data.idpCertificate).toBe('META-CERT');
+      expect(data.idpSsoUrl).toBe('https://idp/sso/post');
+    });
+
+    it('upsertProvider persists a valid roleGroups mapping', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue(null);
+      prisma.ssoProvider.create.mockImplementation((args: unknown) =>
+        Promise.resolve(args),
+      );
+
+      const result = await buildService().upsertProvider(
+        'company-a',
+        {
+          protocol: 'OIDC',
+          issuer: 'https://idp.example.test',
+          clientId: 'c',
+          clientSecret: 's',
+          roleGroups: { Devs: 'SST' },
+        },
+        encrypt,
+      );
+
+      expect(
+        (result as { data: Record<string, unknown> }).data.roleGroups,
+      ).toEqual({ Devs: 'SST' });
+    });
+
+    it('updateProvider encrypts a new secret and normalizes roleGroups', async () => {
+      prisma.ssoProvider.update.mockResolvedValue({ id: 'provider-1' });
+
+      await buildService().updateProvider(
+        'provider-1',
+        'company-a',
+        {
+          clientSecret: 'new-raw-secret',
+          roleGroups: { 'SG-SST-Admins': 'ADMIN' },
+          isActive: 'true' as unknown as boolean,
+        },
+        encrypt,
+      );
+
+      const updateCalls = prisma.ssoProvider.update.mock
+        .calls as unknown as Array<Array<{ data: Record<string, unknown> }>>;
+      expect(updateCalls[0][0].data.clientSecret).toBe(
+        'encrypted(new-raw-secret)',
+      );
+      expect(updateCalls[0][0].data.roleGroups).toEqual({
+        'SG-SST-Admins': 'ADMIN',
+      });
+      expect(updateCalls[0][0].data.isActive).toBe(true);
+    });
+
+    it('updateProvider clears roleGroups when null is sent and keeps the secret when empty', async () => {
+      prisma.ssoProvider.update.mockResolvedValue({ id: 'provider-1' });
+
+      await buildService().updateProvider(
+        'provider-1',
+        'company-a',
+        {
+          clientSecret: '',
+          roleGroups: null,
+        },
+        encrypt,
+      );
+
+      const updateCalls = prisma.ssoProvider.update.mock
+        .calls as unknown as Array<Array<{ data: Record<string, unknown> }>>;
+      // Secreto vacio = sin cambio; null en roleGroups = limpiar el mapeo
+      // (el servicio usa el sentinel DbNull de Prisma para SQL NULL).
+      expect(updateCalls[0][0].data.clientSecret).toBeUndefined();
+      expect(updateCalls[0][0].data.roleGroups).toBe(Prisma.DbNull);
+    });
+
+    it('findProviderByCompany masks the client secret and flags configured', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue({
+        id: 'provider-1',
+        clientSecret: encrypt('real-secret'),
+      });
+
+      const result = await buildService().findProviderByCompany('company-a');
+
+      expect(result).toMatchObject({ id: 'provider-1', configured: true });
+      expect((result as { clientSecret: string }).clientSecret).toBe('***');
+    });
+
+    it('findProviderByCompany returns null when not configured', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue(null);
+      expect(
+        await buildService().findProviderByCompany('company-a'),
+      ).toBeNull();
+    });
+
+    it('findProviderById throws NotFound for an unknown provider', async () => {
+      prisma.ssoProvider.findUnique.mockResolvedValue(null);
+      await expect(
+        buildService().findProviderById('nope'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('findProviderById returns the provider when it exists', async () => {
+      const existing = { id: 'provider-1', companyId: 'company-a' };
+      prisma.ssoProvider.findUnique.mockResolvedValue(existing);
+
+      const result = await buildService().findProviderById('provider-1');
+
+      expect(result).toEqual(existing);
+      expect(prisma.ssoProvider.findUnique).toHaveBeenCalledWith({
+        where: { id: 'provider-1' },
+      });
+    });
+
+    it('deleteProvider removes the row', async () => {
+      prisma.ssoProvider.delete.mockResolvedValue({ id: 'provider-1' });
+
+      await buildService().deleteProvider('provider-1');
+
+      expect(prisma.ssoProvider.delete).toHaveBeenCalledWith({
+        where: { id: 'provider-1' },
+      });
+    });
+
+    it('listActiveLoginOptions returns only public data of active providers', async () => {
+      prisma.ssoProvider.findMany = jest.fn().mockResolvedValue([
+        {
+          id: 'p1',
+          companyId: 'company-a',
+          protocol: 'OIDC',
+          issuer: 'https://idp-a',
+          authorizationEndpoint: 'https://idp-a/authorize',
+          company: { id: 'company-a', name: 'Empresa A' },
+        },
+        {
+          id: 'p2',
+          companyId: 'company-b',
+          protocol: 'SAML',
+          issuer: '',
+          authorizationEndpoint: '',
+          company: { id: 'company-b', name: 'Empresa B' },
+        },
+      ]);
+
+      const options = await buildService().listActiveLoginOptions();
+
+      expect(options).toEqual([
+        { companyId: 'company-a', companyName: 'Empresa A', protocol: 'OIDC' },
+        { companyId: 'company-b', companyName: 'Empresa B', protocol: 'SAML' },
+      ]);
+    });
+  });
+
+  describe('id_token exchange', () => {
+    const jwksUri = 'https://idp.example.test/.well-known/jwks.json';
+    const storedState = {
+      id: 'state-1',
+      companyId: 'company-a',
+      redirect: '/',
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+
+    function mockState() {
+      prisma.ssoState.findUnique.mockResolvedValue(storedState);
+      prisma.ssoState.deleteMany.mockResolvedValue({ count: 1 });
+    }
+
+    it('rejects when the token endpoint fails', async () => {
+      mockState();
+      fetchMock.mockResolvedValueOnce(new Response('boom', { status: 500 }));
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the userinfo endpoint fails', async () => {
+      mockState();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(new Response('boom', { status: 500 }));
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects when userinfo has no subject', async () => {
+      mockState();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ access_token: 'at' }))
+        .mockResolvedValueOnce(jsonResponse({ email: 'x@company.test' }));
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects when the IdP returns neither id_token nor a userinfo endpoint', async () => {
+      mockState();
+      prisma.ssoProvider.findFirst.mockResolvedValue({
+        ...provider,
+        userinfoEndpoint: null,
+      });
+      fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'at' }));
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects an id_token when no jwksUri is configured', async () => {
+      mockState();
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({ id_token: 'cualquier.jwt.valor' }),
+      );
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('verifies the id_token signature against the JWKS and issues the session', async () => {
+      mockState();
+      prisma.ssoProvider.findFirst.mockResolvedValue({
+        ...provider,
+        jwksUri,
+      });
+      const keypair = await generateKeyPair('ES256');
+      const publicJwk = await exportJWK(keypair.publicKey);
+      const token = await new SignJWT({
+        sub: 'sub-jwt',
+        email: 'jwt@company.test',
+        name: 'Usuario JWT',
+        groups: ['Devs'],
+      })
+        .setProtectedHeader({ alg: 'ES256' })
+        .setIssuer(provider.issuer)
+        .setAudience(provider.clientId)
+        .sign(keypair.privateKey);
+
+      fetchMock.mockImplementation((url: string | URL) => {
+        if (String(url) === provider.tokenEndpoint) {
+          return Promise.resolve(jsonResponse({ id_token: token }));
+        }
+        if (String(url) === jwksUri) {
+          return Promise.resolve(jsonResponse({ keys: [publicJwk] }));
+        }
+        return Promise.resolve(new Response('unexpected', { status: 500 }));
+      });
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: 'user-jwt',
+        name: 'Usuario JWT',
+        email: 'jwt@company.test',
+        role: 'EMPLOYEE',
+        companyId: 'company-a',
+        isActive: true,
+      });
+
+      await buildService().handleCallback('auth-code', 'state-1');
+
+      // Los claims salen del id_token verificado por firma (no de userinfo).
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          email: 'jwt@company.test',
+          ssoSubject: `${provider.issuer}|sub-jwt`,
+        }),
+      });
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        provider.userinfoEndpoint,
+        expect.anything(),
+      );
+    });
+
+    it('rejects an id_token without a subject (signature verified)', async () => {
+      mockState();
+      prisma.ssoProvider.findFirst.mockResolvedValue({
+        ...provider,
+        jwksUri,
+      });
+      const keypair = await generateKeyPair('ES256');
+      const publicJwk = await exportJWK(keypair.publicKey);
+      const token = await new SignJWT({ sub: '' })
+        .setProtectedHeader({ alg: 'ES256' })
+        .setIssuer(provider.issuer)
+        .setAudience(provider.clientId)
+        .sign(keypair.privateKey);
+
+      fetchMock.mockImplementation((url: string | URL) => {
+        if (String(url) === provider.tokenEndpoint) {
+          return Promise.resolve(jsonResponse({ id_token: token }));
+        }
+        if (String(url) === jwksUri) {
+          return Promise.resolve(jsonResponse({ keys: [publicJwk] }));
+        }
+        return Promise.resolve(new Response('unexpected', { status: 500 }));
+      });
+
+      await expect(
+        buildService().handleCallback('auth-code', 'state-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a session for an incomplete user record (integrity)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-incomplete',
+        ssoSubject: `${provider.issuer}|sub-1`,
+        email: 'incompleto@company.test',
+        name: '',
+        role: 'EMPLOYEE',
+        isActive: true,
+        companyId: 'company-a',
+      });
+
+      await expect(
+        buildService().resolveUserAndIssueSession(provider, {
+          sub: 'sub-1',
+          email: 'incompleto@company.test',
+        }),
+      ).rejects.toThrow('SSO user record is incomplete');
+      expect(authService.issueSession).not.toHaveBeenCalled();
     });
   });
 });

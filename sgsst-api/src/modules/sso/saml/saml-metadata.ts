@@ -9,12 +9,17 @@ export function parseIdpMetadata(
 ): { certificate: string; ssoUrl: string } | null {
   const trimmed = xml.trim();
   if (!trimmed.startsWith('<')) return null;
+  // Los elementos pueden llevar prefijo de namespace (p. ej. <ds:X509Certificate>).
   const certificate =
-    trimmed.match(/<X509Certificate>([^<]+)<\/X509Certificate>/)?.[1] ?? null;
+    trimmed.match(
+      /<(?:[\w.-]+:)?X509Certificate>([^<]+)<\/(?:[\w.-]+:)?X509Certificate>/,
+    )?.[1] ?? null;
   // Ultimo SingleSignOnService (los IdP suelen listar Redirect y POST).
   const ssoUrl =
     [
-      ...trimmed.matchAll(/<SingleSignOnService\b[^>]*\bLocation="([^"]+)"/g),
+      ...trimmed.matchAll(
+        /<(?:[\w.-]+:)?SingleSignOnService\b[^>]*\bLocation="([^"]+)"/g,
+      ),
     ].pop()?.[1] ?? null;
   if (!certificate || !ssoUrl) return null;
   return {
