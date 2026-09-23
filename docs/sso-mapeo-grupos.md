@@ -4,6 +4,26 @@ Esta guia explica como configurar el ingreso con identidad corporativa (SSO) por
 
 Referencias tecnicas: `docs/plan-fase-9-plataforma.md` (seccion 9.4, decisiones de implementacion) y `docs/permisos-rol-employee.md` (que puede hacer cada rol).
 
+## QA local con IdP simulador (SAML)
+
+Para probar el flujo SAML sin un IdP real, `sgsst-api` incluye un simulador:
+
+```bash
+# Terminal 1: IdP mock (puerto 3600, clave persistente en qa-saml-idp-key.pem)
+cd sgsst-api && npx tsx qa-saml-idp.mts
+
+# Terminal 2: sembrar el provider SAML de la primera empresa con el cert del IdP
+cd sgsst-api && npx tsx qa-saml-setup.mts [companyId]
+
+# Terminal 3: flujo en navegador (web en 5174, API en 3002)
+# Login -> "Ingresar con SSO empresarial" -> seleccionar la empresa ->
+# en el formulario del IdP elegir el grupo (memberOf) -> Autenticar.
+```
+
+El formulario del IdP mock permite cambiar el grupo para verificar los
+overrides de rol: `SG-SST-Admins` -> ADMIN, `SST-Team` -> SST,
+`Auditores` -> AUDITOR, sin grupo -> rol por defecto (EMPLOYEE).
+
 ## Conceptos
 
 - **IdP**: el proveedor de identidad del cliente (Okta, Entra ID / Azure AD, Google Workspace, Keycloak, ADFS, etc.). Es la fuente de verdad de quien es el usuario y a que grupos pertenece.

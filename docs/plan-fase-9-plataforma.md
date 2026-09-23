@@ -131,8 +131,44 @@ por email rechazada cross-tenant, usuarios inactivos rechazados, RBAC del panel
 y SAML cross-tenant (RelayState de A contra el ACS de B: rechazado y consumido).
 También `transformIgnorePatterns` para `jose` en `jest-e2e.json`.
 
-*Resta (futuro):* QA en navegador con un IdP SAML real y con grupos (OIDC ya
-cubierto por unitarios y e2e).
+*Resta (futuro):* ~~QA en navegador con un IdP SAML real y con grupos~~
+**Hecho (2026-09-23, ver QA SAML abajo)**. Solo resta QA contra un IdP SaaS
+real (Okta/Entra) cuando haya un cliente que lo demande.
+
+### QA SAML con IdP mock en navegador (2026-09-23)
+
+Se completo el ultimo pendiente de 9.4: verificacion end-to-end del flujo SAML
+con un simulador de IdP (certificado autofirmado, assertions firmados con
+`xml-crypto`, misma libreria que usa `@node-saml/node-saml` para validar).
+
+*Herramientas QA (raiz de `sgsst-api`, no se ejecutan en produccion):*
+- `qa-saml-idp.mts`: IdP mock en el puerto 3600. Expone `GET /metadata`
+  (cert + SSO URL), `GET|POST /sso` (binding Redirect/POST con formulario de
+  login mock: email, nombre y grupo/memberOf seleccionable) y firma el
+  assertion (XMLDSig enveloped, exc-c14n, RSA-SHA256). La clave se persiste en
+  `qa-saml-idp-key.pem` (gitignored) para que el cert sembrado no quede stale.
+- `qa-saml-setup.mts`: descarga la metadata del IdP, extrae cert/SSO URL con el
+  mismo parser que la API (`saml-metadata.ts`) y siembra el `SsoProvider` SAML
+  con `roleGroups` (`{"SG-SST-Admins":"ADMIN","SST-Team":"SST","Auditores":"AUDITOR"}`).
+
+*Verificado (API + web + IdP mock levantados, flujo completo por HTTP):*
+1. Metadata SP (`GET /api/v1/auth/sso/saml/:companyId/metadata`) generada y
+   consumible por el IdP.
+2. Flujo completo: authorize (RelayState one-shot en BD) -> AuthnRequest
+   deflated al IdP -> assertion firmado -> ACS valida firma/audiencia/timestamps
+   -> 302 a la web con sesion en el fragmento (`#access_token=...`).
+3. JIT con grupo: usuario nuevo con `memberOf=SG-SST-Admins` aterrizo con rol
+   **ADMIN** (override por `roleGroups`).
+4. JIT sin grupo: usuario nuevo sin `memberOf` aterrizo con rol **EMPLOYEE**
+   (rol por defecto del provider).
+5. Degradacion consciente: usuario existente ADMIN al reingresar con grupo
+   `Auditores` quedo **AUDITOR**; al reingresar con `SG-SST-Admins` volvio a
+   **ADMIN**; sin grupo conserva el rol asignado (sin match no se degrada).
+
+*Correcciones surgidas del QA (en codigo de la app):*
+- `sgsst-web/vite.config.ts`: el proxy de desarrollo solo cubria el callback
+  OIDC; el ACS SAML (`POST /api/v1/auth/sso/saml/:companyId/acs`) devolvia 404
+  en `PUBLIC_BASE_URL`. Se agrego el prefijo `/api/v1/auth/sso/saml` al proxy.
 
 ## Prioridades ajustadas (ejecutadas)
 
