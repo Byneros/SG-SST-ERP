@@ -19,6 +19,21 @@ delante (Caddy o Nginx) o el balanceador del proveedor.
 - Puertos abiertos: 80 y 443. **Los puertos de API y web del compose no deben
   exponerse a Internet directamente** (ver reverse proxy del paso 6).
 
+La forma rapida de preparar un servidor nuevo es el bootstrap idempotente
+`deploy/bootstrap-vm.sh`, que hace los pasos 1 (Docker), 6 (Caddy + Caddyfile
+con hostnames) y el firewall en un solo comando:
+
+```bash
+sudo bash deploy/bootstrap-vm.sh
+# con hostnames listos (deben resolver a la IP de la VM antes):
+sudo SGSST_APP_HOST=app.example.com SGSST_API_HOST=api.example.com \
+     bash deploy/bootstrap-vm.sh
+# flags: --skip-caddy (balanceador gestionado) y --skip-firewall (ufw en el panel)
+```
+
+Si prefieres hacerlo a mano, los pasos manuales equivalentes son los que
+siguen.
+
 ```bash
 curl -fsSL https://get.docker.com | sh
 docker compose version   # v2.x

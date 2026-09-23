@@ -14,6 +14,10 @@ decidir/configurar antes de tocar un servidor.
       los secretos/URLs como placeholders y los binds loopback por defecto.
 - [x] `deploy/caddy/Caddyfile`: TLS de referencia (api. + app. del host de
       staging, reenvía a los binds loopback del compose).
+- [x] `deploy/bootstrap-vm.sh`: bootstrap idempotente de la VM (Docker +
+      compose v2, Caddy, ufw con solo 22/80/443, `/opt/sgsst` con compose y
+      `.env` de referencia; instala el Caddyfile si se pasan los hostnames via
+      `SGSST_APP_HOST`/`SGSST_API_HOST`).
 - [x] `docker-compose.prod.yml`: API y web ahora publican SOLO en
       `127.0.0.1` (defaults `API_HOST_PORT`/`WEB_HOST_PORT`), validado con
       `docker compose config`; Postgres sigue sin exponer puertos al host.
@@ -34,8 +38,9 @@ decidir/configurar antes de tocar un servidor.
 
 0. **Creación de la VM**: aplazada (decisión 2026-09-23). Los archivos de
    deploy ya están preparados (`deploy/staging.env.example`,
-   `deploy/caddy/Caddyfile`); crear la VM es el único paso manual restante
-   cuando se disponga de cuenta/proveedor.
+   `deploy/caddy/Caddyfile`, `deploy/bootstrap-vm.sh`); crear la VM es el
+   único paso manual restante cuando se disponga de cuenta/proveedor, y el
+   bootstrap deja el servidor listo en un solo comando.
 1. **Proveedor cloud** (VM 2 vCPU / 4 GB RAM con Docker 24+, Ubuntu 22.04/24.04).
    El catálogo evaluado no aporta IaaS para esta pila (PostgreSQL + Redis +
    worker de larga ejecución descartan serverless): se recomienda una VM
@@ -54,7 +59,10 @@ decidir/configurar antes de tocar un servidor.
 
 ## Checklist antes de lanzar el primer release (staging)
 
-1. [ ] Crear VM del proveedor elegido, instalar Docker (`curl -fsSL https://get.docker.com | sh`).
+1. [ ] Crear VM del proveedor elegido y ejecutar el bootstrap:
+      `sudo bash deploy/bootstrap-vm.sh` (instala Docker + Caddy, cierra el
+      firewall a 22/80/443 y prepara `/opt/sgsst`; alternativa manual:
+      `curl -fsSL https://get.docker.com | sh`).
 2. [ ] Crear los **ambientes GitHub** `staging` y `production`
       (Settings → Environments): aprobación obligatoria y rama `main` solo para
       `production`.
