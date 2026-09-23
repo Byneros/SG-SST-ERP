@@ -29,6 +29,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      # Bind loopback por defecto: el job `migrate` del workflow de release
+      # aplica las migraciones desde GitHub Actions a traves de un tunel SSH
+      # (ssh -L) hacia este puerto. Sobrescribir con POSTGRES_HOST_IP solo si
+      # se usa un tunel/VPN distinto; NUNCA exponer 5432 a Internet.
+      - "${POSTGRES_HOST_IP:-127.0.0.1}:5432:5432"
 
   redis:
     image: redis:7-alpine

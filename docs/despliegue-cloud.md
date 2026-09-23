@@ -116,6 +116,13 @@ BACKUP_S3_SECRET_ACCESS_KEY=
 
 Notas:
 
+- El job `migrate` del workflow aplica las migraciones desde GitHub Actions.
+  Por defecto espera un `DATABASE_URL` directo (Postgres gestionado); si la
+  base vive en la VM, publicar postgres solo en `127.0.0.1:5432` (default del
+  compose) y activar en el ambiente GitHub `MIGRATE_VIA_SSH=ssh-tunnel` con
+  los secretos `STAGING_SSH_HOST/USER/KEY` (y opcionales `STAGING_SSH_PORT`,
+  `STAGING_PG_TUNNEL_PORT`): el job abre `ssh -L 15432:127.0.0.1:5432` y
+  migra por el túnel. Ver `docs/despliegue-preparacion.md` §checklist.
 - `VITE_API_URL` **no** se configura en runtime: ya viene compilada dentro de
   la imagen web (build-arg del workflow). Cambiarla implica publicar otro
   release.

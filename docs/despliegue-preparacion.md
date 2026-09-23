@@ -74,6 +74,16 @@ decidir/configurar antes de tocar un servidor.
      de la imagen web; cambiarla implica re-publicar el release).
    - `API_BASE_URL`: `https://api.<host>` (sin `/api/v1`), para el smoke test.
    - `METRICS_TOKEN`: igual al que se configure en la API del ambiente.
+   - Para migrar por **túnel SSH** (Postgres sin exposición pública): variable
+     del ambiente `MIGRATE_VIA_SSH=ssh-tunnel` y secretos `STAGING_SSH_HOST`,
+     `STAGING_SSH_USER`, `STAGING_SSH_KEY` (PEM completo de una clave de
+     despliegue con `ForceCommand` no necesario; recomendado usuario restringido
+     solo a reenvío de puertos), opcionales `STAGING_SSH_PORT` (22) y
+     `STAGING_PG_TUNNEL_PORT` (5432). Sin esa variable, el job `migrate`
+     conecta directo a `DATABASE_URL` (Postgres gestionado).
+   - La URL `DATABASE_URL` sigue sin poder decir `localhost` (se rechaza), pero
+     con túnel el host real puede ser el de la VM: el job reescribe host/puerto
+     a `127.0.0.1:15432` dentro del runner tras abrir el túnel.
 4. [ ] Preparar el `.env` del servidor con las variables de
       `docs/despliegue-cloud.md` §4 (`JWT_SECRET`, `METRICS_TOKEN`,
       `CORS_ORIGINS`, `PUBLIC_BASE_URL`, `WEB_BASE_URL`, `POSTGRES_PASSWORD`,
@@ -86,9 +96,11 @@ decidir/configurar antes de tocar un servidor.
 
 ## Riesgos abiertos
 
-- `DATABASE_URL` del workflow (`prisma migrate deploy`) debe alcanzar la base
-  del ambiente desde GitHub Actions: si la VM no expone PostgreSQL, pensar en
-  un túnel (SSH action/Tailscale) o un PostgreSQL gestionado del proveedor.
+- ~~`DATABASE_URL` del workflow debe alcanzar la base del ambiente desde
+  GitHub Actions~~ **Resuelto (2026-09-23)**: el job `migrate` soporta túnel
+  SSH nativo (`MIGRATE_VIA_SSH=ssh-tunnel` + secretos `STAGING_SSH_*`) hacia
+  el PostgreSQL que el compose publica en `127.0.0.1:5432` de la VM, o
+  conexión directa a un Postgres gestionado.
 - `VITE_API_URL` se fija al compilar: definir el dominio/IP **antes** del
   primer release para no re-publicar.
 - Sin dominio, `PUBLIC_BASE_URL`/`WEB_BASE_URL`/`CORS_ORIGINS` usarán la IP o

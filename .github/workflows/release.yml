@@ -104,9 +104,47 @@ jobs:
         working-directory: sgsst-api
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Modo de conexion a la base del ambiente. Variable del AMBIENTE (no secreto):
+      #   "ssh-tunnel" -> abre un tunel SSH hacia la VM y aplica por 127.0.0.1:15432
+      #   vacio u otro -> conexion directa (Postgres gestionado alcanzable desde Actions)
+      DB_MODE: ${{ vars.MIGRATE_VIA_SSH }}
+      # Secretos por ambiente (prefijo STAGING_/PRODUCTION_ segun inputs.target):
+      #   <PREFIX>_SSH_HOST / <PREFIX>_SSH_USER / <PREFIX>_SSH_KEY  (obligatorios en tunel)
+      #   <PREFIX>_SSH_PORT (defecto 22) / <PREFIX>_PG_TUNNEL_PORT (defecto 5432)
+      STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+      STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+      STAGING_SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      STAGING_PG_TUNNEL_PORT: ${{ secrets.STAGING_PG_TUNNEL_PORT }}
+      PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+      PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+      PRODUCTION_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+      PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+      PRODUCTION_PG_TUNNEL_PORT: ${{ secrets.PRODUCTION_PG_TUNNEL_PORT }}
+      TUNNEL_LOCAL_PORT: 15432
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve migration mode
+        id: mode
+        run: |
+          if [ "$DB_MODE" = "ssh-tunnel" ]; then
+            echo "mode=tunnel" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=direct" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate database target
+        run: |
+          test -n "$DATABASE_URL"
+          case "$DATABASE_URL" in
+            postgresql://*|postgres://*) ;;
+            *) echo "DATABASE_URL must be a postgresql:// URL"; exit 1 ;;
+          esac
+          case "$DATABASE_URL" in
+            *localhost*|*127.0.0.1*) echo "DATABASE_URL must target the selected environment"; exit 1 ;;
+          esac
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -118,12 +156,82 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Reject local database targets
+      - name: Require tunnel secrets
+        if: steps.mode.outputs.mode == 'tunnel'
+        env:
+          TARGET: ${{ inputs.target }}
         run: |
-          test -n "$DATABASE_URL"
-          case "$DATABASE_URL" in
-            *localhost*|*127.0.0.1*) echo "DATABASE_URL must target the selected environment"; exit 1 ;;
-          esac
+          prefix=$(echo "$TARGET" | tr '[:lower:]' '[:upper:]')
+          # Publicar los NOMBRES de las variables del ambiente; el paso del tunel
+          # las expande (indireccion) y cada valor se consume solo ahi.
+          {
+            echo "SSH_HOST_VAR=${prefix}_SSH_HOST"
+            echo "SSH_USER_VAR=${prefix}_SSH_USER"
+            echo "SSH_PORT_VAR=${prefix}_SSH_PORT"
+            echo "SSH_KEY_VAR=${prefix}_SSH_KEY"
+            echo "REMOTE_PG_PORT_VAR=${prefix}_PG_TUNNEL_PORT"
+          } >> "$GITHUB_ENV"
+          missing=0
+          for v in SSH_HOST SSH_USER SSH_KEY; do
+            test -n "${!v}" || { echo "Missing secret ${prefix}_$v (required for MIGRATE_VIA_SSH=ssh-tunnel)"; missing=1; }
+          done
+          exit "$missing"
+
+      - name: Open SSH tunnel to the VM's PostgreSQL
+        if: steps.mode.outputs.mode == 'tunnel'
+        run: |
+          ssh_host="${!SSH_HOST_VAR}"
+          ssh_user="${!SSH_USER_VAR}"
+          ssh_port="${!SSH_PORT_VAR}"
+          ssh_key="${!SSH_KEY_VAR}"
+          remote_pg_port="${!REMOTE_PG_PORT_VAR}"
+          test -n "$ssh_port" || ssh_port=22
+          test -n "$remote_pg_port" || remote_pg_port=5432
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ssh_key" > ~/.ssh/sgsst_deploy_key
+          chmod 600 ~/.ssh/sgsst_deploy_key
+
+          ssh -f -N \
+            -i ~/.ssh/sgsst_deploy_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
+            -L "127.0.0.1:${TUNNEL_LOCAL_PORT}:127.0.0.1:${remote_pg_port}" \
+            -p "$ssh_port" \
+            "${ssh_user}@${ssh_host}"
+
+          ok=0
+          for i in $(seq 1 30); do
+            if (exec 3<>"/dev/tcp/127.0.0.1/${TUNNEL_LOCAL_PORT}") 2>/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "SSH tunnel did not open 127.0.0.1:${TUNNEL_LOCAL_PORT} (check ${SSH_HOST_VAR}/${SSH_USER_VAR}/${SSH_KEY_VAR} and that the VM publishes postgres on 127.0.0.1:${remote_pg_port})"
+            exit 1
+          fi
+          echo "Tunnel ready: 127.0.0.1:${TUNNEL_LOCAL_PORT} -> ${ssh_host}:${remote_pg_port}"
+
+      - name: Point DATABASE_URL at the tunnel
+        if: steps.mode.outputs.mode == 'tunnel'
+        run: |
+          node -e '
+            const url = new URL(process.env.DATABASE_URL);
+            if (!/^postgres(ql)?:$/.test(url.protocol)) throw new Error("DATABASE_URL must be postgresql://");
+            url.port = process.env.TUNNEL_LOCAL_PORT;
+            require("fs").appendFileSync(
+              process.env.GITHUB_ENV,
+              `MIGRATE_DATABASE_URL<<EOF\n${url.toString()}\nEOF\n`,
+            );
+          '
 
       - name: Deploy migrations
+        env:
+          # Tunel: MIGRATE_DATABASE_URL (via GITHUB_ENV); directo: la original.
+          DATABASE_URL: ${{ env.MIGRATE_DATABASE_URL || secrets.DATABASE_URL }}
         run: npm run prisma:migrate:deploy

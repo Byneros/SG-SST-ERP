@@ -22,6 +22,15 @@
 #   --skip-firewall   no tocar ufw (gestionar firewall en el panel del proveedor)
 #
 # Idempotente: se puede re-ejecutar sin romper nada.
+#
+# Probable tambien en un CONTENEDOR (prueba del script sin VM):
+#   docker run --rm -it --privileged -p 8080:8080 -p 3001:3001 \
+#     -v "$(pwd)/deploy:/repo/deploy" -v "$(pwd)/docker-compose.prod.yml:/repo/docker-compose.prod.yml:ro" \
+#     ubuntu:22.04 bash /repo/deploy/bootstrap-vm.sh --skip-firewall
+#   (--privileged para el daemon de Docker; dentro no hay systemd y el script
+#   lo detecta y salta systemctl; el firewall se gestiona en el host, no en el
+#   contenedor, por eso --skip-firewall. Quitar -p si el firewall del host ya
+#   cubre esos puertos.)
 
 set -euo pipefail
 
@@ -61,8 +70,22 @@ case "${ID:-}" in
 esac
 command -v apt-get >/dev/null || die "Se requiere apt-get (Ubuntu/Debian)"
 
+command -v curl >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null; }
+
 # Detectar la IP publica para mostrarla en los mensajes finales.
+# (En contenedores sin salida a Internet o en VMs sin IP publica, queda como
+# placeholder informativo y no bloquea el bootstrap.)
 PUBLIC_IP="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo '<no-detectada>')"
+
+# Deteccion de systemd: en contenedores no existe y hay que saltar systemctl.
+HAVE_SYSTEMD=false
+if command -v systemctl >/dev/null 2>&1 && [ "$(ps -p 1 -o comm= 2>/dev/null)" = "systemd" ]; then
+  HAVE_SYSTEMD=true
+fi
+if [[ "$HAVE_SYSTEMD" == false ]]; then
+  warn "systemd no disponible (¿contenedor?): se omite systemctl; los servicios
+     (docker/caddy) deberan arrancarse manualmente si se usan."
+fi
 
 # ---------------------------------------------------------------------------
 # 1. Docker Engine + compose v2
@@ -74,7 +97,14 @@ else
   curl -fsSL https://get.docker.com | sh
 fi
 
-systemctl enable --now docker >/dev/null 2>&1 || true
+if [[ "$HAVE_SYSTEMD" == true ]]; then
+  systemctl enable --now docker >/dev/null 2>&1 || true
+else
+  # Contenedor: el daemon ya puede estar corriendo (docker-in-docker) o no;
+  # no falla aqui: compose version valida de una y da un error claro si falta.
+  docker info >/dev/null 2>&1 || warn "dockerd no esta corriendo; en una VM real lo
+     arranca systemd. En contenedor: dockerd > /dev/null 2>&1 &"
+fi
 
 docker compose version >/dev/null 2>&1 \
   || die "docker compose v2 no disponible; revisar instalacion de Docker"
@@ -98,7 +128,11 @@ else
     | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
   apt-get update -qq
   apt-get install -y -qq caddy >/dev/null
-  systemctl enable --now caddy >/dev/null 2>&1 || true
+  if [[ "$HAVE_SYSTEMD" == true ]]; then
+    systemctl enable --now caddy >/dev/null 2>&1 || true
+  else
+    warn "systemd ausente: arranca caddy manual si lo necesitas (caddy run --config /etc/caddy/Caddyfile)"
+  fi
   log "Caddy instalado: $(caddy version)"
 fi
 
@@ -116,10 +150,12 @@ else
   ufw allow OpenSSH   >/dev/null
   ufw allow 80/tcp    >/dev/null   # HTTP  (Caddy: desafio ACME + redirect)
   ufw allow 443/tcp   >/dev/null   # HTTPS (Caddy)
-  # Nunca exponer los puertos de la API/web: solo escuchan en 127.0.0.1, pero
-  # dejamos la regla explicita de rechazo por defensa en profundidad.
+  # Nunca exponer los puertos de la API/web/postgres: solo escuchan en 127.0.0.1,
+  # pero dejamos la regla explicita de rechazo por defensa en profundidad.
+  # (5432 es el tunel de migraciones del workflow; solo 127.0.0.1 + SSH.)
   ufw deny 3001/tcp   >/dev/null
   ufw deny 8080/tcp   >/dev/null
+  ufw deny 5432/tcp   >/dev/null
   if ufw status | grep -q "Status: active"; then
     ufw reload >/dev/null
   else
