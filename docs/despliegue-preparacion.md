@@ -6,7 +6,8 @@ operativas completas están en `docs/despliegue-cloud.md` y
 `docs/despliegue-por-ambientes.md`; este documento solo lista lo que falta
 decidir/configurar antes de tocar un servidor.
 
-Última revisión: 2026-09-23 (commit `1128f91`).
+Última revisión: 2026-09-23 (commit `66299bc`: input `migrate_mode` en el
+workflow de release).
 
 ## Lo que ya está listo (verificado)
 
@@ -90,7 +91,11 @@ decidir/configurar antes de tocar un servidor.
       además de `GHCR_OWNER=Byneros` y `IMAGE_TAG`).
 5. [ ] PAT de GitHub con `read:packages` para `docker login ghcr.io` en el servidor.
 6. [ ] Ejecutar **Actions → Release artifacts and migrate → Run workflow**
-      con `target: staging` y anotar el `sha-<commit>` publicado.
+      con `target: staging` y anotar el `sha-<commit>` publicado. El input
+      `migrate_mode` (defecto `auto`) fuerza el modo de conexión: `direct`
+      (Postgres gestionado), `ssh-tunnel` (exige los secretos `*_SSH_*` del
+      paso 3) o `disabled` (omite migraciones; útil solo si el primer release
+      corre antes de tener la base configurada).
 7. [ ] En el servidor: `docker compose -f docker-compose.prod.yml pull && up -d`
       y verificar `/health`, `/ready` y el smoke test de GitHub.
 

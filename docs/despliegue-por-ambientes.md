@@ -13,12 +13,18 @@ Cada ambiente requiere estos secretos:
 - `API_BASE_URL`: URL publica de la API sin `/api/v1`, usada por el smoke test, por ejemplo `https://api.staging.example.com`.
 - `METRICS_TOKEN`: token de scraping configurado en la API.
 
+Para migrar por tunel SSH (Postgres sin exposicion publica, publicado solo en `127.0.0.1` de la VM), definir ademas la **variable** del ambiente `MIGRATE_VIA_SSH=ssh-tunnel` y los secretos `STAGING_SSH_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY` (opcionales: `STAGING_SSH_PORT` con defecto 22 y `STAGING_PG_TUNNEL_PORT` con defecto 5432). En el ambiente `production` los mismos secretos llevan el prefijo `PRODUCTION_`.
+
 El proveedor de despliegue tambien debe configurar las variables de ejecucion de API y worker documentadas en `docs/operacion-produccion.md`, incluyendo `JWT_SECRET`, `METRICS_TOKEN`, `DATABASE_URL`, `REDIS_URL` y `CORS_ORIGINS`.
 
 ## Release controlado
 
 1. Confirmar que CI esta verde en el commit de `main` que se va a liberar.
-2. Ejecutar manualmente **Release artifacts and migrate** para `staging`.
+2. Ejecutar manualmente **Release artifacts and migrate** para `staging`. El input `migrate_mode` decide como el job `migrate` alcanza la base:
+   - `auto` (defecto): lo decide la variable `MIGRATE_VIA_SSH` del ambiente (`ssh-tunnel` o conexion directa).
+   - `direct`: fuerza conexion directa a `DATABASE_URL` (Postgres gestionado).
+   - `ssh-tunnel`: fuerza el tunel SSH hacia la VM (exige los secretos `*_SSH_*`).
+   - `disabled`: omite migraciones (primer release sin base configurada todavia).
 3. El workflow publica `ghcr.io/<owner>/sgsst-api:sha-<commit>` y `ghcr.io/<owner>/sgsst-web:sha-<commit>`, y ejecuta `prisma migrate deploy` solo contra la base del ambiente seleccionado.
 4. Configurar el proveedor cloud para desplegar esa etiqueta SHA en API, worker y web. No usar etiquetas `latest` como referencia de despliegue.
 5. Ejecutar **Post-deploy smoke test** para comprobar `/health`, `/ready` y `/metrics` protegido.

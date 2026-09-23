@@ -43,7 +43,11 @@ docker compose version   # v2.x
 
 1. Confirmar CI verde en el commit a liberar de `main`.
 2. En GitHub: **Actions -> Release artifacts and migrate -> Run workflow** con
-   `target: staging` (despues `production`, con su aprobacion).
+   `target: staging` (despues `production`, con su aprobacion). El input
+   `migrate_mode` (defecto `auto`) controla como el job `migrate` alcanza la
+   base: `auto` respeta `MIGRATE_VIA_SSH` del ambiente, `direct` fuerza
+   conexion directa, `ssh-tunnel` fuerza el tunel SSH (exige `*_SSH_*`) y
+   `disabled` omite migraciones (primer release sin base aun).
 3. El workflow genera:
    - `ghcr.io/<owner>/sgsst-api:sha-<commit>`
    - `ghcr.io/<owner>/sgsst-web:sha-<commit>`
