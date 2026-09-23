@@ -12,6 +12,9 @@ export const env = {
   passwordResetExpiresMinutes: Number(
     process.env.PASSWORD_RESET_EXPIRES_MINUTES ?? 30,
   ),
+  // Bloqueo temporal por intentos fallidos de login (hardening auth).
+  loginLockoutMaxAttempts: Number(process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS ?? 5),
+  loginLockoutMinutes: Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15),
   publicBaseUrl:
     process.env.PUBLIC_BASE_URL ??
     `http://localhost:${process.env.PORT ?? 3001}`,

@@ -140,6 +140,8 @@ export class UsersRepository {
         refreshTokenHash: null,
         passwordResetTokenHash: null,
         passwordResetExpiresAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       },
       select: this.safeSelect(),
     });
@@ -169,6 +171,53 @@ export class UsersRepository {
     return this.prisma.user.update({
       where: { id },
       data: { mfaSecret, mfaEnabled },
+      select: this.safeSelect(),
+    });
+  }
+
+  /**
+   * Registra un intento fallido de login: incrementa el contador y bloquea la
+   * cuenta al alcanzar `maxAttempts` (por `lockMinutes`). Transaccional para
+   * leer/escribir el contador de forma consistente. Si el bloqueo anterior ya
+   * expiró, el contador arranca de cero (ciclo nuevo de intentos).
+   */
+  async registerFailedLogin(
+    id: string,
+    maxAttempts: number,
+    lockMinutes: number,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.user.findUnique({
+        where: { id },
+        select: { failedLoginAttempts: true, lockedUntil: true },
+      });
+      const previousLockExpired =
+        !!current?.lockedUntil && current.lockedUntil.getTime() <= Date.now();
+      const attempts =
+        (previousLockExpired ? 0 : (current?.failedLoginAttempts ?? 0)) + 1;
+      const locked = attempts >= maxAttempts;
+      await tx.user.update({
+        where: { id },
+        data: {
+          failedLoginAttempts: attempts,
+          ...(locked
+            ? { lockedUntil: new Date(Date.now() + lockMinutes * 60_000) }
+            : {}),
+        },
+      });
+      return { locked, attempts };
+    });
+  }
+
+  /** Login exitoso o password reset: limpia el bloqueo (y sella el ultimo login). */
+  resetLoginLockout(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        lastLoginAt: new Date(),
+      },
       select: this.safeSelect(),
     });
   }

@@ -38,9 +38,30 @@ export class AuthService {
     if (
       !user ||
       !user.isActive ||
-      !(await bcrypt.compare(dto.password, user.password))
+      (user.lockedUntil && user.lockedUntil.getTime() > Date.now())
     ) {
+      // Mensaje identico con o sin bloqueo activo: no revela si el email existe
+      // ni si la cuenta esta bloqueada (enumeracion/timing).
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!(await bcrypt.compare(dto.password, user.password))) {
+      const { locked } = await this.usersRepository.registerFailedLogin(
+        user.id,
+        env.loginLockoutMaxAttempts,
+        env.loginLockoutMinutes,
+      );
+      if (locked) {
+        throw new UnauthorizedException(
+          `Account temporarily locked due to failed logins. Try again in ${env.loginLockoutMinutes} minutes.`,
+        );
+      }
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.lockedUntil) {
+      // Bloqueo expirado: dejar limpio antes de emitir sesion.
+      await this.usersRepository.resetLoginLockout(user.id);
     }
 
     if (criticalMfaRoles.has(String(user.role)) && user.mfaEnabled) {

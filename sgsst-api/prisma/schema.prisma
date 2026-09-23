@@ -22,7 +22,13 @@ model User {
   passwordResetExpiresAt DateTime?
   mfaSecret              String?
   mfaEnabled             Boolean        @default(false)
+  failedLoginAttempts    Int            @default(0)
+  lockedUntil            DateTime?
+  lastLoginAt            DateTime?
   ssoSubject             String?        @unique
+
+  @@index([lockedUntil])
+
   auditLogs              AuditLog[]
   notifications          Notification[]
   reportExports          ReportExport[]
