@@ -211,12 +211,13 @@ Ya aplicado:
 - Encriptación de documentos en storage externo (SSE del proveedor).
 - Política de backups cifrados y prueba de restauración mensual automatizada.
 - Auditoría funcional de exportaciones y descargas.
+- Bloqueo temporal de cuentas por intentos fallidos de login
+  (`LOGIN_LOCKOUT_MAX_ATTEMPTS`/`LOGIN_LOCKOUT_MINUTES`).
+- Mascaramiento de datos sensibles en logs (`SensitiveDataLogger` global).
 
 Mejoras pendientes para producción:
 
 - Gestor de secretos cloud (hoy variables de entorno del servidor).
-- Mascaramiento de datos sensibles en logs.
-- Bloqueo temporal por intentos fallidos.
 
 (Estado revisado contra el código en 2026-09-23: los ítems movidos a "Ya
 aplicado" están verificados en `sgsst-api/src` — MFA y refresh rotativo en

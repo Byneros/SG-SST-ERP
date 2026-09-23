@@ -2,11 +2,14 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { SensitiveDataLogger } from './common/logger/sensitive-data-logger';
 import { assertProductionEnv, env } from './config/env';
 
 async function bootstrap() {
   assertProductionEnv();
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // Todos los logs de la app pasan por el mascaramiento de datos sensibles.
+  app.useLogger(new SensitiveDataLogger());
 
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();

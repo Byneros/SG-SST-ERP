@@ -1,13 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SensitiveDataLogger } from './common/logger/sensitive-data-logger';
 import { assertProductionEnv } from './config/env';
 
 async function bootstrapWorker() {
   assertProductionEnv();
   const logger = new Logger('Worker');
   const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['log', 'error', 'warn'],
+    logger: new SensitiveDataLogger('Worker'),
   });
 
   logger.log('SG-SST worker is running');
