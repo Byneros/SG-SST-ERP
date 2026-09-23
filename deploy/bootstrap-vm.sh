@@ -60,6 +60,7 @@ log "Precondiciones"
 [[ $EUID -eq 0 ]] || die "Ejecutar como root o con sudo: sudo bash deploy/bootstrap-vm.sh"
 
 if [[ -r /etc/os-release ]]; then
+  # shellcheck disable=SC1091  # archivo del sistema, presente en el OS objetivo
   . /etc/os-release
 else
   die "No se pudo leer /etc/os-release"
