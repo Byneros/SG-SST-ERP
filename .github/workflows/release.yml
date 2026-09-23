@@ -138,6 +138,7 @@ jobs:
           echo "Migration mode: $(cat "$GITHUB_OUTPUT" | cut -d= -f2)"
 
       - name: Validate database target
+        if: steps.mode.outputs.mode != 'disabled'
         run: |
           test -n "$DATABASE_URL"
           case "$DATABASE_URL" in
