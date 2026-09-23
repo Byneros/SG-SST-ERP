@@ -30,4 +30,6 @@ Proveedores compatibles:
 
 ## Recomendacion
 
-En produccion usa credenciales desde un gestor de secretos, no desde archivos versionados.
+En produccion configura `SMTP_HOST/SMTP_USER/SMTP_PASSWORD` en el `.env` del
+servidor (`/opt/sgsst/.env`, permisos `600`), nunca en archivos versionados:
+es el almacen de secretos decidido (`docs/arquitectura-sgsst.md` §9).

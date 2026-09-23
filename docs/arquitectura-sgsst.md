@@ -215,9 +215,20 @@ Ya aplicado:
   (`LOGIN_LOCKOUT_MAX_ATTEMPTS`/`LOGIN_LOCKOUT_MINUTES`).
 - Mascaramiento de datos sensibles en logs (`SensitiveDataLogger` global).
 
+Gestión de secretos (decisión 2026-09-23): no se adopta un gestor cloud
+dedicado. Los secretos viven en dos sitios, ambos fuera del repositorio:
+
+- CI/CD: secrets de los ambientes GitHub `staging`/`production` (usados por
+  el workflow de release; ver `docs/despliegue-por-ambientes.md`).
+- Runtime: `.env` del servidor (`/opt/sgsst/.env`, permisos `600`, editado
+  solo por SSH; ver `docs/despliegue-cloud.md` §4).
+
+Reevaluar un gestor dedicado (Infisical, Doppler, Vault) si se escala a
+múltiples servidores o crece el equipo con acceso a producción.
+
 Mejoras pendientes para producción:
 
-- Gestor de secretos cloud (hoy variables de entorno del servidor).
+- Ninguna (gestión de secretos cerrada por decisión, ver arriba).
 
 (Estado revisado contra el código en 2026-09-23: los ítems movidos a "Ya
 aplicado" están verificados en `sgsst-api/src` — MFA y refresh rotativo en

@@ -58,6 +58,13 @@ workflow de release).
    registrar uno propio, o usar `sslip.io`/`nip.io` contra la IP pública
    (`app.<ip>.sslip.io`) con certificados Let's Encrypt vía Caddy igualmente.
 
+3. **Gestión de secretos**: decidido (2026-09-23) mantener el esquema actual
+   sin gestor cloud dedicado: secretos de CI/CD en los ambientes GitHub y
+   secretos de runtime en el `.env` del servidor (`/opt/sgsst/.env`, `chmod
+   600`). Reevaluar Infisical/Doppler/Vault solo si se escala a múltiples
+   servidores o crece el equipo con acceso a producción. Detalle:
+   `docs/arquitectura-sgsst.md` §9.
+
 ## Checklist antes de lanzar el primer release (staging)
 
 1. [ ] Crear VM del proveedor elegido y ejecutar el bootstrap:

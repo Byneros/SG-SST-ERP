@@ -120,6 +120,13 @@ BACKUP_S3_SECRET_ACCESS_KEY=
 
 Notas:
 
+- **Secretos**: este `.env` es el almacén de secretos de runtime decidido en
+  `docs/arquitectura-sgsst.md` §9 (sin gestor cloud dedicado, decisión
+  2026-09-23). Protegerlo con `chmod 600 .env`, editarlo solo por SSH y nunca
+  versionarlo ni copiarlo a la imagen; los secretos de CI/CD viven en los
+  ambientes GitHub (`docs/despliegue-por-ambientes.md`). Rotación: cambiar el
+  valor en `.env` y `docker compose -f docker-compose.prod.yml up -d` (sin
+  `pull`); los tokens GHCR/PAT y las claves SSH se rotan desde sus orígenes.
 - El job `migrate` del workflow aplica las migraciones desde GitHub Actions.
   Por defecto espera un `DATABASE_URL` directo (Postgres gestionado); si la
   base vive en la VM, publicar postgres solo en `127.0.0.1:5432` (default del
