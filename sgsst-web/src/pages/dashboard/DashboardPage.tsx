@@ -201,25 +201,30 @@ export function DashboardPage({
                       </Stack>
                     </TableCell>
                     <TableCell align="right">{kpi.employees}</TableCell>
-                    {[
+                    {([
                       {
+                        key: 'criticalRisks',
                         value: kpi.criticalRisks,
                         onOpen: onOpenSiteRisks,
                       },
                       {
+                        key: 'openIncidents',
                         value: kpi.openIncidents,
                         onOpen: onOpenSiteIncidents,
                       },
                       {
+                        key: 'trainings',
                         value: kpi.trainings,
                         onOpen: onOpenSiteTrainings,
                       },
                       {
+                        key: 'documents',
                         value: kpi.documents,
                         onOpen: onOpenSiteDocuments,
                       },
-                    ].map(({ value, onOpen }) => (
+                    ]).map(({ key, value, onOpen }) => (
                       <TableCell
+                        key={key}
                         align="right"
                         onClick={
                           onOpen
