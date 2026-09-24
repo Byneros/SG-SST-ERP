@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopeService } from '../../common/company/company-scope.service';
+import { AuditService } from '../audit/audit.service';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { PrismaService } from '../../database/prisma.service';
 import { AuthenticatedUser } from '../../common/types/authenticated-request';
@@ -25,6 +26,7 @@ export class SgsstEvaluationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly companyScope: CompanyScopeService,
+    private readonly auditService: AuditService,
   ) {}
 
   async findAll(
@@ -158,10 +160,18 @@ export class SgsstEvaluationsService {
   }
 
   async remove(user: AuthenticatedUser, id: string) {
-    await this.findOne(user, id);
+    const evaluation = await this.findOne(user, id);
 
-    // Borrado definitivo: la cascada del esquema elimina los items asociados.
+    // Borrado fisico con traza de auditoria (ADR de borrado, fase 1):
+    // la cascada elimina los items; la traza preserva quien/que/cuando.
     await this.prisma.sgsstEvaluation.delete({ where: { id } });
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'SgsstEvaluation',
+      entityId: id,
+      before: evaluation,
+    });
 
     return { id, deleted: true };
   }

@@ -24,6 +24,9 @@ describe('SgsstEvaluationsService (hard delete y filtro de listado)', () => {
     resolveCompanyId: jest.fn(),
     validate: jest.fn(),
   };
+  const auditService = {
+    log: jest.fn(),
+  };
   let service: SgsstEvaluationsService;
 
   const evaluation = {
@@ -48,6 +51,7 @@ describe('SgsstEvaluationsService (hard delete y filtro de listado)', () => {
     service = new SgsstEvaluationsService(
       prisma as never,
       companyScope as never,
+      auditService as never,
     );
   });
 
@@ -63,6 +67,15 @@ describe('SgsstEvaluationsService (hard delete y filtro de listado)', () => {
       where: { id: 'eval-1' },
     });
     expect(prisma.sgsstEvaluation.update).not.toHaveBeenCalled();
+    // Traza de auditoria del ADR (fase 1): accion DELETE con snapshot before.
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'DELETE',
+        entity: 'SgsstEvaluation',
+        entityId: 'eval-1',
+        before: evaluation,
+      }),
+    );
   });
 
   it('remove responde 404 para un registro legacy con soft delete y no borra nada', async () => {
@@ -75,6 +88,8 @@ describe('SgsstEvaluationsService (hard delete y filtro de listado)', () => {
       NotFoundException,
     );
     expect(prisma.sgsstEvaluation.delete).not.toHaveBeenCalled();
+    // Sin traza: el registro legacy no existe para el actor.
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 
   it('findOne responde 404 para un registro legacy con soft delete', async () => {

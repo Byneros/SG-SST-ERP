@@ -24,6 +24,9 @@ describe('IndicatorsService (hard delete y filtro de listado)', () => {
     resolveCompanyId: jest.fn(),
     validate: jest.fn(),
   };
+  const auditService = {
+    log: jest.fn(),
+  };
   let service: IndicatorsService;
 
   const indicator = {
@@ -45,7 +48,11 @@ describe('IndicatorsService (hard delete y filtro de listado)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     companyScope.resolveCompanyId.mockReturnValue('company-a');
-    service = new IndicatorsService(prisma as never, companyScope as never);
+    service = new IndicatorsService(
+      prisma as never,
+      companyScope as never,
+      auditService as never,
+    );
   });
 
   it('remove borra fisicamente el indicador (cascada) y no hace soft delete', async () => {
@@ -60,6 +67,15 @@ describe('IndicatorsService (hard delete y filtro de listado)', () => {
       where: { id: 'ind-1' },
     });
     expect(prisma.indicator.update).not.toHaveBeenCalled();
+    // Traza de auditoria del ADR (fase 1): accion DELETE con snapshot before.
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'DELETE',
+        entity: 'Indicator',
+        entityId: 'ind-1',
+        before: indicator,
+      }),
+    );
   });
 
   it('remove responde 404 para un registro legacy con soft delete y no borra nada', async () => {
@@ -72,6 +88,8 @@ describe('IndicatorsService (hard delete y filtro de listado)', () => {
       NotFoundException,
     );
     expect(prisma.indicator.delete).not.toHaveBeenCalled();
+    // Sin traza: el registro legacy no existe para el actor.
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 
   it('findOne responde 404 para un registro legacy con soft delete', async () => {

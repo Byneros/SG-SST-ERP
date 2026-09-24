@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CompanyScopeService } from '../../common/company/company-scope.service';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
 import { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { AddIndicatorMeasurementsDto } from './dto/indicator-targets.dto';
@@ -20,6 +21,7 @@ export class IndicatorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly companyScope: CompanyScopeService,
+    private readonly auditService: AuditService,
   ) {}
 
   async findAll(
@@ -157,10 +159,18 @@ export class IndicatorsService {
   }
 
   async remove(user: AuthenticatedUser, id: string) {
-    await this.findOne(user, id);
+    const indicator = await this.findOne(user, id);
 
-    // Borrado definitivo: la cascada del esquema elimina metas y mediciones.
+    // Borrado fisico con traza de auditoria (ADR de borrado, fase 1):
+    // la cascada elimina metas y mediciones; la traza preserva quien/que/cuando.
     await this.prisma.indicator.delete({ where: { id } });
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'Indicator',
+      entityId: id,
+      before: indicator,
+    });
 
     return { id, deleted: true };
   }
