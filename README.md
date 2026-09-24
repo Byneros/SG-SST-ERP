@@ -86,6 +86,8 @@ La arquitectura SaaS aplicada esta documentada en:
 
 ## Roadmap tecnico inmediato
 
+Seguimiento del proyecto: matriz de backlog de 15 sprints en el issue #43 (una historia por issue con criterios de aceptacion y evidencia; los porcentajes de avance derivan de sus checkboxes).
+
 1. Configurar el proveedor cloud para desplegar `docker-compose.prod.yml` con las imagenes GHCR por etiqueta SHA (ver `docs/despliegue-por-ambientes.md`). Estado de la preparacion y decisiones pendientes: `docs/despliegue-preparacion.md`.
 2. SSO SAML para clientes empresariales (implementado: `docs/plan-fase-9-plataforma.md`, seccion 9.4; guia de administracion en `docs/sso-mapeo-grupos.md`).
 3. Overrides de rol por grupo del IdP: implementado (`roleGroups` en SsoProvider; ver `docs/plan-fase-9-plataforma.md`, seccion 9.4). e2e de aislamiento SSO en el harness multi-tenant: implementado (`test/sso-multi-tenant.e2e-spec.ts`).
