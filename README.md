@@ -38,6 +38,12 @@ docker compose up --build
 - Los documentos y exportaciones requieren autenticacion y autorizacion en la API.
 - Redis: `localhost:6379`
 
+## Convivencia de stacks en la misma maquina (dev y prod)
+
+Cuando el compose dev (`sgsst_*`) y el stack de prod local (`sgsst_prod_*`) corren a la vez, cada stack usa puertos propios del host (dev: `API_PORT`/`WEB_PORT` en `.env`; prod: 3001/8080). Ver `docs/convivencia-dev-prod-local.md` para el mapa de puertos, la reconstruccion de la web al cambiar `API_PORT` (`VITE_API_URL` se hornea en build) y la recuperacion si la API del compose pierde la red al reiniciar.
+
+Verificacion rapida de ambos stacks: `bash scripts/check-env-health.sh`.
+
 ## Verificacion local sin Docker
 
 ```bash
@@ -61,6 +67,7 @@ En PowerShell puede ser necesario usar `npm.cmd` por la politica de ejecucion lo
 La arquitectura SaaS aplicada esta documentada en:
 
 - `docs/arquitectura-sgsst.md`
+- `docs/convivencia-dev-prod-local.md`
 - `docs/backups-postgresql.md`
 - `docs/operacion-produccion.md`
 - `docs/despliegue-cloud.md`
