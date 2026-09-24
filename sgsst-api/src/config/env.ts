@@ -82,7 +82,8 @@ export const env = {
     process.env.EXTERNAL_DELIVERY_RETRY_BASE_SECONDS ?? 300,
   ),
   corsOrigins: (
-    process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173'
+    process.env.CORS_ORIGINS ??
+    'http://localhost:5176,http://127.0.0.1:5176'
   )
     .split(',')
     .map((origin) => origin.trim())

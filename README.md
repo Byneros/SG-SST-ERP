@@ -30,7 +30,7 @@ docker compose up --build
 
 3. Abrir:
 
-- Web: `http://localhost:5173`
+- Web: `http://localhost:5176`
 - API: `http://localhost:3001/api/v1`
 - Health: `http://localhost:3001/api/v1/health`
 - Ready: `http://localhost:3001/api/v1/ready`

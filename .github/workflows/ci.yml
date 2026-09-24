@@ -22,7 +22,7 @@ jobs:
       JWT_EXPIRES_IN: 1h
       REFRESH_TOKEN_EXPIRES_IN: 7d
       PASSWORD_RESET_EXPIRES_MINUTES: 30
-      CORS_ORIGINS: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5176
       PUBLIC_BASE_URL: http://localhost:3001
       UPLOADS_PATH: uploads
       DOCUMENT_STORAGE_DRIVER: local

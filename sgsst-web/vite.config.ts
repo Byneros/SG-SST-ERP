@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Puerto fijado para que el origen coincida con CORS_ORIGINS (http://localhost:5176).
+    // strictPort evita que Vite auto-incremente y desalinee el origen con el backend.
+    port: 5176,
+    strictPort: true,
     // El callback SSO del IdP aterriza en PUBLIC_BASE_URL (la web) con la ruta de la
     // API; el proxy lo reenvia al backend para completar el flujo en desarrollo.
     // Cubre el callback OIDC y los endpoints SAML (metadata/authorize/ACS).

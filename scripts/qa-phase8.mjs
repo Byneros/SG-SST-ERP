@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 
-const BASE = process.argv[2] ?? 'http://localhost:5173'
+const BASE = process.argv[2] ?? 'http://localhost:5176'
 const API = process.env.VITE_API_URL ?? 'http://localhost:3002/api/v1'
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'qa-artifacts')
 mkdirSync(OUT_DIR, { recursive: true })
