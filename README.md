@@ -67,6 +67,7 @@ En PowerShell puede ser necesario usar `npm.cmd` por la politica de ejecucion lo
 La arquitectura SaaS aplicada esta documentada en:
 
 - `docs/arquitectura-sgsst.md`
+- `docs/adr-estrategia-borrado.md`
 - `docs/convivencia-dev-prod-local.md`
 - `docs/backups-postgresql.md`
 - `docs/operacion-produccion.md`
