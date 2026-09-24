@@ -1,6 +1,6 @@
 # ADR: estrategia de borrado por dominio (hard vs soft delete)
 
-- **Estado:** Propuesto ( pendiente de revision )
+- **Estado:** Aceptado (2026-09-24)
 - **Fecha:** 2026-09-24
 - **Motivacion:** Issue #3; antecedente resuelto en Issue #2 (hard delete en evaluaciones e indicadores, commit `3c730b6`).
 
