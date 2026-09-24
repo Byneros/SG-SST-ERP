@@ -106,8 +106,11 @@ jobs:
           sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
           sed -i "s/^METRICS_TOKEN=.*/METRICS_TOKEN=${METRICS_TOKEN}/" .env
 
-      - name: Build and start stack
-        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Build images
+        run: docker compose build
+
+      - name: Start stack and wait for health
+        run: docker compose up -d --wait --wait-timeout 420
 
       - name: Check stack health (compose sin prod local)
         run: bash scripts/check-env-health.sh 3001 5176 skip skip
