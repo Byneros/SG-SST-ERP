@@ -349,8 +349,6 @@ export type SgsstEvaluation = {
   compliancePercent?: number | null
   notes?: string
   companyId: string
-  isActive: boolean
-  deletedAt?: string
   createdAt: string
   updatedAt: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
@@ -394,8 +392,6 @@ export type Indicator = {
   direction: IndicatorDirection
   companyId: string
   siteId?: string
-  isActive: boolean
-  deletedAt?: string
   createdAt: string
   updatedAt: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>

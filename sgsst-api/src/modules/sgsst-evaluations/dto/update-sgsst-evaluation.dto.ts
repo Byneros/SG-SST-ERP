@@ -27,8 +27,6 @@ export class UpdateSgsstEvaluationDto {
 
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
-
   @IsOptional()
   @IsUUID()
   companyId?: string;

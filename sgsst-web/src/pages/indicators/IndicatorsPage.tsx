@@ -1,6 +1,6 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Chip, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
-import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { Indicator, PageMeta, TableState } from '../../types'
 
 /** Verifica el periodo contra la meta correspondiente y colore el chip segun direction. */
@@ -87,7 +87,6 @@ export function IndicatorsPage(props: {
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1}>
-                    <ActiveChip active={indicator.isActive} />
                     <Chip size="small" label={indicator.direction === 'HIGHER_IS_BETTER' ? 'Ascendente' : 'Descendente'} variant="outlined" />
                   </Stack>
                 </TableCell>

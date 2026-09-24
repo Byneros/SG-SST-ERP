@@ -1,0 +1,6 @@
+# ADR fase 2 (issue #4):
+# - Site: @@unique(companyId, code) -> indice (la unicidad vive en el servicio,
+#   valida solo filas activas; un site soft-deleted libera su code).
+# - SgsstEvaluation/Indicator: drop de isActive/deletedAt (borrado fisico desde 3c730b6,
+#   purga legacy verificada en dev y prod, issue #2).
+# - Realinea drift SSO fase 9 (relacion logica sin FK fisica, unique companyId).

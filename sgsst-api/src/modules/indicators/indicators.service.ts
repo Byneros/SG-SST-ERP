@@ -54,8 +54,6 @@ export class IndicatorsService {
 
     const where: Prisma.IndicatorWhereInput = {
       companyId: scope,
-      // Por defecto solo activos: los borrados no aparecen en el listado.
-      isActive: query.isActive ?? true,
       ...siteFilter,
       ...(search
         ? {
@@ -91,8 +89,7 @@ export class IndicatorsService {
       include: indicatorInclude,
     });
 
-    // Borrados (legacy soft-delete) no existen para el actor (404).
-    if (!indicator || indicator.deletedAt) {
+    if (!indicator) {
       throw new NotFoundException('Indicator not found');
     }
 
@@ -143,12 +140,10 @@ export class IndicatorsService {
       if (companyId) await this.assertSiteInScope(companyId, dto.siteId);
     }
 
-    const { siteId, isActive, ...rest } = dto;
+    const { siteId, ...rest } = dto;
     const data: Prisma.IndicatorUncheckedUpdateInput = {
       ...rest,
       siteId: siteId === undefined ? undefined : siteId,
-      deletedAt:
-        isActive === undefined ? undefined : isActive ? null : new Date(),
     };
 
     return this.prisma.indicator.update({

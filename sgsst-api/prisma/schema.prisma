@@ -98,7 +98,7 @@ model Site {
   isActive   Boolean     @default(true)
   deletedAt  DateTime?
 
-  @@unique([companyId, code])
+  @@index([companyId, code])
   @@index([companyId, isActive])
 }
 
@@ -228,8 +228,6 @@ model SgsstEvaluation {
   compliancePercent Float?
   notes             String?
   companyId         String
-  isActive          Boolean          @default(true)
-  deletedAt         DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   company           Company          @relation(fields: [companyId], references: [id])
@@ -327,10 +325,8 @@ model Indicator {
   updatedAt         DateTime               @updatedAt
   companyId         String
   siteId            String?
-  isActive          Boolean                @default(true)
-  deletedAt         DateTime?
-  company           Company                @relation(fields: [companyId], references: [id])
-  site              Site?                  @relation(fields: [siteId], references: [id])
+  company           Company          @relation(fields: [companyId], references: [id])
+  site              Site?            @relation(fields: [siteId], references: [id])
   targets           IndicatorTarget[]
   measurements      IndicatorMeasurement[]
 

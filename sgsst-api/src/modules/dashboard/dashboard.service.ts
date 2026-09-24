@@ -202,11 +202,11 @@ export class DashboardService implements OnModuleDestroy {
       this.prisma.sgsstEvaluation.aggregate({
         _count: { _all: true },
         _avg: { compliancePercent: true },
-        where: { ...scope, isActive: true },
+        where: scope,
       }),
       // Metas + valor actual para detectar indicadores fuera de meta en JS.
       this.prisma.indicator.findMany({
-        where: { ...scope, isActive: true },
+        where: scope,
         select: {
           value: true,
           direction: true,

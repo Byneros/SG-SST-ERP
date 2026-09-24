@@ -98,10 +98,18 @@ async function main() {
     },
   });
 
-  // Sede principal para los empleados de demostracion.
+  // Sede principal para los empleados de demostracion. La unicidad de
+  // (companyId, code) vive en el servicio (valida filas activas), no en el
+  // esquema: el upsert busca primero por codigo y decide create/update.
   const mainSite = await prisma.site.upsert({
     where: {
-      companyId_code: { companyId: company.id, code: 'SEDE-NORTE' },
+      id:
+        (
+          await prisma.site.findFirst({
+            where: { companyId: company.id, code: 'SEDE-NORTE', deletedAt: null },
+            select: { id: true },
+          })
+        )?.id ?? '__seed_site__',
     },
     update: {
       name: 'Planta Norte',

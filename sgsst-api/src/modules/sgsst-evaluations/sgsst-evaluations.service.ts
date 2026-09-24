@@ -48,8 +48,6 @@ export class SgsstEvaluationsService {
     const search = query.search?.trim();
     const where: Prisma.SgsstEvaluationWhereInput = {
       companyId: scope,
-      // Por defecto solo activos: los borrados no aparecen en el listado.
-      isActive: query.isActive ?? true,
       ...(search
         ? {
             OR: [
@@ -83,8 +81,7 @@ export class SgsstEvaluationsService {
       include: evaluationInclude,
     });
 
-    // Borrados (legacy soft-delete) no existen para el actor (404).
-    if (!evaluation || evaluation.deletedAt) {
+    if (!evaluation) {
       throw new NotFoundException('Evaluation not found');
     }
 
@@ -142,12 +139,6 @@ export class SgsstEvaluationsService {
       period: dto.period,
       status: dto.status as never,
       notes: dto.notes,
-      deletedAt:
-        dto.isActive === undefined
-          ? undefined
-          : dto.isActive
-            ? null
-            : new Date(),
     };
 
     const updated = await this.prisma.sgsstEvaluation.update({

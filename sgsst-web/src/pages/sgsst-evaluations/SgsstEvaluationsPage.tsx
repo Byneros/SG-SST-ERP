@@ -1,6 +1,6 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Chip, IconButton, LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
-import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { PageMeta, SgsstEvaluation, TableState } from '../../types'
 
 export function SgsstEvaluationsPage(props: {
@@ -55,7 +55,6 @@ export function SgsstEvaluationsPage(props: {
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1}>
-                    <ActiveChip active={evaluation.isActive} />
                     <Chip size="small" label={evaluation.status} variant="outlined" />
                   </Stack>
                 </TableCell>

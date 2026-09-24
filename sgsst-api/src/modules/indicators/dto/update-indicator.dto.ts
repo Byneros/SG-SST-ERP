@@ -43,8 +43,6 @@ export class UpdateIndicatorDto {
 
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
-
   @IsOptional()
   @IsUUID()
   companyId?: string;
