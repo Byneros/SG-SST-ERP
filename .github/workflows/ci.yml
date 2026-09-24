@@ -100,6 +100,28 @@ jobs:
       - name: Validate compose file
         run: docker compose config
 
+      - name: Prepare local .env (secretos CI validos para assertProductionEnv)
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
+          sed -i "s/^METRICS_TOKEN=.*/METRICS_TOKEN=${METRICS_TOKEN}/" .env
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start stack and wait for health
+        run: docker compose up -d --wait --wait-timeout 420
+
+      - name: Check stack health (compose sin prod local)
+        run: bash scripts/check-env-health.sh 3001 5176 skip skip
+
+      - name: Assert network integrity (dev-stack-recover)
+        run: bash scripts/dev-stack-recover.sh
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
+
   shellcheck:
     name: Shellcheck
     runs-on: ubuntu-latest

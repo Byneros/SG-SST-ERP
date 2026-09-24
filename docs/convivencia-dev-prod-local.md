@@ -77,4 +77,34 @@ El entrypoint de la API reintenta `prisma migrate deploy` en bucle hasta que la 
 bash scripts/check-env-health.sh
 ```
 
-Salida esperada: `OK` para API/web dev (3002/5176 por defecto) y API/web prod (3001/8080). Codigo de salida 1 si algun endpoint no responde. Los puertos se pueden pasar como argumentos para otros entornos.
+Salida esperada: `OK` para API/web dev (3002/5176 por defecto) y API/web prod (3001/8080). Codigo de salida 1 si algun endpoint no responde. Cada puerto acepta el valor especial `skip` para omitir ese endpoint (util en CI, donde no hay prod local):
+
+```bash
+bash scripts/check-env-health.sh 3002 5176 skip skip
+```
+
+## Autocuracion programada (Windows)
+
+El stack dev se autocura cada 5 minutos mediante la tarea programada `SG-SST dev stack recovery`, que ejecuta `scripts/dev-stack-recover.cmd` (wrapper que invoca `dev-stack-recover.sh` via Git Bash). Si detecta contenedores del compose corriendo fuera de la red del proyecto, recrea el stack automaticamente.
+
+Recrear la tarea (equipo nuevo o tras borrarla):
+
+```bash
+schtasks //Create //TN "SG-SST dev stack recovery" //TR "\"<ruta-absoluta>\scripts\dev-stack-recover.cmd\"" //SC MINUTE //MO 5 //F
+```
+
+Consultar o eliminar:
+
+```bash
+schtasks //Query //TN "SG-SST dev stack recovery" //FO LIST
+schtasks //Delete //TN "SG-SST dev stack recovery" //F
+```
+
+Notas:
+- La tarea corre en modo interactivo: solo actua con la sesion iniciada. Es aceptable porque Docker Desktop tambien requiere sesion activa en este host.
+- Requiere `bash` (Git Bash) en el PATH.
+- La ruta del wrapper es absoluta: si se mueve el repositorio, recrear la tarea.
+
+## Verificacion en CI
+
+El job `docker` del workflow (`.github/workflows/ci.yml`) valida los puertos del compose en cada PR: prepara `.env` desde el ejemplo con secretos CI, levanta el stack con `docker compose up -d --build --wait`, ejecuta `scripts/check-env-health.sh 3001 5176 skip skip` (prod se omite: no existe en el runner), verifica la integridad de red con `scripts/dev-stack-recover.sh` y baja el stack con `down -v` (`if: always()`).
