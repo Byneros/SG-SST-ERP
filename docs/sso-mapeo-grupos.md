@@ -15,7 +15,7 @@ cd sgsst-api && npx tsx qa-saml-idp.mts
 # Terminal 2: sembrar el provider SAML de la primera empresa con el cert del IdP
 cd sgsst-api && npx tsx qa-saml-setup.mts [companyId]
 
-# Terminal 3: flujo en navegador (web en 5174, API en 3002)
+# Terminal 3: flujo en navegador (web en 5176, API en 3002)
 # Login -> "Ingresar con SSO empresarial" -> seleccionar la empresa ->
 # en el formulario del IdP elegir el grupo (memberOf) -> Autenticar.
 ```
