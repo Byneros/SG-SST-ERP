@@ -52,7 +52,8 @@ export class IndicatorsService {
 
     const where: Prisma.IndicatorWhereInput = {
       companyId: scope,
-      isActive: query.isActive,
+      // Por defecto solo activos: los borrados no aparecen en el listado.
+      isActive: query.isActive ?? true,
       ...siteFilter,
       ...(search
         ? {
@@ -88,7 +89,8 @@ export class IndicatorsService {
       include: indicatorInclude,
     });
 
-    if (!indicator) {
+    // Borrados (legacy soft-delete) no existen para el actor (404).
+    if (!indicator || indicator.deletedAt) {
       throw new NotFoundException('Indicator not found');
     }
 
@@ -157,10 +159,8 @@ export class IndicatorsService {
   async remove(user: AuthenticatedUser, id: string) {
     await this.findOne(user, id);
 
-    await this.prisma.indicator.update({
-      where: { id },
-      data: { isActive: false, deletedAt: new Date() },
-    });
+    // Borrado definitivo: la cascada del esquema elimina metas y mediciones.
+    await this.prisma.indicator.delete({ where: { id } });
 
     return { id, deleted: true };
   }
