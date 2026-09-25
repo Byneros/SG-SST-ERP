@@ -42,7 +42,10 @@ describe('sanitize (mascaramiento de datos sensibles en logs)', () => {
 
     it('preserves non-plain objects like Date untouched', () => {
       const at = new Date('2026-01-01T00:00:00Z');
-      const out = redactValue({ at, password: 'p' });
+      const out = redactValue({ at, password: 'p' }) as {
+        at: Date;
+        password: string;
+      };
       expect(out.at).toBe(at);
       expect(out.password).toBe('[REDACTED]');
     });
@@ -102,7 +105,7 @@ describe('sanitize (mascaramiento de datos sensibles en logs)', () => {
         password: '[REDACTED]',
       });
       const err = new Error('auth failed with refresh_token=zzz');
-      const out = redactSensitive(err);
+      const out = redactSensitive(err) as Error;
       expect(out).toBeInstanceOf(Error);
       expect(out.message).not.toContain('zzz');
     });

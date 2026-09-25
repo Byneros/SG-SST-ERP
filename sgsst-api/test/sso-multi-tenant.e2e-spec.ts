@@ -74,7 +74,8 @@ type UserRow = {
   email: string;
   password: string;
   role: string;
-  companyId: string;
+  // Nullable: el JIT de SSO crea usuarios antes de vincular empresa.
+  companyId: string | null;
   refreshTokenHash: string | null;
   isActive: boolean;
   ssoSubject: string | null;
