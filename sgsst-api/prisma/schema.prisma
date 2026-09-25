@@ -7,32 +7,37 @@ datasource db {
 }
 
 model User {
-  id                     String         @id @default(uuid())
+  id                     String    @id @default(uuid())
   name                   String
-  email                  String         @unique
+  email                  String    @unique
   password               String
-  role                   Role           @default(EMPLOYEE)
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
+  role                   Role      @default(EMPLOYEE)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
   companyId              String?
-  isActive               Boolean        @default(true)
+  isActive               Boolean   @default(true)
   deletedAt              DateTime?
   refreshTokenHash       String?
   passwordResetTokenHash String?
   passwordResetExpiresAt DateTime?
   mfaSecret              String?
-  mfaEnabled             Boolean        @default(false)
-  failedLoginAttempts    Int            @default(0)
+  mfaEnabled             Boolean   @default(false)
+  failedLoginAttempts    Int       @default(0)
   lockedUntil            DateTime?
   lastLoginAt            DateTime?
-  ssoSubject             String?        @unique
+  ssoSubject             String?   @unique
+
+  auditLogs                       AuditLog[]
+  notifications                   Notification[]
+  reportExports                   ReportExport[]
+  approvedAnnualWorkPlans         AnnualWorkPlan[]      @relation("AnnualWorkPlanApprover")
+  ownedAnnualPlanActivities       AnnualPlanActivity[]  @relation("AnnualPlanActivityOwner")
+  plannedInspectionsAsInspector   PlannedInspection[]   @relation("PlannedInspectionInspector")
+  unplannedInspectionsAsInspector UnplannedInspection[] @relation("UnplannedInspectionInspector")
+  unsafeReportsAsReporter         UnsafeReport[]        @relation("UnsafeReportReporter")
+  company                         Company?              @relation(fields: [companyId], references: [id])
 
   @@index([lockedUntil])
-
-  auditLogs              AuditLog[]
-  notifications          Notification[]
-  reportExports          ReportExport[]
-  company                Company?       @relation(fields: [companyId], references: [id])
 }
 
 model Company {
@@ -68,6 +73,14 @@ model Company {
   legalComplianceReviews        LegalComplianceReview[]
   notifications                 Notification[]
   reportExports                 ReportExport[]
+  annualWorkPlans               AnnualWorkPlan[]
+  plannedInspections            PlannedInspection[]
+  unsafeReports                 UnsafeReport[]
+  ppeItems                      PpeItem[]
+  ppeDeliveries                 PpeDelivery[]
+  medicalExams                  MedicalExam[]
+  medicalRestrictions           MedicalRestriction[]
+  medicalProfiles               MedicalProfile[]
   auditPrograms                 AuditProgram[]
   sgsstEvaluations              SgsstEvaluation[]
   reportMetricSnapshots         ReportExportMetricSnapshot[]
@@ -75,66 +88,75 @@ model Company {
   sites                         Site[]
   trainings                     Training[]
   users                         User[]
+  annualPlanActivities          AnnualPlanActivity[]
+  unplannedInspections          UnplannedInspection[]
 }
 
 model Site {
-  id         String      @id @default(uuid())
-  name       String
-  code       String?
-  address    String?
-  city       String?
-  department String?
-  isMain     Boolean     @default(false)
-  companyId  String
-  company    Company     @relation(fields: [companyId], references: [id])
-  employees  Employee[]
-  risks      Risk[]
-  incidents  Incident[]
-  trainings  Training[]
-  documents  Document[]
-  indicators Indicator[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  isActive   Boolean     @default(true)
-  deletedAt  DateTime?
+  id                   String                @id @default(uuid())
+  name                 String
+  code                 String?
+  address              String?
+  city                 String?
+  department           String?
+  isMain               Boolean               @default(false)
+  companyId            String
+  company              Company               @relation(fields: [companyId], references: [id])
+  employees            Employee[]
+  risks                Risk[]
+  incidents            Incident[]
+  trainings            Training[]
+  documents            Document[]
+  plannedInspections   PlannedInspection[]
+  unplannedInspections UnplannedInspection[]
+  unsafeReports        UnsafeReport[]
+  indicators           Indicator[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  isActive             Boolean               @default(true)
+  deletedAt            DateTime?
 
   @@index([companyId, code])
   @@index([companyId, isActive])
 }
 
 model Employee {
-  id               String           @id @default(uuid())
-  firstName        String
-  lastName         String
-  document         String           @unique
-  position         String
-  email            String?
-  phone            String?
-  createdAt        DateTime         @default(now())
-  companyId        String
-  isActive         Boolean          @default(true)
-  deletedAt        DateTime?
-  updatedAt        DateTime         @updatedAt
-  documentType     DocumentType     @default(CC)
-  workCenter       String?
-  contractType     ContractType     @default(INDEFINITE)
-  employmentStatus EmploymentStatus @default(ACTIVE)
-  hireDate         DateTime?
-  siteId           String?
-  company          Company          @relation(fields: [companyId], references: [id])
-  site             Site?            @relation(fields: [siteId], references: [id])
+  id                  String               @id @default(uuid())
+  firstName           String
+  lastName            String
+  document            String               @unique
+  position            String
+  email               String?
+  phone               String?
+  createdAt           DateTime             @default(now())
+  companyId           String
+  isActive            Boolean              @default(true)
+  deletedAt           DateTime?
+  updatedAt           DateTime             @updatedAt
+  documentType        DocumentType         @default(CC)
+  workCenter          String?
+  contractType        ContractType         @default(INDEFINITE)
+  employmentStatus    EmploymentStatus     @default(ACTIVE)
+  hireDate            DateTime?
+  siteId              String?
+  company             Company              @relation(fields: [companyId], references: [id])
+  site                Site?                @relation(fields: [siteId], references: [id])
+  ppeDeliveries       PpeDelivery[]
+  medicalExams        MedicalExam[]
+  medicalRestrictions MedicalRestriction[]
 }
 
 model Risk {
-  id          String    @id @default(uuid())
-  title       String
-  description String?
-  level       RiskLevel
-  createdAt   DateTime  @default(now())
-  companyId   String
-  siteId      String?
-  company     Company   @relation(fields: [companyId], references: [id])
-  site        Site?     @relation(fields: [siteId], references: [id])
+  id                 String              @id @default(uuid())
+  title              String
+  description        String?
+  level              RiskLevel
+  createdAt          DateTime            @default(now())
+  companyId          String
+  siteId             String?
+  company            Company             @relation(fields: [companyId], references: [id])
+  site               Site?               @relation(fields: [siteId], references: [id])
+  inspectionFindings InspectionFinding[]
 }
 
 model Incident {
@@ -184,15 +206,15 @@ model Audit {
 }
 
 model AuditProgram {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
   period    String
   objective String?
   scope     String?
   companyId String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  company   Company   @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id])
   audits    Audit[]
 }
 
@@ -210,6 +232,292 @@ model AuditChecklistItem {
   updatedAt   DateTime @updatedAt
 
   @@index([auditId])
+}
+
+// Plan Anual de Trabajo SG-SST (S8.1): un plan por empresa y anio.
+// Borrado: hard delete con traza en AuditLog (ADR de estrategia de borrado).
+model AnnualWorkPlan {
+  id           String               @id @default(uuid())
+  year         Int
+  status       String               @default("DRAFT")
+  notes        String?
+  approvedById String?
+  approvedBy   User?                @relation("AnnualWorkPlanApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  companyId    String
+  company      Company              @relation(fields: [companyId], references: [id])
+  activities   AnnualPlanActivity[]
+
+  @@unique([companyId, year])
+  @@index([companyId, status])
+}
+
+// Actividad del Plan Anual de Trabajo (S8.2): responsable, fecha, evidencia
+// documental y % de avance. La evidencia se integra con documents via FK.
+model AnnualPlanActivity {
+  id         String         @id @default(uuid())
+  cycle      String         @default("ACT")
+  name       String
+  frequency  String?
+  dueDate    DateTime?
+  progress   Int            @default(0)
+  status     String         @default("PENDING")
+  budget     Float?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  planId     String
+  plan       AnnualWorkPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company        @relation(fields: [companyId], references: [id])
+  ownerId    String?
+  owner      User?          @relation("AnnualPlanActivityOwner", fields: [ownerId], references: [id])
+  evidenceId String?
+  evidence   Document?      @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+
+  @@index([planId])
+  @@index([companyId, status])
+}
+
+// Inspecciones planeadas (S9.1): programacion por sede, checklist de items y
+// hallazgos. Los hallazgos generan acciones correctivas (CorrectiveAction via
+// InspectionFinding, mismo patron de Audit -> AuditFinding -> CorrectiveAction).
+// Borrado: hard delete con traza en AuditLog (ADR de estrategia de borrado).
+model PlannedInspection {
+  id                   String                @id @default(uuid())
+  title                String
+  type                 String                @default("LOCATIVE")
+  frequency            String?
+  scheduledAt          DateTime
+  executedAt           DateTime?
+  result               String?
+  status               InspectionStatus      @default(PLANNED)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  companyId            String
+  company              Company               @relation(fields: [companyId], references: [id])
+  siteId               String?
+  site                 Site?                 @relation(fields: [siteId], references: [id])
+  inspectorId          String?
+  inspector            User?                 @relation("PlannedInspectionInspector", fields: [inspectorId], references: [id])
+  items                InspectionItem[]
+  findings             InspectionFinding[]
+  unplannedInspections UnplannedInspection[]
+
+  @@index([companyId, status])
+  @@index([siteId])
+}
+
+// Item del checklist de la inspeccion (respuesta por pregunta).
+model InspectionItem {
+  id           String            @id @default(uuid())
+  order        Int               @default(0)
+  section      String?
+  question     String
+  answer       String?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  inspectionId String
+  inspection   PlannedInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+}
+
+// Hallazgo de inspeccion con enlace a CorrectiveAction (accion correctiva).
+model InspectionFinding {
+  id                    String               @id @default(uuid())
+  description           String
+  severity              FindingSeverity      @default(MINOR)
+  status                FindingStatus        @default(OPEN)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  // Padre opcional: un hallazgo puede venir de una inspeccion planeada,
+  // de una no planeada o de un reporte directo (S9.2/S9.3).
+  inspectionId          String?
+  inspection            PlannedInspection?   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  unplannedInspectionId String?
+  unplannedInspection   UnplannedInspection? @relation(fields: [unplannedInspectionId], references: [id], onDelete: Cascade)
+  riskId                String?
+  risk                  Risk?                @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  actionId              String?              @unique
+  action                CorrectiveAction?    @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  unsafeReport          UnsafeReport?        @relation(fields: [unsafeReportId], references: [id])
+  unsafeReportId        String?
+
+  @@index([inspectionId])
+  @@index([unplannedInspectionId])
+}
+
+// Inspecciones no planeadas (S9.2): reactivas, con motivo obligatorio.
+// Los hallazgos reutilizan InspectionFinding y pueden generar un riesgo en
+// la matriz GTC-45 (Risk) ademas de la accion correctiva.
+// Actos y condiciones inseguras (S9.3): canal de reporte directo con
+// clasificacion (acto de comportamiento / condicion fisica), seguimiento y
+// acciones via InspectionFinding (reporte directo, sin inspeccion padre).
+// Reportes anonimos: reporterName opcional, nunca se expone al EMPLOYEE.
+// Borrado: hard delete con traza en AuditLog (ADR de estrategia de borrado).
+model UnsafeReport {
+  id           String              @id @default(uuid())
+  kind         String              @default("UNSAFE_CONDITION")
+  description  String
+  severity     FindingSeverity     @default(MINOR)
+  status       String              @default("OPEN")
+  area         String?
+  isAnonymous  Boolean             @default(false)
+  reporterName String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  closedAt     DateTime?
+  companyId    String
+  company      Company             @relation(fields: [companyId], references: [id])
+  siteId       String?
+  site         Site?               @relation(fields: [siteId], references: [id])
+  reporterId   String?
+  reporter     User?               @relation("UnsafeReportReporter", fields: [reporterId], references: [id])
+  findings     InspectionFinding[]
+
+  @@index([companyId, status])
+  @@index([kind])
+}
+
+// Catalogo EPP (S9.4): tipo, talla/estandar, vida util y stock minimo.
+model PpeItem {
+  id             String        @id @default(uuid())
+  name           String
+  type           String?
+  standard       String?
+  size           String?
+  usefulLifeDays Int?
+  stockMin       Int           @default(0)
+  stock          Int           @default(0)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id])
+  deliveries     PpeDelivery[]
+
+  @@index([companyId, isActive])
+}
+
+// Entrega de EPP a un trabajador: descuenta stock y programa reposicion.
+model PpeDelivery {
+  id               String    @id @default(uuid())
+  quantity         Int       @default(1)
+  deliveredAt      DateTime  @default(now())
+  dueReplacementAt DateTime?
+  signature        String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  itemId           String
+  item             PpeItem   @relation(fields: [itemId], references: [id])
+  employeeId       String
+  employee         Employee  @relation(fields: [employeeId], references: [id])
+  companyId        String
+  company          Company   @relation(fields: [companyId], references: [id])
+
+  @@index([employeeId])
+  @@index([itemId])
+}
+
+// Medicina laboral (S10): profesiograma (requisitos medicos por cargo),
+// examenes ocupacionales y restricciones. Datos sensibles: acceso restringido
+// a ADMIN/SST/AUDITOR (nunca EMPLOYEE) y solo concepto ocupacional, sin
+// historia clinica. Auditoria completa en cada mutacion.
+
+// Profesiograma: perfil medico por cargo con requisitos y periodicidad.
+model MedicalProfile {
+  id           String                   @id @default(uuid())
+  position     String
+  description  String?
+  isActive     Boolean                  @default(true)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  companyId    String
+  company      Company                  @relation(fields: [companyId], references: [id])
+  requirements MedicalExamRequirement[]
+
+  @@unique([companyId, position])
+}
+
+// Requisito medico del profesiograma: tipo de examen y periodicidad.
+model MedicalExamRequirement {
+  id                String         @id @default(uuid())
+  examType          String
+  periodicityMonths Int            @default(12)
+  profileId         String
+  profile           MedicalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+// Examen ocupacional de un trabajador: solo concepto operativo (APT0/RESTRICCION/
+// NO_APTO), proveedor, proxima fecha; sin diagnostico ni historia clinica.
+model MedicalExam {
+  id           String               @id @default(uuid())
+  examType     String
+  concept      String               @default("PENDIENTE")
+  scheduledAt  DateTime
+  performedAt  DateTime?
+  provider     String?
+  nextDueAt    DateTime?
+  notes        String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  employeeId   String
+  employee     Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company              @relation(fields: [companyId], references: [id])
+  restrictions MedicalRestriction[]
+
+  @@index([employeeId])
+  @@index([companyId, nextDueAt])
+}
+
+// Restriccion laboral derivada de un examen: vigencia y levantamiento.
+model MedicalRestriction {
+  id          String       @id @default(uuid())
+  description String
+  startDate   DateTime     @default(now())
+  endDate     DateTime?
+  liftedAt    DateTime?
+  liftedBy    String?
+  status      String       @default("ACTIVE")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  examId      String?
+  exam        MedicalExam? @relation(fields: [examId], references: [id], onDelete: SetNull)
+  employeeId  String
+  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id])
+
+  @@index([employeeId, status])
+}
+
+model UnplannedInspection {
+  id                  String              @id @default(uuid())
+  title               String
+  reason              String
+  area                String?
+  status              InspectionStatus    @default(PLANNED)
+  executedAt          DateTime?
+  result              String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  companyId           String
+  company             Company             @relation(fields: [companyId], references: [id])
+  siteId              String?
+  site                Site?               @relation(fields: [siteId], references: [id])
+  inspectorId         String?
+  inspector           User?               @relation("UnplannedInspectionInspector", fields: [inspectorId], references: [id])
+  findings            InspectionFinding[]
+  plannedInspection   PlannedInspection?  @relation(fields: [plannedInspectionId], references: [id])
+  plannedInspectionId String?
+
+  @@index([companyId, status])
+  @@index([siteId])
 }
 
 model SgsstEvaluation {
@@ -261,37 +569,39 @@ model AuditFinding {
 }
 
 model CorrectiveAction {
-  id          String                 @id @default(uuid())
-  title       String
-  description String?
-  responsible String
-  dueDate     DateTime
-  status      CorrectiveActionStatus @default(PENDING)
-  closedAt    DateTime?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
-  findingId   String
-  finding     AuditFinding           @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  id                String                 @id @default(uuid())
+  title             String
+  description       String?
+  responsible       String
+  dueDate           DateTime
+  status            CorrectiveActionStatus @default(PENDING)
+  closedAt          DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  findingId         String
+  finding           AuditFinding           @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  inspectionFinding InspectionFinding?
 }
 
 model Document {
-  id          String            @id @default(uuid())
-  name        String
-  fileUrl     String
-  createdAt   DateTime          @default(now())
-  companyId   String
-  description String?
-  category    DocumentCategory  @default(OTHER)
-  status      DocumentStatus    @default(DRAFT)
-  fileName    String?
-  mimeType    String?
-  version     Int               @default(1)
-  expiresAt   DateTime?
-  updatedAt   DateTime          @updatedAt
-  company     Company           @relation(fields: [companyId], references: [id])
-  siteId      String?
-  site        Site?             @relation(fields: [siteId], references: [id])
-  versions    DocumentVersion[]
+  id                   String               @id @default(uuid())
+  name                 String
+  fileUrl              String
+  createdAt            DateTime             @default(now())
+  companyId            String
+  description          String?
+  category             DocumentCategory     @default(OTHER)
+  status               DocumentStatus       @default(DRAFT)
+  fileName             String?
+  mimeType             String?
+  version              Int                  @default(1)
+  expiresAt            DateTime?
+  updatedAt            DateTime             @updatedAt
+  company              Company              @relation(fields: [companyId], references: [id])
+  siteId               String?
+  site                 Site?                @relation(fields: [siteId], references: [id])
+  versions             DocumentVersion[]
+  annualPlanActivities AnnualPlanActivity[]
 }
 
 model DocumentVersion {
@@ -319,8 +629,8 @@ model Indicator {
   updatedAt         DateTime               @updatedAt
   companyId         String
   siteId            String?
-  company           Company          @relation(fields: [companyId], references: [id])
-  site              Site?            @relation(fields: [siteId], references: [id])
+  company           Company                @relation(fields: [companyId], references: [id])
+  site              Site?                  @relation(fields: [siteId], references: [id])
   targets           IndicatorTarget[]
   measurements      IndicatorMeasurement[]
 
@@ -710,6 +1020,13 @@ enum AuditStatus {
   PLANNED
   IN_PROGRESS
   CLOSED
+  CANCELLED
+}
+
+enum InspectionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
   CANCELLED
 }
 

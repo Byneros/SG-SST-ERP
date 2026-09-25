@@ -12,6 +12,12 @@ const pageLoaders = {
   documents: () => import('../pages/documents/DocumentsPage'),
   sgsstAudits: () => import('../pages/sgsst-audits/SgsstAuditsPage'),
   sgsstEvaluations: () => import('../pages/sgsst-evaluations/SgsstEvaluationsPage'),
+  annualWorkPlans: () => import('../pages/annual-work-plans/AnnualWorkPlansPage'),
+  plannedInspections: () => import('../pages/planned-inspections/PlannedInspectionsPage'),
+  unplannedInspections: () => import('../pages/unplanned-inspections/UnplannedInspectionsPage'),
+  unsafeReports: () => import('../pages/unsafe-reports/UnsafeReportsPage'),
+  ppe: () => import('../pages/ppe/PpePage'),
+  medical: () => import('../pages/medical/MedicalPage'),
   indicators: () => import('../pages/indicators/IndicatorsPage'),
   legalCompliance: () => import('../pages/legal-compliance/LegalCompliancePage'),
   reports: () => import('../pages/reports/ReportExportsPage'),
@@ -30,6 +36,12 @@ const dialogLoaders = {
   document: () => import('../pages/documents/DocumentDialog'),
   sgsstAudit: () => import('../pages/sgsst-audits/SgsstAuditDialog'),
   sgsstEvaluation: () => import('../pages/sgsst-evaluations/SgsstEvaluationDialog'),
+  annualWorkPlan: () => import('../pages/annual-work-plans/AnnualWorkPlanDialog'),
+  plannedInspection: () => import('../pages/planned-inspections/PlannedInspectionDialog'),
+  unplannedInspection: () => import('../pages/unplanned-inspections/UnplannedInspectionDialog'),
+  unsafeReport: () => import('../pages/unsafe-reports/UnsafeReportDialog'),
+  ppeDialogs: () => import('../pages/ppe/PpeDialogs'),
+  medicalDialogs: () => import('../pages/medical/MedicalDialogs'),
   indicator: () => import('../pages/indicators/IndicatorDialog'),
   user: () => import('../pages/users/UserDialog'),
 }
@@ -66,6 +78,24 @@ export const SgsstEvaluationsPage = lazy(() =>
 )
 export const IndicatorsPage = lazy(() =>
   pageLoaders.indicators().then((module) => ({ default: module.IndicatorsPage })),
+)
+export const AnnualWorkPlansPage = lazy(() =>
+  pageLoaders.annualWorkPlans().then((module) => ({ default: module.AnnualWorkPlansPage })),
+)
+export const PlannedInspectionsPage = lazy(() =>
+  pageLoaders.plannedInspections().then((module) => ({ default: module.PlannedInspectionsPage })),
+)
+export const UnplannedInspectionsPage = lazy(() =>
+  pageLoaders.unplannedInspections().then((module) => ({ default: module.UnplannedInspectionsPage })),
+)
+export const UnsafeReportsPage = lazy(() =>
+  pageLoaders.unsafeReports().then((module) => ({ default: module.UnsafeReportsPage })),
+)
+export const PpePage = lazy(() =>
+  pageLoaders.ppe().then((module) => ({ default: module.PpePage })),
+)
+export const MedicalPage = lazy(() =>
+  pageLoaders.medical().then((module) => ({ default: module.MedicalPage })),
 )
 export const LegalCompliancePage = lazy(() =>
   pageLoaders.legalCompliance().then((module) => ({ default: module.LegalCompliancePage })),
@@ -113,6 +143,33 @@ export const SgsstEvaluationDialog = lazy(() =>
 export const IndicatorDialog = lazy(() =>
   dialogLoaders.indicator().then((module) => ({ default: module.IndicatorDialog })),
 )
+export const AnnualWorkPlanDialog = lazy(() =>
+  dialogLoaders.annualWorkPlan().then((module) => ({ default: module.AnnualWorkPlanDialog })),
+)
+export const PlannedInspectionDialog = lazy(() =>
+  dialogLoaders.plannedInspection().then((module) => ({ default: module.PlannedInspectionDialog })),
+)
+export const UnplannedInspectionDialog = lazy(() =>
+  dialogLoaders.unplannedInspection().then((module) => ({ default: module.UnplannedInspectionDialog })),
+)
+export const UnsafeReportDialog = lazy(() =>
+  dialogLoaders.unsafeReport().then((module) => ({ default: module.UnsafeReportDialog })),
+)
+export const PpeItemDialog = lazy(() =>
+  dialogLoaders.ppeDialogs().then((module) => ({ default: module.PpeItemDialog })),
+)
+export const PpeDeliveryDialog = lazy(() =>
+  dialogLoaders.ppeDialogs().then((module) => ({ default: module.PpeDeliveryDialog })),
+)
+export const MedicalProfileDialog = lazy(() =>
+  dialogLoaders.medicalDialogs().then((module) => ({ default: module.MedicalProfileDialog })),
+)
+export const MedicalExamDialog = lazy(() =>
+  dialogLoaders.medicalDialogs().then((module) => ({ default: module.MedicalExamDialog })),
+)
+export const MedicalRestrictionDialog = lazy(() =>
+  dialogLoaders.medicalDialogs().then((module) => ({ default: module.MedicalRestrictionDialog })),
+)
 export const UserDialog = lazy(() =>
   dialogLoaders.user().then((module) => ({ default: module.UserDialog })),
 )
@@ -159,6 +216,26 @@ export function preloadSgsstEvaluationDialog() {
 
 export function preloadIndicatorDialog() {
   void dialogLoaders.indicator()
+}
+
+export function preloadAnnualWorkPlanDialog() {
+  void dialogLoaders.annualWorkPlan()
+}
+
+export function preloadPlannedInspectionDialog() {
+  void dialogLoaders.plannedInspection()
+}
+
+export function preloadUnplannedInspectionDialog() {
+  void dialogLoaders.unplannedInspection()
+}
+
+export function preloadUnsafeReportDialog() {
+  void dialogLoaders.unsafeReport()
+}
+
+export function preloadPpeDialogs() {
+  void dialogLoaders.ppeDialogs()
 }
 
 export function preloadUserDialog() {

@@ -524,26 +524,52 @@ export class NotificationsService {
     const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const companyScope = { companyId };
 
-    const [documents, trainings, incidents] = await this.prisma.$transaction([
-      this.prisma.document.findMany({
-        where: {
-          ...companyScope,
-          expiresAt: { gte: now, lte: next30Days },
-        },
-        select: { id: true, name: true, expiresAt: true, companyId: true },
-      }),
-      this.prisma.training.findMany({
-        where: { ...companyScope, date: { lt: now } },
-        select: { id: true, title: true, date: true, companyId: true },
-      }),
-      this.prisma.incident.findMany({
-        where: {
-          ...companyScope,
-          status: { not: IncidentStatus.RESOLVED },
-        },
-        select: { id: true, title: true, status: true, companyId: true },
-      }),
-    ]);
+    const [documents, trainings, incidents, planActivities] =
+      await this.prisma.$transaction([
+        this.prisma.document.findMany({
+          where: {
+            ...companyScope,
+            expiresAt: { gte: now, lte: next30Days },
+          },
+          select: { id: true, name: true, expiresAt: true, companyId: true },
+        }),
+        this.prisma.training.findMany({
+          where: { ...companyScope, date: { lt: now } },
+          select: { id: true, title: true, date: true, companyId: true },
+        }),
+        this.prisma.incident.findMany({
+          where: {
+            ...companyScope,
+            status: { not: IncidentStatus.RESOLVED },
+          },
+          select: { id: true, title: true, status: true, companyId: true },
+        }),
+        // S8.3: actividades del plan anual proximas (30 dias), vencidas o
+        // sin evidencia cerca del vencimiento. Se excluyen cerradas/canceladas.
+        this.prisma.annualPlanActivity.findMany({
+          where: {
+            ...companyScope,
+            status: { notIn: ['DONE', 'CANCELLED'] },
+            OR: [
+              // Vencidas: fecha compromiso pasada.
+              { dueDate: { lt: now } },
+              // Proximas: vencen dentro de los proximos 30 dias.
+              { dueDate: { gte: now, lte: next30Days } },
+              // Sin evidencia y a punto de vencer (30 dias) o ya vencidas.
+              { evidenceId: null, dueDate: { lte: next30Days } },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            dueDate: true,
+            status: true,
+            evidenceId: true,
+            companyId: true,
+            plan: { select: { year: true } },
+          },
+        }),
+      ]);
 
     let created = 0;
     for (const targetUser of targetUsers) {
@@ -598,6 +624,36 @@ export class NotificationsService {
         });
         if (notification.createdAt.getTime() >= now.getTime()) created += 1;
       }
+
+      // S8.3: alertas de actividades del plan anual de trabajo.
+      for (const activity of planActivities.filter((item) =>
+        this.isVisibleForUser(targetUser, item.companyId),
+      )) {
+        const isOverdue = activity.dueDate !== null && activity.dueDate < now;
+        const missingEvidence = activity.evidenceId === null;
+        const dueLabel = activity.dueDate
+          ? activity.dueDate.toISOString().slice(0, 10)
+          : 'sin fecha';
+        // Vencida sin evidencia = mayor criticidad: alta prioridad.
+        const priority = isOverdue
+          ? NotificationPriority.CRITICAL
+          : NotificationPriority.HIGH;
+        const notification = await this.create({
+          userId: targetUser.id,
+          companyId: activity.companyId,
+          title: isOverdue
+            ? 'Actividad del plan anual vencida'
+            : 'Actividad del plan anual proxima',
+          message: isOverdue
+            ? `${activity.name} (plan ${activity.plan.year}) vencio el ${dueLabel}${missingEvidence ? ' y aun no tiene evidencia' : ''}`
+            : `${activity.name} (plan ${activity.plan.year}) vence el ${dueLabel}${missingEvidence ? ' y aun no tiene evidencia' : ''}`,
+          type: NotificationType.TASK,
+          priority,
+          entity: 'AnnualPlanActivity',
+          entityId: activity.id,
+        });
+        if (notification.createdAt.getTime() >= now.getTime()) created += 1;
+      }
     }
 
     return {
@@ -607,6 +663,7 @@ export class NotificationsService {
         documents: documents.length,
         trainings: trainings.length,
         incidents: incidents.length,
+        planActivities: planActivities.length,
       },
     };
   }

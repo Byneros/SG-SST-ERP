@@ -1,0 +1,55 @@
+d209a0c0d5620b1304301daa147dc925
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AppController = void 0;
+const common_1 = require("@nestjs/common");
+const app_service_1 = require("./app.service");
+let AppController = class AppController {
+    appService;
+    constructor(appService) {
+        this.appService = appService;
+    }
+    getHealth() {
+        return this.appService.getHealth();
+    }
+    getDetailedHealth() {
+        return this.appService.getHealth();
+    }
+    getReadiness() {
+        return this.appService.getReadiness();
+    }
+};
+exports.AppController = AppController;
+__decorate([
+    (0, common_1.Get)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Object)
+], AppController.prototype, "getHealth", null);
+__decorate([
+    (0, common_1.Get)('health'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Object)
+], AppController.prototype, "getDetailedHealth", null);
+__decorate([
+    (0, common_1.Get)('ready'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_b = typeof Promise !== "undefined" && Promise) === "function" ? _b : Object)
+], AppController.prototype, "getReadiness", null);
+exports.AppController = AppController = __decorate([
+    (0, common_1.Controller)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof app_service_1.AppService !== "undefined" && app_service_1.AppService) === "function" ? _a : Object])
+], AppController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxORUxTT04gSlVMSU9cXGNyZXdhaV9vbGxhbWFcXFNHLVNTVC1FUlBcXHNnc3N0LWFwaVxcc3JjXFxhcHAuY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7O0FBQUEsMkNBQWlEO0FBQ2pELCtDQUl1QjtBQUdoQixJQUFNLGFBQWEsR0FBbkIsTUFBTSxhQUFhO0lBQ0s7SUFBN0IsWUFBNkIsVUFBc0I7UUFBdEIsZUFBVSxHQUFWLFVBQVUsQ0FBWTtJQUFHLENBQUM7SUFHdkQsU0FBUztRQUNQLE9BQU8sSUFBSSxDQUFDLFVBQVUsQ0FBQyxTQUFTLEVBQUUsQ0FBQztJQUNyQyxDQUFDO0lBR0QsaUJBQWlCO1FBQ2YsT0FBTyxJQUFJLENBQUMsVUFBVSxDQUFDLFNBQVMsRUFBRSxDQUFDO0lBQ3JDLENBQUM7SUFHRCxZQUFZO1FBQ1YsT0FBTyxJQUFJLENBQUMsVUFBVSxDQUFDLFlBQVksRUFBRSxDQUFDO0lBQ3hDLENBQUM7Q0FDRixDQUFBO0FBakJZLHNDQUFhO0FBSXhCO0lBREMsSUFBQSxZQUFHLEdBQUU7Ozs7OENBR0w7QUFHRDtJQURDLElBQUEsWUFBRyxFQUFDLFFBQVEsQ0FBQzs7OztzREFHYjtBQUdEO0lBREMsSUFBQSxZQUFHLEVBQUMsT0FBTyxDQUFDOzs7d0RBQ0csT0FBTyxvQkFBUCxPQUFPO2lEQUV0Qjt3QkFoQlUsYUFBYTtJQUR6QixJQUFBLG1CQUFVLEdBQUU7eURBRThCLHdCQUFVLG9CQUFWLHdCQUFVO0dBRHhDLGFBQWEsQ0FpQnpCIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcTkVMU09OIEpVTElPXFxjcmV3YWlfb2xsYW1hXFxTRy1TU1QtRVJQXFxzZ3NzdC1hcGlcXHNyY1xcYXBwLmNvbnRyb2xsZXIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQ29udHJvbGxlciwgR2V0IH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xuaW1wb3J0IHtcbiAgQXBwU2VydmljZSxcbiAgdHlwZSBIZWFsdGhSZXNwb25zZSxcbiAgdHlwZSBSZWFkaW5lc3NSZXNwb25zZSxcbn0gZnJvbSAnLi9hcHAuc2VydmljZSc7XG5cbkBDb250cm9sbGVyKClcbmV4cG9ydCBjbGFzcyBBcHBDb250cm9sbGVyIHtcbiAgY29uc3RydWN0b3IocHJpdmF0ZSByZWFkb25seSBhcHBTZXJ2aWNlOiBBcHBTZXJ2aWNlKSB7fVxuXG4gIEBHZXQoKVxuICBnZXRIZWFsdGgoKTogSGVhbHRoUmVzcG9uc2Uge1xuICAgIHJldHVybiB0aGlzLmFwcFNlcnZpY2UuZ2V0SGVhbHRoKCk7XG4gIH1cblxuICBAR2V0KCdoZWFsdGgnKVxuICBnZXREZXRhaWxlZEhlYWx0aCgpOiBIZWFsdGhSZXNwb25zZSB7XG4gICAgcmV0dXJuIHRoaXMuYXBwU2VydmljZS5nZXRIZWFsdGgoKTtcbiAgfVxuXG4gIEBHZXQoJ3JlYWR5JylcbiAgZ2V0UmVhZGluZXNzKCk6IFByb21pc2U8UmVhZGluZXNzUmVzcG9uc2U+IHtcbiAgICByZXR1cm4gdGhpcy5hcHBTZXJ2aWNlLmdldFJlYWRpbmVzcygpO1xuICB9XG59XG4iXSwidmVyc2lvbiI6M30=

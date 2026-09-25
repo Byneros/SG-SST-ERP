@@ -31,8 +31,17 @@ import { MfaSettingsDialog } from './auth/MfaSettingsDialog'
 import { SsoConfigDialog, emptySsoConfig } from './auth/SsoConfigDialog'
 import type { SsoConfigValues } from './auth/ssoConfig'
 import {
+  emptyAnnualWorkPlan,
   emptyCompany,
   emptyDocument,
+  emptyPlannedInspection,
+  emptyPpeDelivery,
+  emptyPpeItem,
+  emptyMedicalProfile,
+  emptyMedicalExam,
+  emptyMedicalRestriction,
+  emptyUnsafeReport,
+  emptyUnplannedInspection,
   emptyEmployee,
   emptyIncident,
   emptyIndicator,
@@ -50,6 +59,21 @@ import {
 import { AppLayout } from './layout/AppLayout'
 import {
   AuditPage,
+  AnnualWorkPlanDialog,
+  AnnualWorkPlansPage,
+  PlannedInspectionDialog,
+  PlannedInspectionsPage,
+  UnplannedInspectionDialog,
+  UnplannedInspectionsPage,
+  UnsafeReportDialog,
+  UnsafeReportsPage,
+  PpeDeliveryDialog,
+  PpeItemDialog,
+  PpePage,
+  MedicalProfileDialog,
+  MedicalExamDialog,
+  MedicalRestrictionDialog,
+  MedicalPage,
   ExternalDeliveriesPage,
   CompaniesPage,
   CompanyDialog,
@@ -70,6 +94,11 @@ import {
   SgsstEvaluationDialog,
   SgsstEvaluationsPage,
   SgsstAuditsPage,
+  preloadAnnualWorkPlanDialog,
+  preloadPlannedInspectionDialog,
+  preloadUnplannedInspectionDialog,
+  preloadUnsafeReportDialog,
+  preloadPpeDialogs,
   preloadSgsstAuditDialog,
   preloadSgsstEvaluationDialog,
   preloadCompanyDialog,
@@ -92,8 +121,21 @@ import {
 import { theme } from './theme'
 import { ViewErrorBoundary } from './components/ViewErrorBoundary'
 import type {
+  AnnualActivityFormValues,
+  AnnualWorkPlan,
   AppNotification,
   AuditLog,
+  PlannedInspection,
+  UnplannedInspection,
+  UnsafeReport,
+  PpeDelivery,
+  PpeItem,
+  MedicalProfile,
+  MedicalExam,
+  MedicalRestriction,
+  MedicalProfileFormValues,
+  MedicalExamFormValues,
+  MedicalRestrictionFormValues,
   ExternalDelivery,
   ExternalDeliveryFilters,
   AuthUser,
@@ -123,7 +165,7 @@ import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
  * Vistas con filtro de sede persistido en la URL (hash routing minimo):
  * #/employees?site=<uuid|none> — sin react-router; solo lectura/escritura
  * del hash con replaceState para que las vistas filtradas sean compartibles.
- */const SITE_FILTER_VIEWS = ['employees', 'incidents', 'risks', 'trainings', 'documents']
+ */const SITE_FILTER_VIEWS = ['employees', 'incidents', 'risks', 'trainings', 'documents', 'plannedInspections']
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ALL_VIEWS: View[] = [
   'dashboard',
@@ -138,6 +180,12 @@ const ALL_VIEWS: View[] = [
   'sgsstEvaluations',
   'indicators',
   'legalCompliance',
+  'annualWorkPlans',
+  'plannedInspections',
+  'unplannedInspections',
+  'unsafeReports',
+  'ppe',
+  'medical',
   'reports',
   'users',
   'externalDeliveries',
@@ -196,6 +244,12 @@ function App() {
   const [documents, setDocuments] = useState<SgsstDocument[]>([])
   const [sgsstAudits, setSgsstAudits] = useState<SgsstAudit[]>([])
   const [sgsstEvaluations, setSgsstEvaluations] = useState<SgsstEvaluation[]>([])
+  const [annualWorkPlans, setAnnualWorkPlans] = useState<AnnualWorkPlan[]>([])
+  const [plannedInspections, setPlannedInspections] = useState<PlannedInspection[]>([])
+  const [unplannedInspections, setUnplannedInspections] = useState<UnplannedInspection[]>([])
+  const [unsafeReports, setUnsafeReports] = useState<UnsafeReport[]>([])
+  const [ppeItems, setPpeItems] = useState<PpeItem[]>([])
+  const [ppeDeliveries, setPpeDeliveries] = useState<PpeDelivery[]>([])
   const [indicators, setIndicators] = useState<Indicator[]>([])
   const [reportExports, setReportExports] = useState<ReportExport[]>([])
   const [reportMetrics, setReportMetrics] = useState<ReportExportMetrics>(emptyReportMetrics)
@@ -219,6 +273,11 @@ function App() {
   const [documentMeta, setDocumentMeta] = useState(emptyMeta)
   const [sgsstAuditMeta, setSgsstAuditMeta] = useState(emptyMeta)
   const [sgsstEvaluationMeta, setSgsstEvaluationMeta] = useState(emptyMeta)
+  const [annualWorkPlanMeta, setAnnualWorkPlanMeta] = useState(emptyMeta)
+  const [plannedInspectionMeta, setPlannedInspectionMeta] = useState(emptyMeta)
+  const [unplannedInspectionMeta, setUnplannedInspectionMeta] = useState(emptyMeta)
+  const [unsafeReportMeta, setUnsafeReportMeta] = useState(emptyMeta)
+  const [ppeMeta, setPpeMeta] = useState(emptyMeta)
   const [indicatorMeta, setIndicatorMeta] = useState(emptyMeta)
   const [reportExportMeta, setReportExportMeta] = useState(emptyMeta)
   const [userMeta, setUserMeta] = useState(emptyMeta)
@@ -237,6 +296,10 @@ function App() {
   const [documentTable, setDocumentTable] = useState(initialTableState)
   const [documentSiteFilter, setDocumentSiteFilter] = useState(initialHash.view === 'documents' ? initialHash.site : 'all')
   const [sgsstAuditTable, setSgsstAuditTable] = useState(initialTableState)
+  const [annualWorkPlanTable, setAnnualWorkPlanTable] = useState(initialTableState)
+  const [plannedInspectionTable, setPlannedInspectionTable] = useState(initialTableState)
+  const [plannedInspectionSiteFilter, setPlannedInspectionSiteFilter] = useState(initialHash.view === 'plannedInspections' ? initialHash.site : 'all')
+  const [unplannedInspectionTable, setUnplannedInspectionTable] = useState(initialTableState)
   const [sgsstEvaluationTable, setSgsstEvaluationTable] = useState(initialTableState)
   const [indicatorTable, setIndicatorTable] = useState(initialTableState)
   const [reportExportTable, setReportExportTable] = useState(initialTableState)
@@ -288,6 +351,12 @@ function App() {
   const [documentDialog, setDocumentDialog] = useState<{ open: boolean; item?: SgsstDocument }>({ open: false })
   const [sgsstAuditDialog, setSgsstAuditDialog] = useState<{ open: boolean; item?: SgsstAudit }>({ open: false })
   const [sgsstEvaluationDialog, setSgsstEvaluationDialog] = useState<{ open: boolean; item?: SgsstEvaluation }>({ open: false })
+  const [annualWorkPlanDialog, setAnnualWorkPlanDialog] = useState<{ open: boolean; item?: AnnualWorkPlan }>({ open: false })
+  const [plannedInspectionDialog, setPlannedInspectionDialog] = useState<{ open: boolean; item?: PlannedInspection }>({ open: false })
+  const [unplannedInspectionDialog, setUnplannedInspectionDialog] = useState<{ open: boolean; item?: UnplannedInspection }>({ open: false })
+  const [unsafeReportDialog, setUnsafeReportDialog] = useState<{ open: boolean; item?: UnsafeReport }>({ open: false })
+  const [ppeItemDialog, setPpeItemDialog] = useState<{ open: boolean; item?: PpeItem }>({ open: false })
+  const [ppeDeliveryDialogOpen, setPpeDeliveryDialogOpen] = useState(false)
   const [indicatorDialog, setIndicatorDialog] = useState<{ open: boolean; item?: Indicator }>({ open: false })
   const [userDialog, setUserDialog] = useState<{ open: boolean; item?: SystemUser }>({ open: false })
   const [companyForm, setCompanyForm] = useState(emptyCompany)
@@ -299,6 +368,21 @@ function App() {
   const [documentForm, setDocumentForm] = useState(emptyDocument)
   const [sgsstAuditForm, setSgsstAuditForm] = useState(emptySgsstAudit)
   const [sgsstEvaluationForm, setSgsstEvaluationForm] = useState(emptySgsstEvaluation)
+  const [annualWorkPlanForm, setAnnualWorkPlanForm] = useState(emptyAnnualWorkPlan)
+  const [plannedInspectionForm, setPlannedInspectionForm] = useState(emptyPlannedInspection)
+  const [unplannedInspectionForm, setUnplannedInspectionForm] = useState(emptyUnplannedInspection)
+  const [unsafeReportForm, setUnsafeReportForm] = useState(emptyUnsafeReport)
+  const [ppeItemForm, setPpeItemForm] = useState(emptyPpeItem)
+  const [ppeDeliveryForm, setPpeDeliveryForm] = useState(emptyPpeDelivery)
+  const [medicalProfiles, setMedicalProfiles] = useState<MedicalProfile[]>([])
+  const [medicalExams, setMedicalExams] = useState<MedicalExam[]>([])
+  const [medicalRestrictions, setMedicalRestrictions] = useState<MedicalRestriction[]>([])
+  const [medicalProfileDialog, setMedicalProfileDialog] = useState(false)
+  const [medicalExamDialog, setMedicalExamDialog] = useState<{ open: boolean; exam?: MedicalExam }>({ open: false })
+  const [medicalRestrictionDialog, setMedicalRestrictionDialog] = useState(false)
+  const [medicalProfileForm, setMedicalProfileForm] = useState<MedicalProfileFormValues>(emptyMedicalProfile)
+  const [medicalExamForm, setMedicalExamForm] = useState<MedicalExamFormValues>(emptyMedicalExam)
+  const [medicalRestrictionForm, setMedicalRestrictionForm] = useState<MedicalRestrictionFormValues>(emptyMedicalRestriction)
   const [indicatorForm, setIndicatorForm] = useState(emptyIndicator)
   const [userForm, setUserForm] = useState(emptyUser)
 
@@ -316,6 +400,17 @@ function App() {
   const canViewSites = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canViewDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canViewReports = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  // Plan Anual de Trabajo (S8): misma visibilidad que documentos/evaluaciones;
+  // EMPLOYEE no navega esta vista (selectView lo bloquea).
+  const canViewAnnualPlans = canViewDocuments
+  // S9.3/S9.4: reportes de actos/condiciones y EPP con la misma visibilidad que
+  // operaciones; el reporte directo tambien lo hace EMPLOYEE (canal de participacion).
+  const canViewUnsafeReports = canViewAnnualPlans || isEmployee
+  const canReportUnsafe = canManageOperations || isEmployee
+  // Medicina laboral (S10): datos sensibles de salud. Sin EMPLOYEE; solo
+  // ADMIN/SST para gestion y AUDITOR/SUPER_ADMIN en modo consulta.
+  const canViewMedical = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canManageMedical = canManageOperations
   // EMPLOYEE consulta datos y dashboard, pero no genera exports (solo-backoffice).
   const canExportReports = canViewReports
   const canViewReportHistory = isPlatformAdmin
@@ -350,9 +445,14 @@ function App() {
                       : view === 'indicators'
                         ? 'Indicadores SG-SST'
                     : view === 'legalCompliance'
-                      ? 'Mapa normativo'
-                      : view === 'reports'
-                        ? 'Mis reportes'
+                      ? 'Mapa normativo'                      : view === 'annualWorkPlans'
+                        ? 'Plan Anual de Trabajo'
+                        : view === 'plannedInspections'
+                          ? 'Inspecciones planeadas'
+                          : view === 'unplannedInspections'
+                            ? 'Inspecciones no planeadas'
+                            : view === 'reports'
+                            ? 'Mis reportes'
                         : view === 'users'
                           ? 'Usuarios'
                           : 'Auditoria'
@@ -385,7 +485,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters])
+  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -400,7 +500,9 @@ function App() {
               ? riskSiteFilter
               : view === 'trainings'
                 ? trainingSiteFilter
-                : documentSiteFilter
+                : view === 'plannedInspections'
+                  ? plannedInspectionSiteFilter
+                  : documentSiteFilter
       if (siteFilter !== 'all') {
         params.set('site', siteFilter)
       }
@@ -410,7 +512,7 @@ function App() {
     if (window.location.hash !== nextHash) {
       window.history.replaceState(null, '', nextHash)
     }
-  }, [view, employeeSiteFilter, incidentSiteFilter, riskSiteFilter, trainingSiteFilter, documentSiteFilter])
+  }, [view, employeeSiteFilter, incidentSiteFilter, riskSiteFilter, trainingSiteFilter, documentSiteFilter, plannedInspectionSiteFilter])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -524,6 +626,54 @@ function App() {
             },
           })
         : Promise.resolve({ data: { data: [] as Indicator[], meta: emptyMeta } })
+      const annualWorkPlanRequest = canViewAnnualPlans && hasCompanyScope
+        ? api.get<AnnualWorkPlan[]>('/annual-work-plans', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as AnnualWorkPlan[] })
+      const plannedInspectionRequest = canViewAnnualPlans && hasCompanyScope
+        ? api.get<PlannedInspection[]>('/planned-inspections', {
+            params: {
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+              ...(plannedInspectionSiteFilter !== 'all' ? { siteId: plannedInspectionSiteFilter } : {}),
+            },
+          })
+        : Promise.resolve({ data: [] as PlannedInspection[] })
+      const unplannedInspectionRequest = canViewAnnualPlans && hasCompanyScope
+        ? api.get<UnplannedInspection[]>('/unplanned-inspections', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as UnplannedInspection[] })
+      const unsafeReportRequest = canViewUnsafeReports && hasCompanyScope
+        ? api.get<UnsafeReport[]>('/unsafe-reports', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as UnsafeReport[] })
+      const ppeItemsRequest = canViewAnnualPlans && hasCompanyScope
+        ? api.get<PpeItem[]>('/ppe/items', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as PpeItem[] })
+      const ppeDeliveriesRequest = canViewAnnualPlans && hasCompanyScope
+        ? api.get<PpeDelivery[]>('/ppe/deliveries', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as PpeDelivery[] })
+      const medicalProfilesRequest = canViewMedical && hasCompanyScope
+        ? api.get<MedicalProfile[]>('/medical/profiles', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as MedicalProfile[] })
+      const medicalExamsRequest = canViewMedical && hasCompanyScope
+        ? api.get<MedicalExam[]>('/medical/exams', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as MedicalExam[] })
+      const medicalRestrictionsRequest = canViewMedical && hasCompanyScope
+        ? api.get<MedicalRestriction[]>('/medical/restrictions', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as MedicalRestriction[] })
       const reportExportsRequest = canViewReports && hasCompanyScope
         ? api.get<Paginated<ReportExport>>('/reports/exports', {
             params: reportExportParams(reportExportTable, reportExportFilters),
@@ -560,6 +710,15 @@ function App() {
         sgsstAuditResponse,
         sgsstEvaluationResponse,
         indicatorResponse,
+        annualWorkPlanResponse,
+        plannedInspectionResponse,
+        unplannedInspectionResponse,
+        unsafeReportResponse,
+        ppeItemsResponse,
+        ppeDeliveriesResponse,
+        medicalProfilesResponse,
+        medicalExamsResponse,
+        medicalRestrictionsResponse,
         reportExportsResponse,
         reportMetricsResponse,
         reportMetricHistoryResponse,
@@ -579,6 +738,15 @@ function App() {
         sgsstAuditRequest,
         sgsstEvaluationRequest,
         indicatorRequest,
+        annualWorkPlanRequest,
+        plannedInspectionRequest,
+        unplannedInspectionRequest,
+        unsafeReportRequest,
+        ppeItemsRequest,
+        ppeDeliveriesRequest,
+        medicalProfilesRequest,
+        medicalExamsRequest,
+        medicalRestrictionsRequest,
         reportExportsRequest,
         reportMetricsRequest,
         reportMetricHistoryRequest,
@@ -643,6 +811,31 @@ function App() {
       setSgsstEvaluationMeta(sgsstEvaluationResponse.data.meta)
       setIndicators(indicatorResponse.data.data)
       setIndicatorMeta(indicatorResponse.data.meta)
+      // El API de planes anuales devuelve array plano (sin paginacion).
+      const planRows = Array.isArray(annualWorkPlanResponse.data) ? annualWorkPlanResponse.data : []
+      setAnnualWorkPlans(planRows)
+      setAnnualWorkPlanMeta({ ...emptyMeta, total: planRows.length, totalPages: 1 })
+      // Inspecciones: array plano, filtro de sede aplicado en el servidor.
+      const inspectionRows = Array.isArray(plannedInspectionResponse.data) ? plannedInspectionResponse.data : []
+      setPlannedInspections(inspectionRows)
+      setPlannedInspectionMeta({ ...emptyMeta, total: inspectionRows.length, totalPages: 1 })
+      const unplannedRows = Array.isArray(unplannedInspectionResponse.data) ? unplannedInspectionResponse.data : []
+      setUnplannedInspections(unplannedRows)
+      setUnplannedInspectionMeta({ ...emptyMeta, total: unplannedRows.length, totalPages: 1 })
+      const unsafeRows = Array.isArray(unsafeReportResponse.data) ? unsafeReportResponse.data : []
+      setUnsafeReports(unsafeRows)
+      setUnsafeReportMeta({ ...emptyMeta, total: unsafeRows.length, totalPages: 1 })
+      const ppeItemRows = Array.isArray(ppeItemsResponse.data) ? ppeItemsResponse.data : []
+      setPpeItems(ppeItemRows)
+      setPpeMeta({ ...emptyMeta, total: ppeItemRows.length, totalPages: 1 })
+      const ppeDeliveryRows = Array.isArray(ppeDeliveriesResponse.data) ? ppeDeliveriesResponse.data : []
+      setPpeDeliveries(ppeDeliveryRows)
+      const medicalProfileRows = Array.isArray(medicalProfilesResponse.data) ? medicalProfilesResponse.data : []
+      setMedicalProfiles(medicalProfileRows)
+      const medicalExamRows = Array.isArray(medicalExamsResponse.data) ? medicalExamsResponse.data : []
+      setMedicalExams(medicalExamRows)
+      const medicalRestrictionRows = Array.isArray(medicalRestrictionsResponse.data) ? medicalRestrictionsResponse.data : []
+      setMedicalRestrictions(medicalRestrictionRows)
       setReportExports(reportExportsResponse.data.data)
       setReportExportMeta(reportExportsResponse.data.meta)
       setReportMetrics(reportMetricsResponse.data)
@@ -905,6 +1098,15 @@ function App() {
     setTrainings([])
     setDocuments([])
     setSgsstAudits([])
+    setAnnualWorkPlans([])
+    setPlannedInspections([])
+    setUnplannedInspections([])
+    setUnsafeReports([])
+    setPpeItems([])
+    setPpeDeliveries([])
+    setMedicalProfiles([])
+    setMedicalExams([])
+    setMedicalRestrictions([])
     setReportExports([])
     setReportMetrics(emptyReportMetrics)
     setReportMetricHistory([])
@@ -1471,6 +1673,31 @@ function App() {
     preloadSgsstEvaluationDialog()
   }
 
+  async function saveAnnualWorkPlan() {
+    await saveRecord(async () => {
+      const payload = {
+        year: Number(annualWorkPlanForm.year),
+        status: annualWorkPlanForm.status,
+        notes: annualWorkPlanForm.notes || undefined,
+        companyId: annualWorkPlanForm.companyId,
+      }
+      if (annualWorkPlanDialog.item) {
+        await api.patch(`/annual-work-plans/${annualWorkPlanDialog.item.id}`, payload)
+        setAnnualWorkPlanDialog({ open: false })
+      } else {
+        const created = await api.post<AnnualWorkPlan>('/annual-work-plans', payload)
+        // El dialogo queda abierto sobre el plan creado para agregar actividades.
+        setAnnualWorkPlanForm({
+          year: String(created.data.year),
+          status: created.data.status,
+          notes: created.data.notes ?? '',
+          companyId: created.data.companyId,
+        })
+        setAnnualWorkPlanDialog({ open: true, item: { ...created.data, activities: [] } })
+      }
+    })
+  }
+
   async function saveSgsstEvaluation() {
     await saveRecord(async () => {
       if (sgsstEvaluationDialog.item) {
@@ -1505,6 +1732,540 @@ function App() {
       const updated = await api.post<SgsstEvaluation>(`/sgsst-evaluations/${evaluationId}/items`, { items: [payload] })
       setSgsstEvaluationDialog({ open: true, item: updated.data })
     })
+  }
+
+  function openAnnualWorkPlanForm(item?: AnnualWorkPlan) {
+    setAnnualWorkPlanForm(
+      item
+        ? {
+            year: String(item.year),
+            status: item.status,
+            notes: item.notes ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyAnnualWorkPlan, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setAnnualWorkPlanDialog({ open: true, item })
+    preloadAnnualWorkPlanDialog()
+  }
+
+  async function loadAnnualPlanActivities(planId: string) {
+    // Refresca el item del dialogo con actividades + % de avance del plan.
+    try {
+      const response = await api.get<{ data: AnnualWorkPlan['activities']; planProgress: number | null }>(
+        `/annual-work-plans/${planId}/activities`,
+      )
+      setAnnualWorkPlanDialog((current) =>
+        current.item && current.item.id === planId
+          ? {
+              ...current,
+              item: {
+                ...current.item,
+                activities: response.data.data,
+                planProgress: response.data.planProgress ?? undefined,
+              },
+            }
+          : current,
+      )
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    }
+  }
+
+  async function addAnnualPlanActivity(planId: string, values: AnnualActivityFormValues) {
+    await saveRecord(async () => {
+      await api.post(`/annual-work-plans/${planId}/activities`, {
+        cycle: values.cycle,
+        name: values.name,
+        frequency: values.frequency || undefined,
+        dueDate: values.dueDate || undefined,
+        progress: values.progress === '' ? undefined : Number(values.progress),
+        status: values.status,
+        budget: values.budget === '' ? undefined : Number(values.budget),
+        ownerId: values.ownerId || undefined,
+        evidenceId: values.evidenceId || undefined,
+        planId,
+      })
+      await loadAnnualPlanActivities(planId)
+    })
+  }
+
+  async function updateAnnualPlanActivity(planId: string, activityId: string, payload: Partial<AnnualActivityFormValues>) {
+    await saveRecord(async () => {
+      await api.patch(`/annual-work-plans/${planId}/activities/${activityId}`, {
+        ...(payload.progress !== undefined ? { progress: payload.progress === '' ? undefined : Number(payload.progress) } : {}),
+        ...(payload.status !== undefined ? { status: payload.status } : {}),
+        ...(payload.evidenceId !== undefined ? { evidenceId: payload.evidenceId || null } : {}),
+        ...(payload.name !== undefined ? { name: payload.name } : {}),
+        ...(payload.dueDate !== undefined ? { dueDate: payload.dueDate || null } : {}),
+        ...(payload.ownerId !== undefined ? { ownerId: payload.ownerId || null } : {}),
+      })
+      await loadAnnualPlanActivities(planId)
+    })
+  }
+
+  function confirmDeleteAnnualWorkPlan(plan: AnnualWorkPlan) {
+    openConfirmDialog(
+      'Eliminar plan anual',
+      `¿Seguro que deseas eliminar el plan anual ${plan.year}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeAnnualWorkPlan(plan.id) },
+    )
+  }
+
+  async function removeAnnualWorkPlan(id: string) {
+    await saveRecord(() => api.delete(`/annual-work-plans/${id}`).then())
+  }
+
+  function confirmDeleteAnnualPlanActivity(planId: string, activityId: string) {
+    openConfirmDialog(
+      'Eliminar actividad',
+      '¿Seguro que deseas eliminar esta actividad del plan? Esta acción no se puede deshacer.',
+      'Eliminar',
+      'error',
+      () => { void removeAnnualPlanActivity(planId, activityId) },
+    )
+  }
+
+  async function removeAnnualPlanActivity(planId: string, activityId: string) {
+    await saveRecord(async () => {
+      await api.delete(`/annual-work-plans/${planId}/activities/${activityId}`)
+      await loadAnnualPlanActivities(planId)
+    })
+  }
+
+  function openPlannedInspectionForm(item?: PlannedInspection) {
+    setPlannedInspectionForm(
+      item
+        ? {
+            title: item.title,
+            type: item.type,
+            frequency: item.frequency ?? '',
+            scheduledAt: item.scheduledAt.slice(0, 10),
+            status: item.status,
+            siteId: item.siteId ?? '',
+            inspectorId: item.inspectorId ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyPlannedInspection, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setPlannedInspectionDialog({ open: true, item })
+    preloadPlannedInspectionDialog()
+  }
+
+  async function loadPlannedInspection(inspectionId: string) {
+    // Refresca el item del dialogo con items/hallazgos/acciones actualizados.
+    try {
+      const response = await api.get<PlannedInspection>(`/planned-inspections/${inspectionId}`)
+      setPlannedInspectionDialog((current) =>
+        current.item && current.item.id === inspectionId
+          ? { ...current, item: response.data }
+          : current,
+      )
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    }
+  }
+
+  async function savePlannedInspection() {
+    await saveRecord(async () => {
+      const payload = {
+        title: plannedInspectionForm.title,
+        type: plannedInspectionForm.type,
+        frequency: plannedInspectionForm.frequency || undefined,
+        scheduledAt: plannedInspectionForm.scheduledAt,
+        status: plannedInspectionForm.status,
+        siteId: plannedInspectionForm.siteId || undefined,
+        inspectorId: plannedInspectionForm.inspectorId || undefined,
+        companyId: plannedInspectionForm.companyId,
+      }
+      if (plannedInspectionDialog.item) {
+        await api.patch(`/planned-inspections/${plannedInspectionDialog.item.id}`, payload)
+        setPlannedInspectionDialog({ open: false })
+      } else {
+        const created = await api.post<PlannedInspection>('/planned-inspections', payload)
+        // El dialogo queda abierto para responder el checklist.
+        setPlannedInspectionForm({
+          title: created.data.title,
+          type: created.data.type,
+          frequency: created.data.frequency ?? '',
+          scheduledAt: created.data.scheduledAt.slice(0, 10),
+          status: created.data.status,
+          siteId: created.data.siteId ?? '',
+          inspectorId: created.data.inspectorId ?? '',
+          companyId: created.data.companyId,
+        })
+        setPlannedInspectionDialog({ open: true, item: created.data })
+      }
+    })
+  }
+
+  function confirmDeletePlannedInspection(inspection: PlannedInspection) {
+    openConfirmDialog(
+      'Eliminar inspeccion',
+      `¿Seguro que deseas eliminar la inspeccion ${inspection.title}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removePlannedInspection(inspection.id) },
+    )
+  }
+
+  async function removePlannedInspection(id: string) {
+    await saveRecord(() => api.delete(`/planned-inspections/${id}`).then())
+  }
+
+  async function updatePlannedInspectionItem(inspectionId: string, itemId: string, payload: { answer: string; notes?: string }) {
+    await saveRecord(async () => {
+      await api.patch(`/planned-inspections/items/${itemId}?inspectionId=${inspectionId}`, payload)
+      await loadPlannedInspection(inspectionId)
+    })
+  }
+
+  async function addPlannedInspectionItem(inspectionId: string, question: string) {
+    // Los items se agregan via PATCH de la inspeccion con items adicionales
+    // no aplica: el API soporta crear items en el POST inicial; para agregar
+    // post-creacion se usa el endpoint de respuesta por item con creacion.
+    await saveRecord(async () => {
+      await api.post(`/planned-inspections/${inspectionId}/items`, { question })
+      await loadPlannedInspection(inspectionId)
+    })
+  }
+
+  async function addPlannedInspectionFinding(inspectionId: string, description: string, severity: string) {
+    await saveRecord(async () => {
+      await api.post(`/planned-inspections/${inspectionId}/findings`, { description, severity })
+      await loadPlannedInspection(inspectionId)
+    })
+  }
+
+  async function addPlannedInspectionAction(findingId: string) {
+    const title = window.prompt('Titulo de la accion correctiva')
+    if (!title) return
+    const responsible = window.prompt('Responsable') || 'Responsable SST'
+    const dueDate = window.prompt('Fecha compromiso (YYYY-MM-DD)') || new Date().toISOString().slice(0, 10)
+    await saveRecord(async () => {
+      await api.post(`/planned-inspections/findings/${findingId}/actions`, { title, responsible, dueDate })
+    })
+  }
+
+  function openUnplannedInspectionForm(item?: UnplannedInspection) {
+    setUnplannedInspectionForm(
+      item
+        ? {
+            title: item.title,
+            reason: item.reason,
+            area: item.area ?? '',
+            status: item.status,
+            siteId: item.siteId ?? '',
+            inspectorId: item.inspectorId ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyUnplannedInspection, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setUnplannedInspectionDialog({ open: true, item })
+    preloadUnplannedInspectionDialog()
+  }
+
+  async function saveUnplannedInspection() {
+    await saveRecord(async () => {
+      const payload = {
+        title: unplannedInspectionForm.title,
+        reason: unplannedInspectionForm.reason,
+        area: unplannedInspectionForm.area || undefined,
+        status: unplannedInspectionForm.status,
+        siteId: unplannedInspectionForm.siteId || undefined,
+        inspectorId: unplannedInspectionForm.inspectorId || undefined,
+        companyId: unplannedInspectionForm.companyId,
+      }
+      if (unplannedInspectionDialog.item) {
+        await api.patch(`/unplanned-inspections/${unplannedInspectionDialog.item.id}`, payload)
+      } else {
+        await api.post('/unplanned-inspections', payload)
+      }
+      setUnplannedInspectionDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteUnplannedInspection(inspection: UnplannedInspection) {
+    openConfirmDialog(
+      'Eliminar inspeccion',
+      `¿Seguro que deseas eliminar la inspeccion ${inspection.title}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeUnplannedInspection(inspection.id) },
+    )
+  }
+
+  async function removeUnplannedInspection(id: string) {
+    await saveRecord(() => api.delete(`/unplanned-inspections/${id}`).then())
+  }
+
+  async function addUnplannedInspectionFinding(inspectionId: string, description: string, severity: string, riskLevel?: string) {
+    await saveRecord(() =>
+      api.post(`/unplanned-inspections/${inspectionId}/findings`, {
+        description,
+        severity,
+        ...(riskLevel ? { riskLevel } : {}),
+      }).then(),
+    )
+  }
+
+  async function addUnplannedInspectionAction(findingId: string) {
+    const title = window.prompt('Titulo de la accion correctiva')
+    if (!title) return
+    const responsible = window.prompt('Responsable') || 'Responsable SST'
+    const dueDate = window.prompt('Fecha compromiso (YYYY-MM-DD)') || new Date().toISOString().slice(0, 10)
+    await saveRecord(() => api.post(`/unplanned-inspections/findings/${findingId}/actions`, { title, responsible, dueDate }).then())
+  }
+
+  function openUnsafeReportForm(item?: UnsafeReport) {
+    setUnsafeReportForm(
+      item
+        ? {
+            kind: item.kind,
+            description: item.description,
+            severity: item.severity,
+            area: item.area ?? '',
+            isAnonymous: item.isAnonymous,
+            reporterName: item.reporterName ?? '',
+            siteId: item.siteId ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyUnsafeReport, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setUnsafeReportDialog({ open: true, item })
+    preloadUnsafeReportDialog()
+  }
+
+  async function saveUnsafeReport() {
+    await saveRecord(async () => {
+      const payload = {
+        kind: unsafeReportForm.kind,
+        description: unsafeReportForm.description,
+        severity: unsafeReportForm.severity,
+        area: unsafeReportForm.area || undefined,
+        siteId: unsafeReportForm.siteId || undefined,
+        isAnonymous: unsafeReportForm.isAnonymous,
+        reporterName: unsafeReportForm.reporterName || undefined,
+        companyId: unsafeReportForm.companyId,
+      }
+      if (unsafeReportDialog.item) {
+        // El update no reenvia datos de anonimato (decididos al crear).
+        await api.patch(`/unsafe-reports/${unsafeReportDialog.item.id}`, {
+          kind: payload.kind,
+          description: payload.description,
+          severity: payload.severity,
+          area: payload.area,
+          siteId: payload.siteId,
+        })
+      } else {
+        await api.post('/unsafe-reports', payload)
+      }
+      setUnsafeReportDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteUnsafeReport(report: UnsafeReport) {
+    openConfirmDialog(
+      'Eliminar reporte',
+      `¿Seguro que deseas eliminar este reporte? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeUnsafeReport(report.id) },
+    )
+  }
+
+  async function removeUnsafeReport(id: string) {
+    await saveRecord(() => api.delete(`/unsafe-reports/${id}`).then())
+  }
+
+  async function addUnsafeReportAction(findingId: string) {
+    const title = window.prompt('Titulo de la accion correctiva/educativa')
+    if (!title) return
+    const responsible = window.prompt('Responsable') || 'Responsable SST'
+    const dueDate = window.prompt('Fecha compromiso (YYYY-MM-DD)') || new Date().toISOString().slice(0, 10)
+    await saveRecord(() => api.post(`/unsafe-reports/findings/${findingId}/actions`, { title, responsible, dueDate }).then())
+  }
+
+  function openPpeItemForm(item?: PpeItem) {
+    setPpeItemForm(
+      item
+        ? {
+            name: item.name,
+            type: item.type ?? '',
+            standard: item.standard ?? '',
+            size: item.size ?? '',
+            usefulLifeDays: item.usefulLifeDays?.toString() ?? '',
+            stockMin: item.stockMin.toString(),
+            stock: item.stock.toString(),
+            companyId: item.companyId,
+          }
+        : { ...emptyPpeItem, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setPpeItemDialog({ open: true, item })
+    preloadPpeDialogs()
+  }
+
+  async function savePpeItem() {
+    await saveRecord(async () => {
+      const payload = {
+        name: ppeItemForm.name,
+        type: ppeItemForm.type || undefined,
+        standard: ppeItemForm.standard || undefined,
+        size: ppeItemForm.size || undefined,
+        usefulLifeDays: ppeItemForm.usefulLifeDays === '' ? undefined : Number(ppeItemForm.usefulLifeDays),
+        stockMin: ppeItemForm.stockMin === '' ? undefined : Number(ppeItemForm.stockMin),
+        stock: ppeItemForm.stock === '' ? undefined : Number(ppeItemForm.stock),
+        companyId: ppeItemForm.companyId,
+      }
+      if (ppeItemDialog.item) {
+        await api.patch(`/ppe/items/${ppeItemDialog.item.id}`, payload)
+      } else {
+        await api.post('/ppe/items', payload)
+      }
+      setPpeItemDialog({ open: false })
+    })
+  }
+
+  function confirmDeletePpeItem(item: PpeItem) {
+    openConfirmDialog(
+      'Eliminar elemento EPP',
+      `¿Seguro que deseas eliminar ${item.name} del catalogo? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removePpeItem(item.id) },
+    )
+  }
+
+  async function removePpeItem(id: string) {
+    await saveRecord(() => api.delete(`/ppe/items/${id}`).then())
+  }
+
+  function openPpeDeliveryForm() {
+    setPpeDeliveryForm({ ...emptyPpeDelivery, companyId: activeCompanyId ?? companies[0]?.id ?? '' })
+    setPpeDeliveryDialogOpen(true)
+    preloadPpeDialogs()
+  }
+
+  async function savePpeDelivery() {
+    await saveRecord(async () => {
+      const response = await api.post<PpeDelivery>('/ppe/deliveries', {
+        itemId: ppeDeliveryForm.itemId,
+        employeeId: ppeDeliveryForm.employeeId,
+        quantity: ppeDeliveryForm.quantity === '' ? undefined : Number(ppeDeliveryForm.quantity),
+        signature: ppeDeliveryForm.signature || undefined,
+        notes: ppeDeliveryForm.notes || undefined,
+        companyId: ppeDeliveryForm.companyId,
+      })
+      if (response.data.stockBelowMin) {
+        setError(`Atencion: el stock quedo por debajo del minimo (${response.data.itemStock} unidades).`)
+      }
+      setPpeDeliveryDialogOpen(false)
+    })
+  }
+
+  // ---- Medicina laboral (S10) ----
+
+  function openMedicalProfileForm() {
+    setMedicalProfileForm({ ...emptyMedicalProfile, companyId: activeCompanyId ?? companies[0]?.id ?? '' })
+    setMedicalProfileDialog(true)
+  }
+
+  async function saveMedicalProfile() {
+    await saveRecord(async () => {
+      const created = await api.post<MedicalProfile>('/medical/profiles', {
+        position: medicalProfileForm.position,
+        description: medicalProfileForm.description || undefined,
+        companyId: medicalProfileForm.companyId,
+        requirements: [{ examType: medicalProfileForm.examType }],
+      })
+      if (medicalProfileForm.examType !== 'INGRESO') {
+        // Ademas del requisito del profesiograma, programa el primer examen.
+        await api.post('/medical/exams', {
+          examType: medicalProfileForm.examType,
+          employeeId: '',
+          scheduledAt: null,
+          profileId: created.data.id,
+        }).catch(() => undefined)
+      }
+      setMedicalProfileDialog(false)
+    })
+  }
+
+  function openMedicalExamForm(exam?: MedicalExam) {
+    setMedicalExamForm(
+      exam
+        ? {
+            examType: exam.examType,
+            employeeId: exam.employeeId ?? '',
+            scheduledAt: exam.scheduledAt ? exam.scheduledAt.slice(0, 10) : '',
+            performedAt: exam.performedAt ? exam.performedAt.slice(0, 10) : '',
+            nextDueAt: exam.nextDueAt ? exam.nextDueAt.slice(0, 10) : '',
+            concept: exam.concept,
+            provider: exam.provider ?? '',
+          }
+        : { ...emptyMedicalExam },
+    )
+    setMedicalExamDialog({ open: true, exam })
+  }
+
+  async function saveMedicalExam() {
+    await saveRecord(async () => {
+      const payload = {
+        examType: medicalExamForm.examType,
+        employeeId: medicalExamForm.employeeId,
+        scheduledAt: medicalExamForm.scheduledAt || undefined,
+        concept: medicalExamForm.concept,
+        provider: medicalExamForm.provider || undefined,
+      }
+      if (medicalExamDialog.exam) {
+        // Registrar resultado: concepto ocupacional, fechas de realizacion y proxima.
+        await api.patch(`/medical/exams/${medicalExamDialog.exam.id}`, {
+          concept: medicalExamForm.concept,
+          performedAt: medicalExamForm.performedAt || null,
+          nextDueAt: medicalExamForm.nextDueAt || null,
+        })
+      } else {
+        await api.post('/medical/exams', payload)
+      }
+      setMedicalExamDialog({ open: false })
+    })
+  }
+
+  async function removeMedicalExam(id: string) {
+    await saveRecord(() => api.delete(`/medical/exams/${id}`))
+  }
+
+  function openMedicalRestrictionForm() {
+    setMedicalRestrictionForm({ ...emptyMedicalRestriction })
+    setMedicalRestrictionDialog(true)
+  }
+
+  async function saveMedicalRestriction() {
+    await saveRecord(async () => {
+      await api.post('/medical/restrictions', {
+        description: medicalRestrictionForm.description,
+        employeeId: medicalRestrictionForm.employeeId,
+        startDate: medicalRestrictionForm.startDate || undefined,
+        endDate: medicalRestrictionForm.endDate || undefined,
+      })
+      setMedicalRestrictionDialog(false)
+    })
+  }
+
+  async function liftMedicalRestriction(id: string) {
+    await saveRecord(() => api.patch(`/medical/restrictions/${id}/lift`))
+  }
+
+  function confirmDeleteMedicalExam(exam: MedicalExam) {
+    openConfirmDialog(
+      'Eliminar examen',
+      `¿Seguro que deseas eliminar el examen ${exam.examType} del ${exam.scheduledAt ? new Date(exam.scheduledAt).toLocaleDateString() : 'sin fecha'}? Esta acción no se puede deshacer.`,
+      'Eliminar',
+      'error',
+      () => { void removeMedicalExam(exam.id) },
+    )
   }
 
   function openIndicatorForm(item?: Indicator) {
@@ -1748,7 +2509,7 @@ function App() {
   function selectView(nextView: View) {
     // Defensa en profundidad: el backend es la autoridad, aqui solo evitamos
     // navegaciones que producirian 403 para roles sin permisos.
-    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
+    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'annualWorkPlans', 'ppe', 'medical', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
     if (isEmployee && employeeBlocked.includes(nextView)) {
       return
     }
@@ -1759,7 +2520,7 @@ function App() {
   // KPI de sede clickeable: abre Empleados con el filtro de esa sede aplicado.
   // Helper: aplica (o limpia) el filtro de sede de la vista indicada.
   function applySiteFilter(
-    target: 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents',
+    target: 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'plannedInspections',
     siteId: string,
   ) {
     const pageSetter =
@@ -1771,7 +2532,9 @@ function App() {
             ? setRiskTable
             : target === 'trainings'
               ? setTrainingTable
-              : setDocumentTable
+              : target === 'plannedInspections'
+                ? setPlannedInspectionTable
+                : setDocumentTable
     const filterSetter =
       target === 'employees'
         ? setEmployeeSiteFilter
@@ -1781,14 +2544,16 @@ function App() {
             ? setRiskSiteFilter
             : target === 'trainings'
               ? setTrainingSiteFilter
-              : setDocumentSiteFilter
+              : target === 'plannedInspections'
+                ? setPlannedInspectionSiteFilter
+                : setDocumentSiteFilter
     pageSetter((current) => ({ ...current, page: 1 }))
     filterSetter(siteId)
   }
 
   // KPI de sede clickeable: abre la vista destino con el filtro de esa sede.
   function openSiteView(
-    target: 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents',
+    target: 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'plannedInspections',
     siteId: string,
   ) {
     if (!siteId) return
@@ -1864,6 +2629,10 @@ function App() {
           canViewUsers={canViewUsers}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
+          canViewAnnualPlans={canViewAnnualPlans}
+          canViewInspections={canViewAnnualPlans || isEmployee}
+          canViewUnsafeReports={canViewUnsafeReports}
+          canViewMedical={canViewMedical}
           canViewReports={canViewReports}
           canViewAudit={canViewAudit}
           canRetryDeliveries={canRetryDeliveries}
@@ -1901,6 +2670,12 @@ function App() {
                 onOpenSiteRisks={(siteId) => openSiteView('risks', siteId)}
                 onOpenSiteTrainings={(siteId) => openSiteView('trainings', siteId)}
                 onOpenSiteDocuments={(siteId) => openSiteView('documents', siteId)}
+                onOpenSiteInspections={(siteId) => {
+                  // El KPI de inspecciones abre la vista de planeadas filtrada.
+                  applySiteFilter('plannedInspections', siteId)
+                  setView('plannedInspections')
+                  setMobileOpen(false)
+                }}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
                 canExport={canExportReports}
                 onDownloadReport={(format) => handleDownloadReport('summary', format)}
@@ -2146,6 +2921,143 @@ function App() {
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
+            {view === 'annualWorkPlans' && canViewAnnualPlans && (
+              <AnnualWorkPlansPage
+                plans={annualWorkPlans}
+                meta={annualWorkPlanMeta}
+                tableState={annualWorkPlanTable}
+                canManage={canManageDocuments}
+                onTableChange={setAnnualWorkPlanTable}
+                onCreate={() => openAnnualWorkPlanForm()}
+                onPreloadCreate={preloadAnnualWorkPlanDialog}
+                onEdit={openAnnualWorkPlanForm}
+                onDelete={(id) => {
+                  const plan = annualWorkPlans.find((item) => item.id === id)
+                  if (plan) {
+                    confirmDeleteAnnualWorkPlan(plan)
+                  }
+                }}
+                canExport={canExportReports}
+                onDownloadReport={(format) => handleDownloadReport('annual-plan', format)}
+                onScheduleReport={(format) => handleScheduleReport('annual-plan', format)}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'plannedInspections' && canViewAnnualPlans && (
+              <PlannedInspectionsPage
+                inspections={plannedInspections}
+                meta={plannedInspectionMeta}
+                tableState={plannedInspectionTable}
+                canManage={canManageOperations}
+                sites={sites}
+                siteFilter={plannedInspectionSiteFilter}
+                onSiteFilterChange={(siteId) => applySiteFilter('plannedInspections', siteId)}
+                onTableChange={setPlannedInspectionTable}
+                onCreate={() => openPlannedInspectionForm()}
+                onPreloadCreate={preloadPlannedInspectionDialog}
+                onEdit={openPlannedInspectionForm}
+                onDelete={(id) => {
+                  const inspection = plannedInspections.find((item) => item.id === id)
+                  if (inspection) {
+                    confirmDeletePlannedInspection(inspection)
+                  }
+                }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'unplannedInspections' && canViewAnnualPlans && (
+              <UnplannedInspectionsPage
+                inspections={unplannedInspections}
+                meta={unplannedInspectionMeta}
+                tableState={unplannedInspectionTable}
+                canManage={canManageOperations}
+                onTableChange={setUnplannedInspectionTable}
+                onCreate={() => openUnplannedInspectionForm()}
+                onPreloadCreate={preloadUnplannedInspectionDialog}
+                onEdit={openUnplannedInspectionForm}
+                onDelete={(id) => {
+                  const inspection = unplannedInspections.find((item) => item.id === id)
+                  if (inspection) {
+                    confirmDeleteUnplannedInspection(inspection)
+                  }
+                }}
+                onAddFinding={addUnplannedInspectionFinding}
+                onAddAction={addUnplannedInspectionAction}
+                loading={loading}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'unsafeReports' && canViewUnsafeReports && (
+              <UnsafeReportsPage
+                reports={unsafeReports}
+                meta={unsafeReportMeta}
+                tableState={unplannedInspectionTable}
+                canManage={canManageOperations}
+                canReport={canReportUnsafe}
+                onTableChange={setUnplannedInspectionTable}
+                onCreate={() => openUnsafeReportForm()}
+                onPreloadCreate={preloadUnsafeReportDialog}
+                onEdit={openUnsafeReportForm}
+                onDelete={(id) => {
+                  const report = unsafeReports.find((item) => item.id === id)
+                  if (report) {
+                    confirmDeleteUnsafeReport(report)
+                  }
+                }}
+                onAddAction={addUnsafeReportAction}
+                loading={loading}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'ppe' && canViewAnnualPlans && (
+              <PpePage
+                items={ppeItems}
+                deliveries={ppeDeliveries}
+                itemMeta={ppeMeta}
+                tableState={plannedInspectionTable}
+                canManage={canManageOperations}
+                employees={employees.map((employee) => ({
+                  id: employee.id,
+                  firstName: employee.firstName,
+                  lastName: employee.lastName,
+                  document: employee.document,
+                }))}
+                onTableChange={setPlannedInspectionTable}
+                onCreateItem={() => openPpeItemForm()}
+                onPreloadCreateItem={preloadPpeDialogs}
+                onEditItem={openPpeItemForm}
+                onDeleteItem={(id) => {
+                  const item = ppeItems.find((entry) => entry.id === id)
+                  if (item) {
+                    confirmDeletePpeItem(item)
+                  }
+                }}
+                onNewDelivery={openPpeDeliveryForm}
+                onEmployeeExpediente={() => undefined}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'medical' && canViewMedical && (
+              <MedicalPage
+                profiles={medicalProfiles}
+                exams={medicalExams}
+                restrictions={medicalRestrictions}
+                canManage={canManageMedical}
+                companies={companies}
+                onNewProfile={openMedicalProfileForm}
+                onNewExam={() => openMedicalExamForm()}
+                onEditExam={openMedicalExamForm}
+                onDeleteExam={(id) => {
+                  const exam = medicalExams.find((entry) => entry.id === id)
+                  if (exam) {
+                    confirmDeleteMedicalExam(exam)
+                  }
+                }}
+                onNewRestriction={openMedicalRestrictionForm}
+                onLiftRestriction={liftMedicalRestriction}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
             {view === 'legalCompliance' && canViewDocuments && (
               <LegalCompliancePage
                 user={user}
@@ -2360,6 +3272,137 @@ function App() {
               onSave={saveIndicator}
               onSetTargets={setIndicatorTargets}
               onAddMeasurement={addIndicatorMeasurement}
+            />
+            <AnnualWorkPlanDialog
+              open={annualWorkPlanDialog.open}
+              editing={Boolean(annualWorkPlanDialog.item)}
+              values={annualWorkPlanForm}
+              companies={companies}
+              item={annualWorkPlanDialog.item}
+              users={users}
+              documents={documents}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              canManageActivities={canManageDocuments}
+              onChange={setAnnualWorkPlanForm}
+              onClose={() => setAnnualWorkPlanDialog({ open: false })}
+              onSave={saveAnnualWorkPlan}
+              onLoadActivities={loadAnnualPlanActivities}
+              onAddActivity={addAnnualPlanActivity}
+              onUpdateActivity={updateAnnualPlanActivity}
+              onDeleteActivity={(planId, activityId) => confirmDeleteAnnualPlanActivity(planId, activityId)}
+            />
+            <PlannedInspectionDialog
+              open={plannedInspectionDialog.open}
+              editing={Boolean(plannedInspectionDialog.item)}
+              values={plannedInspectionForm}
+              companies={companies}
+              sites={sites}
+              users={users}
+              item={plannedInspectionDialog.item}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              canRespond={canManageOperations}
+              onChange={setPlannedInspectionForm}
+              onClose={() => setPlannedInspectionDialog({ open: false })}
+              onSave={savePlannedInspection}
+              onUpdateItem={updatePlannedInspectionItem}
+              onAddItem={addPlannedInspectionItem}
+              onAddFinding={addPlannedInspectionFinding}
+              onAddAction={addPlannedInspectionAction}
+            />
+            <UnplannedInspectionDialog
+              open={unplannedInspectionDialog.open}
+              editing={Boolean(unplannedInspectionDialog.item)}
+              values={unplannedInspectionForm}
+              companies={companies}
+              sites={sites}
+              users={users}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setUnplannedInspectionForm}
+              onClose={() => setUnplannedInspectionDialog({ open: false })}
+              onSave={saveUnplannedInspection}
+            />
+            <UnsafeReportDialog
+              open={unsafeReportDialog.open}
+              editing={Boolean(unsafeReportDialog.item)}
+              values={unsafeReportForm}
+              companies={companies}
+              sites={sites}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              canManage={canManageOperations}
+              onChange={setUnsafeReportForm}
+              onClose={() => setUnsafeReportDialog({ open: false })}
+              onSave={saveUnsafeReport}
+            />
+            <PpeItemDialog
+              open={ppeItemDialog.open}
+              editing={Boolean(ppeItemDialog.item)}
+              values={ppeItemForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setPpeItemForm}
+              onClose={() => setPpeItemDialog({ open: false })}
+              onSave={savePpeItem}
+            />
+            <PpeDeliveryDialog
+              open={ppeDeliveryDialogOpen}
+              values={ppeDeliveryForm}
+              items={[]}
+              deliveriesItems={ppeItems.map((item) => ({ id: item.id, name: item.name, stock: item.stock }))}
+              employees={employees}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              companies={companies}
+              onChange={setPpeDeliveryForm}
+              onClose={() => setPpeDeliveryDialogOpen(false)}
+              onSave={savePpeDelivery}
+            />
+            <MedicalProfileDialog
+              open={medicalProfileDialog}
+              values={medicalProfileForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setMedicalProfileForm}
+              onClose={() => setMedicalProfileDialog(false)}
+              onSave={saveMedicalProfile}
+            />
+            <MedicalExamDialog
+              open={medicalExamDialog.open}
+              editing={Boolean(medicalExamDialog.exam)}
+              values={medicalExamForm}
+              employees={employees.map((employee) => ({
+                id: employee.id,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                document: employee.document,
+              }))}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              companies={companies}
+              onChange={setMedicalExamForm}
+              onClose={() => setMedicalExamDialog({ open: false })}
+              onSave={saveMedicalExam}
+            />
+            <MedicalRestrictionDialog
+              open={medicalRestrictionDialog}
+              values={medicalRestrictionForm}
+              employees={employees.map((employee) => ({
+                id: employee.id,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                document: employee.document,
+              }))}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              companies={companies}
+              onChange={setMedicalRestrictionForm}
+              onClose={() => setMedicalRestrictionDialog(false)}
+              onSave={saveMedicalRestriction}
             />
             <ChangePasswordDialog
               open={passwordDialogOpen}

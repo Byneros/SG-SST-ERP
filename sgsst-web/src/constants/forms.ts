@@ -1,6 +1,16 @@
 import type {
+  AnnualActivityFormValues,
+  AnnualWorkPlanFormValues,
   CompanyFormValues,
   DashboardSummary,
+  PlannedInspectionFormValues,
+  PpeDeliveryFormValues,
+  PpeItemFormValues,
+  MedicalProfileFormValues,
+  MedicalExamFormValues,
+  MedicalRestrictionFormValues,
+  UnplannedInspectionFormValues,
+  UnsafeReportFormValues,
   DocumentFormValues,
   EmployeeFormValues,
   IncidentFormValues,
@@ -135,6 +145,101 @@ export const emptyTraining: TrainingFormValues = {
   date: '',
   companyId: '',
   siteId: '',
+}
+
+export const emptyAnnualWorkPlan: AnnualWorkPlanFormValues = {
+  year: String(new Date().getFullYear()),
+  status: 'DRAFT',
+  notes: '',
+  companyId: '',
+}
+
+export const emptyAnnualActivity: AnnualActivityFormValues = {
+  cycle: 'ACT',
+  name: '',
+  frequency: '',
+  dueDate: '',
+  progress: '0',
+  status: 'PENDING',
+  budget: '',
+  ownerId: '',
+  evidenceId: '',
+}
+
+export const emptyPlannedInspection: PlannedInspectionFormValues = {
+  title: '',
+  type: 'LOCATIVE',
+  frequency: '',
+  scheduledAt: '',
+  status: 'PLANNED',
+  siteId: '',
+  inspectorId: '',
+  companyId: '',
+}
+
+export const emptyUnplannedInspection: UnplannedInspectionFormValues = {
+  title: '',
+  reason: '',
+  area: '',
+  status: 'PLANNED',
+  siteId: '',
+  inspectorId: '',
+  companyId: '',
+}
+
+export const emptyUnsafeReport: UnsafeReportFormValues = {
+  kind: 'UNSAFE_CONDITION',
+  description: '',
+  severity: 'MINOR',
+  area: '',
+  isAnonymous: false,
+  reporterName: '',
+  siteId: '',
+  companyId: '',
+}
+
+export const emptyPpeItem: PpeItemFormValues = {
+  name: '',
+  type: '',
+  standard: '',
+  size: '',
+  usefulLifeDays: '',
+  stockMin: '0',
+  stock: '0',
+  companyId: '',
+}
+
+export const emptyPpeDelivery: PpeDeliveryFormValues = {
+  itemId: '',
+  employeeId: '',
+  quantity: '1',
+  signature: '',
+  notes: '',
+  companyId: '',
+}
+
+export const emptyMedicalProfile: MedicalProfileFormValues = {
+  position: '',
+  description: '',
+  examType: 'INGRESO',
+  companyId: '',
+}
+
+export const emptyMedicalExam: MedicalExamFormValues = {
+  examType: 'PERIODICO',
+  employeeId: '',
+  scheduledAt: '',
+  performedAt: '',
+  nextDueAt: '',
+  concept: 'PENDIENTE',
+  provider: '',
+}
+
+export const emptyMedicalRestriction: MedicalRestrictionFormValues = {
+  description: '',
+  employeeId: '',
+  startDate: '',
+  endDate: '',
 }
 
 export const initialTableState: TableState = {

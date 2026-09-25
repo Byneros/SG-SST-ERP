@@ -19,6 +19,10 @@ describe('DashboardService - KPIs por sede', () => {
     correctiveAction: { count: jest.fn() },
     sgsstEvaluation: { aggregate: jest.fn() },
     indicator: { findMany: jest.fn() },
+    // S9.1/S9.2: inspecciones y hallazgos abiertos por sede.
+    plannedInspection: { groupBy: jest.fn() },
+    unplannedInspection: { groupBy: jest.fn() },
+    inspectionFinding: { findMany: jest.fn() },
     site: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -53,7 +57,7 @@ describe('DashboardService - KPIs por sede', () => {
       (ops as Array<Promise<number>>).map(() => 0),
     );
     // Segundo $transaction: sedes + groupBy de empleados/riesgos/incidentes/
-    // capacitaciones/documentos.
+    // capacitaciones/documentos + inspecciones y hallazgos abiertos (S9).
     prisma.$transaction.mockImplementationOnce(() => [
       [
         {
@@ -69,6 +73,13 @@ describe('DashboardService - KPIs por sede', () => {
       [{ siteId: 'site-a', _count: { _all: 3 } }],
       [{ siteId: 'site-a', _count: { _all: 4 } }],
       [{ siteId: 'site-b', _count: { _all: 7 } }],
+      [{ siteId: 'site-a', _count: { _all: 5 } }],
+      [{ siteId: 'site-b', _count: { _all: 1 } }],
+      [
+        { inspection: { siteId: 'site-a' } },
+        { inspection: { siteId: 'site-a' } },
+      ],
+      [{ unplannedInspection: { siteId: 'site-b' } }],
     ]);
     // Tercer $transaction: bloque de cumplimiento (fase 7.4).
     prisma.$transaction.mockImplementationOnce(() => [
@@ -131,6 +142,8 @@ describe('DashboardService - KPIs por sede', () => {
         openIncidents: 3,
         trainings: 4,
         documents: 0,
+        inspections: 5,
+        openFindings: 2,
       },
       {
         siteId: 'site-b',
@@ -142,6 +155,8 @@ describe('DashboardService - KPIs por sede', () => {
         openIncidents: 0,
         trainings: 0,
         documents: 7,
+        inspections: 1,
+        openFindings: 1,
       },
     ]);
 
@@ -196,6 +211,8 @@ describe('DashboardService - KPIs por sede', () => {
       openIncidents: 0,
       trainings: 0,
       documents: 7,
+      inspections: 1,
+      openFindings: 1,
     });
   });
 });

@@ -17,6 +17,8 @@ export type SiteKpi = {
   openIncidents: number;
   trainings: number;
   documents: number;
+  inspections: number;
+  openFindings: number;
 };
 
 //** Resumen completo del dashboard devuelto por `summary` (y cacheado en Redis). */
@@ -238,7 +240,8 @@ export class DashboardService implements OnModuleDestroy {
     };
   }
 
-  /** KPIs por sede de la empresa: empleados, riesgos, incidentes, capacitaciones y documentos. */
+  /** KPIs por sede de la empresa: empleados, riesgos, incidentes, capacitaciones,
+   *  documentos, inspecciones (planeadas + no planeadas) y hallazgos abiertos. */
   private async computeSiteKpis(companyId: string): Promise<SiteKpi[]> {
     const [
       sites,
@@ -247,6 +250,10 @@ export class DashboardService implements OnModuleDestroy {
       openIncidentGroups,
       trainingGroups,
       documentGroups,
+      plannedInspectionGroups,
+      unplannedInspectionGroups,
+      openFindingsFromPlanned,
+      openFindingsFromUnplanned,
     ] = (await this.prisma.$transaction([
       // Sedes activas de la empresa (el scope lo garantiza el where).
       this.prisma.site.findMany({
@@ -285,6 +292,34 @@ export class DashboardService implements OnModuleDestroy {
         where: { companyId, siteId: { not: null } },
         _count: { _all: true },
       }),
+      // Inspecciones planeadas por sede (todas las ejecutadas/pendientes).
+      this.prisma.plannedInspection.groupBy({
+        by: ['siteId'],
+        where: { companyId, siteId: { not: null } },
+        _count: { _all: true },
+      }),
+      // Inspecciones no planeadas por sede (S9.2).
+      this.prisma.unplannedInspection.groupBy({
+        by: ['siteId'],
+        where: { companyId, siteId: { not: null } },
+        _count: { _all: true },
+      }),
+      // Hallazgos abiertos de inspecciones planeadas, por sede del padre.
+      this.prisma.inspectionFinding.findMany({
+        where: {
+          status: 'OPEN',
+          inspection: { companyId, siteId: { not: null } },
+        },
+        select: { inspection: { select: { siteId: true } } },
+      }),
+      // Hallazgos abiertos de no planeadas, por sede del padre.
+      this.prisma.inspectionFinding.findMany({
+        where: {
+          status: 'OPEN',
+          unplannedInspection: { companyId, siteId: { not: null } },
+        },
+        select: { unplannedInspection: { select: { siteId: true } } },
+      }),
     ])) as [
       Array<{ id: string; name: string; code: string | null; isMain: boolean }>,
       Array<{ siteId: string | null; _count: { _all: number } }>,
@@ -292,6 +327,10 @@ export class DashboardService implements OnModuleDestroy {
       Array<{ siteId: string | null; _count: { _all: number } }>,
       Array<{ siteId: string | null; _count: { _all: number } }>,
       Array<{ siteId: string | null; _count: { _all: number } }>,
+      Array<{ siteId: string | null; _count: { _all: number } }>,
+      Array<{ siteId: string | null; _count: { _all: number } }>,
+      Array<{ inspection: { siteId: string | null } }>,
+      Array<{ unplannedInspection: { siteId: string | null } }>,
     ];
 
     const countBySite = (
@@ -302,6 +341,29 @@ export class DashboardService implements OnModuleDestroy {
     const incidentsBySite = countBySite(openIncidentGroups);
     const trainingsBySite = countBySite(trainingGroups);
     const documentsBySite = countBySite(documentGroups);
+    const plannedBySite = countBySite(plannedInspectionGroups);
+    const unplannedBySite = countBySite(unplannedInspectionGroups);
+
+    // Hallazgos abiertos: se cuentan por la sede de su inspeccion padre.
+    const openFindingsBySite = new Map<string, number>();
+    for (const finding of openFindingsFromPlanned) {
+      const siteId = finding.inspection.siteId;
+      if (siteId) {
+        openFindingsBySite.set(
+          siteId,
+          (openFindingsBySite.get(siteId) ?? 0) + 1,
+        );
+      }
+    }
+    for (const finding of openFindingsFromUnplanned) {
+      const siteId = finding.unplannedInspection.siteId;
+      if (siteId) {
+        openFindingsBySite.set(
+          siteId,
+          (openFindingsBySite.get(siteId) ?? 0) + 1,
+        );
+      }
+    }
 
     return sites.map((site) => ({
       siteId: site.id,
@@ -313,6 +375,9 @@ export class DashboardService implements OnModuleDestroy {
       openIncidents: incidentsBySite.get(site.id) ?? 0,
       trainings: trainingsBySite.get(site.id) ?? 0,
       documents: documentsBySite.get(site.id) ?? 0,
+      inspections:
+        (plannedBySite.get(site.id) ?? 0) + (unplannedBySite.get(site.id) ?? 0),
+      openFindings: openFindingsBySite.get(site.id) ?? 0,
     }));
   }
 

@@ -1,4 +1,4 @@
-import { Assessment, AssignmentTurnedIn, Business, Description, FactCheck, ForwardToInbox, Gavel, HealthAndSafety, History, LocationCity, Logout, ManageAccounts, Menu, Notifications, People, Percent, Refresh, ReportProblem, School, SpaceDashboard, WarningAmber } from '@mui/icons-material'
+import { Assessment, AssignmentTurnedIn, Business, CalendarMonth, Campaign, Checklist, Description, Engineering, FactCheck, ForwardToInbox, Gavel, HealthAndSafety, History, LocationCity, Logout, ManageAccounts, MedicalInformation, Menu, Notifications, People, Percent, Refresh, ReportProblem, School, SpaceDashboard, Tour, WarningAmber } from '@mui/icons-material'
 import { Alert, AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, FormControl, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, MenuItem, Paper, Select, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
 import { useState, type ReactNode } from 'react'
 import type { AppNotification, AuthUser, Company, View } from '../types'
@@ -18,6 +18,10 @@ export function AppLayout({
   canViewUsers,
   canViewSites,
   canViewDocuments,
+  canViewAnnualPlans,
+  canViewInspections,
+  canViewUnsafeReports,
+  canViewMedical,
   canViewReports,
   canViewAudit,
   canRetryDeliveries,
@@ -49,6 +53,10 @@ export function AppLayout({
   canViewUsers: boolean
   canViewSites: boolean
   canViewDocuments: boolean
+  canViewAnnualPlans: boolean
+  canViewInspections: boolean
+  canViewUnsafeReports: boolean
+  canViewMedical: boolean
   canViewReports: boolean
   canViewAudit: boolean
   canRetryDeliveries?: boolean
@@ -97,6 +105,12 @@ export function AppLayout({
         {canViewDocuments && <NavButton active={view === 'sgsstEvaluations'} icon={<FactCheck />} label="Evaluacion Res. 0312" onClick={() => onSelectView('sgsstEvaluations')} onPreload={() => onPreloadView('sgsstEvaluations')} />}
         {canViewDocuments && <NavButton active={view === 'indicators'} icon={<Percent />} label="Indicadores" onClick={() => onSelectView('indicators')} onPreload={() => onPreloadView('indicators')} />}
         {canViewDocuments && <NavButton active={view === 'legalCompliance'} icon={<Gavel />} label="Mapa normativo" onClick={() => onSelectView('legalCompliance')} onPreload={() => onPreloadView('legalCompliance')} />}
+        {canViewAnnualPlans && <NavButton active={view === 'annualWorkPlans'} icon={<CalendarMonth />} label="Plan Anual" onClick={() => onSelectView('annualWorkPlans')} onPreload={() => onPreloadView('annualWorkPlans')} />}
+        {canViewInspections && <NavButton active={view === 'plannedInspections'} icon={<Checklist />} label="Inspecciones planeadas" onClick={() => onSelectView('plannedInspections')} onPreload={() => onPreloadView('plannedInspections')} />}
+        {canViewInspections && <NavButton active={view === 'unplannedInspections'} icon={<Tour />} label="Inspecciones no planeadas" onClick={() => onSelectView('unplannedInspections')} onPreload={() => onPreloadView('unplannedInspections')} />}
+        {canViewUnsafeReports && <NavButton active={view === 'unsafeReports'} icon={<Campaign />} label="Actos y condiciones" onClick={() => onSelectView('unsafeReports')} onPreload={() => onPreloadView('unsafeReports')} />}
+        {canViewInspections && <NavButton active={view === 'ppe'} icon={<Engineering />} label="EPP" onClick={() => onSelectView('ppe')} onPreload={() => onPreloadView('ppe')} />}
+        {canViewMedical && <NavButton active={view === 'medical'} icon={<MedicalInformation />} label="Medicina laboral" onClick={() => onSelectView('medical')} onPreload={() => onPreloadView('medical')} />}
         {canRetryDeliveries && <NavButton active={view === 'externalDeliveries'} icon={<ForwardToInbox />} label="Entregas externas" onClick={() => onSelectView('externalDeliveries')} onPreload={() => onPreloadView('externalDeliveries')} />}
         {canViewReports && <NavButton active={view === 'reports'} icon={<Assessment />} label="Mis reportes" onClick={() => onSelectView('reports')} onPreload={() => onPreloadView('reports')} />}
         {canViewUsers && <NavButton active={view === 'users'} icon={<ManageAccounts />} label="Usuarios" onClick={() => onSelectView('users')} onPreload={() => onPreloadView('users')} />}

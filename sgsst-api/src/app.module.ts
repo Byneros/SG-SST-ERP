@@ -9,7 +9,13 @@ import { MetricsTokenGuard } from './common/observability/metrics-token.guard';
 import { RequestObservabilityMiddleware } from './common/observability/request-observability.middleware';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AnnualWorkPlansModule } from './modules/annual-work-plans/annual-work-plans.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { PlannedInspectionsModule } from './modules/planned-inspections/planned-inspections.module';
+import { UnplannedInspectionsModule } from './modules/unplanned-inspections/unplanned-inspections.module';
+import { UnsafeReportsModule } from './modules/unsafe-reports/unsafe-reports.module';
+import { PpeModule } from './modules/ppe/ppe.module';
+import { MedicalModule } from './modules/medical/medical.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DocumentsModule } from './modules/documents/documents.module';
@@ -32,6 +38,12 @@ import { UsersModule } from './modules/users/users.module';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    AnnualWorkPlansModule,
+    PlannedInspectionsModule,
+    UnplannedInspectionsModule,
+    UnsafeReportsModule,
+    PpeModule,
+    MedicalModule,
     UsersModule,
     CompaniesModule,
     DashboardModule,

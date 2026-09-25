@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -682,6 +682,166 @@ export type SiteKpi = {
   openIncidents: number
   trainings: number
   documents: number
+  inspections: number
+  openFindings: number
+}
+
+export type UnplannedInspection = {
+  id: string
+  title: string
+  reason: string
+  area?: string
+  status: InspectionStatus
+  executedAt?: string
+  result?: string
+  createdAt: string
+  updatedAt: string
+  companyId: string
+  siteId?: string
+  inspectorId?: string
+  inspector?: Pick<SystemUser, 'id' | 'name' | 'email'>
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
+  findings: InspectionFinding[]
+}
+
+export type UnplannedInspectionFormValues = {
+  title: string
+  reason: string
+  area: string
+  status: InspectionStatus
+  siteId: string
+  inspectorId: string
+  companyId: string
+}
+
+export type UnsafeReportKind = 'UNSAFE_ACT' | 'UNSAFE_CONDITION'
+export type UnsafeReportStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED'
+
+export type UnsafeReport = {
+  id: string
+  kind: UnsafeReportKind
+  description: string
+  severity: InspectionFindingSeverity
+  status: UnsafeReportStatus
+  area?: string
+  isAnonymous: boolean
+  reporterName?: string
+  closedAt?: string
+  createdAt: string
+  updatedAt: string
+  companyId: string
+  siteId?: string
+  reporterId?: string
+  reporter?: Pick<SystemUser, 'id' | 'name' | 'email'>
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
+  findings: InspectionFinding[]
+}
+
+export type UnsafeReportFormValues = {
+  kind: UnsafeReportKind
+  description: string
+  severity: InspectionFindingSeverity
+  area: string
+  isAnonymous: boolean
+  reporterName: string
+  siteId: string
+  companyId: string
+}
+
+export type PpeItem = {
+  id: string
+  name: string
+  type?: string
+  standard?: string
+  size?: string
+  usefulLifeDays?: number
+  stockMin: number
+  stock: number
+  isActive: boolean
+  companyId: string
+}
+
+// ---- Medicina laboral (S10) ----
+
+export type MedicalExamType = 'INGRESO' | 'PERIODICO' | 'RETIRO' | 'POSTINCAPACIDAD' | 'CAMBIO_CARGO'
+export type MedicalConcept = 'PENDIENTE' | 'APTO' | 'APTO_RESTRICCION' | 'NO_APTO'
+
+export type MedicalProfile = {
+  id: string
+  position: string
+  description?: string
+  isActive: boolean
+  companyId: string
+  company?: Pick<Company, 'id' | 'name'>
+  requirements: Array<{
+    id: string
+    examType: MedicalExamType
+    periodicityMonths: number
+    notes?: string
+  }>
+}
+
+export type MedicalExam = {
+  id: string
+  examType: MedicalExamType
+  concept: MedicalConcept
+  scheduledAt?: string
+  performedAt?: string
+  nextDueAt?: string
+  provider?: string
+  employeeId?: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'document' | 'position'>
+  profileId?: string
+  profile?: Pick<MedicalProfile, 'id' | 'position'>
+}
+
+export type MedicalRestriction = {
+  id: string
+  description: string
+  startDate?: string
+  endDate?: string
+  liftedAt?: string
+  liftedBy?: string
+  status: 'ACTIVE' | 'LIFTED'
+  employeeId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'document' | 'position'>
+}
+
+export type PpeDelivery = {
+  id: string
+  quantity: number
+  deliveredAt: string
+  dueReplacementAt?: string
+  signature?: string
+  notes?: string
+  itemId: string
+  item?: Pick<PpeItem, 'id' | 'name' | 'type' | 'standard' | 'size'>
+  employeeId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'document' | 'position'>
+  itemStock?: number
+  stockBelowMin?: boolean
+}
+
+export type PpeItemFormValues = {
+  name: string
+  type: string
+  standard: string
+  size: string
+  usefulLifeDays: string
+  stockMin: string
+  stock: string
+  companyId: string
+}
+
+export type PpeDeliveryFormValues = {
+  itemId: string
+  employeeId: string
+  quantity: string
+  signature: string
+  notes: string
+  companyId: string
 }
 
 export type IncidentFormValues = {
@@ -707,4 +867,149 @@ export type TrainingFormValues = {
   date: string
   companyId: string
   siteId: string
+}
+
+export type AnnualWorkPlanStatus = 'DRAFT' | 'APPROVED' | 'IN_PROGRESS' | 'CLOSED'
+export type AnnualActivityStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED'
+export type AnnualActivityCycle = 'PLANEAR' | 'HACER' | 'VERIFICAR' | 'ACTUAR' | 'ACT'
+
+export type AnnualPlanActivity = {
+  id: string
+  cycle: AnnualActivityCycle
+  name: string
+  frequency?: string
+  dueDate?: string
+  progress: number
+  status: AnnualActivityStatus
+  budget?: number
+  planId: string
+  companyId: string
+  ownerId?: string
+  owner?: Pick<SystemUser, 'id' | 'name' | 'email'>
+  evidenceId?: string
+  evidence?: Pick<SgsstDocument, 'id' | 'name' | 'fileName' | 'mimeType' | 'status'>
+}
+
+export type AnnualWorkPlan = {
+  id: string
+  year: number
+  status: AnnualWorkPlanStatus
+  notes?: string
+  approvedById?: string
+  approvedBy?: Pick<SystemUser, 'id' | 'name' | 'email'>
+  approvedAt?: string
+  createdAt: string
+  updatedAt: string
+  companyId: string
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  activities?: AnnualPlanActivity[]
+  planProgress?: number
+}
+
+export type MedicalProfileFormValues = {
+  position: string
+  description: string
+  examType: string
+  companyId: string
+}
+
+export type MedicalExamFormValues = {
+  examType: string
+  employeeId: string
+  scheduledAt: string
+  performedAt: string
+  nextDueAt: string
+  concept: string
+  provider: string
+}
+
+export type MedicalRestrictionFormValues = {
+  description: string
+  employeeId: string
+  startDate: string
+  endDate: string
+}
+
+export type AnnualWorkPlanFormValues = {
+  year: string
+  status: AnnualWorkPlanStatus
+  notes: string
+  companyId: string
+}
+
+export type AnnualActivityFormValues = {
+  cycle: AnnualActivityCycle
+  name: string
+  frequency: string
+  dueDate: string
+  progress: string
+  status: AnnualActivityStatus
+  budget: string
+  ownerId: string
+  evidenceId: string
+}
+
+export type InspectionStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+export type InspectionFindingSeverity = 'MINOR' | 'MAJOR' | 'CRITICAL'
+
+export type InspectionItem = {
+  id: string
+  order: number
+  section?: string
+  question: string
+  answer?: string
+  notes?: string
+}
+
+export type InspectionFindingAction = {
+  id: string
+  title: string
+  responsible: string
+  dueDate: string
+  status: CorrectiveActionStatus
+}
+
+export type InspectionFindingRisk = Pick<Risk, 'id' | 'title' | 'level'>
+
+export type InspectionFinding = {
+  id: string
+  description: string
+  severity: InspectionFindingSeverity
+  status: FindingStatus
+  actionId?: string
+  action?: InspectionFindingAction
+  riskId?: string
+  risk?: InspectionFindingRisk
+}
+
+export type PlannedInspection = {
+  id: string
+  title: string
+  type: string
+  frequency?: string
+  scheduledAt: string
+  executedAt?: string
+  result?: string
+  status: InspectionStatus
+  createdAt: string
+  updatedAt: string
+  companyId: string
+  siteId?: string
+  inspectorId?: string
+  inspector?: Pick<SystemUser, 'id' | 'name' | 'email'>
+  company?: Pick<Company, 'id' | 'name' | 'nit'>
+  site?: Pick<Site, 'id' | 'name' | 'code'>
+  items: InspectionItem[]
+  findings: InspectionFinding[]
+}
+
+export type PlannedInspectionFormValues = {
+  title: string
+  type: string
+  frequency: string
+  scheduledAt: string
+  status: InspectionStatus
+  siteId: string
+  inspectorId: string
+  companyId: string
 }

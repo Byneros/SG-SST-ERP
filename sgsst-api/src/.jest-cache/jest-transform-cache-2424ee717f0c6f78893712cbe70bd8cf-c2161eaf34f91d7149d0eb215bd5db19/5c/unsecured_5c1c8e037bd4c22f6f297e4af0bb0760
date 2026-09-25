@@ -1,0 +1,71 @@
+4527cf6733a6cc9a962463629b8e77a9
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.UnsecuredJWT = void 0;
+const b64u = __importStar(require("../util/base64url.js"));
+const validate_js_1 = require("../lib/validate.js");
+const errors_js_1 = require("../util/errors.js");
+const jwt_claims_set_js_1 = require("../lib/jwt_claims_set.js");
+const UnsecuredJWT_base = jwt_claims_set_js_1.JWTClaimsBuilder;
+class UnsecuredJWT extends UnsecuredJWT_base {
+    encode() {
+        const header = b64u.encode(JSON.stringify({ alg: "none" })), payload = b64u.encode((0, jwt_claims_set_js_1.jwtData)(this));
+        return `${header}.${payload}.`;
+    }
+    static decode(jwt, options) {
+        if (typeof jwt != "string")
+            throw new errors_js_1.JWTInvalid("Unsecured JWT must be a string");
+        const { 0: encodedHeader, 1: encodedPayload, 2: signature, length } = jwt.split(".");
+        if (length !== 3 || signature !== "")
+            throw new errors_js_1.JWTInvalid("Invalid Unsecured JWT");
+        let header, b64;
+        try {
+            header = (0, validate_js_1.parseJoseHeader)(encodedHeader, errors_js_1.JWSInvalid, "JWS Protected Header is invalid");
+            const extensions = (0, validate_js_1.validateCrit)(errors_js_1.JWSInvalid, validate_js_1.JWS_RECOGNIZED, void 0, header, header);
+            b64 = (0, validate_js_1.validateB64)(header, extensions);
+        }
+        catch (cause) {
+            throw cause instanceof errors_js_1.JWSInvalid ? new errors_js_1.JWTInvalid("Invalid Unsecured JWT", { cause }) : cause;
+        }
+        if (header.alg !== "none")
+            throw new errors_js_1.JWTInvalid("Invalid Unsecured JWT");
+        if (!b64)
+            throw new errors_js_1.JWTInvalid("JWTs MUST NOT use unencoded payload");
+        return { payload: (0, jwt_claims_set_js_1.validateClaimsSet)(header, (0, validate_js_1.decodeBase64url)(encodedPayload, "payload", errors_js_1.JWTInvalid), options), header };
+    }
+}
+exports.UnsecuredJWT = UnsecuredJWT;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxORUxTT04gSlVMSU9cXGNyZXdhaV9vbGxhbWFcXFNHLVNTVC1FUlBcXHNnc3N0LWFwaVxcbm9kZV9tb2R1bGVzXFxqb3NlXFxkaXN0XFx3ZWJhcGlcXGp3dFxcdW5zZWN1cmVkLmpzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLDJEQUE2QztBQUM3QyxvREFBaUg7QUFDakgsaURBQTJEO0FBQzNELGdFQUF3RjtBQUN4RixNQUFNLGlCQUFpQixHQUFHLG9DQUFnQixDQUFDO0FBQzNDLE1BQU0sWUFBYSxTQUFRLGlCQUFpQjtJQUMxQyxNQUFNO1FBQ0osTUFBTSxNQUFNLEdBQUcsSUFBSSxDQUFDLE1BQU0sQ0FBQyxJQUFJLENBQUMsU0FBUyxDQUFDLEVBQUUsR0FBRyxFQUFFLE1BQU0sRUFBRSxDQUFDLENBQUMsRUFBRSxPQUFPLEdBQUcsSUFBSSxDQUFDLE1BQU0sQ0FBQyxJQUFBLDJCQUFPLEVBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQztRQUNsRyxPQUFPLEdBQUcsTUFBTSxJQUFJLE9BQU8sR0FBRyxDQUFDO0lBQ2pDLENBQUM7SUFDRCxNQUFNLENBQUMsTUFBTSxDQUFDLEdBQUcsRUFBRSxPQUFPO1FBQ3hCLElBQUksT0FBTyxHQUFHLElBQUksUUFBUTtZQUN4QixNQUFNLElBQUksc0JBQVUsQ0FBQyxnQ0FBZ0MsQ0FBQyxDQUFDO1FBQ3pELE1BQU0sRUFBRSxDQUFDLEVBQUUsYUFBYSxFQUFFLENBQUMsRUFBRSxjQUFjLEVBQUUsQ0FBQyxFQUFFLFNBQVMsRUFBRSxNQUFNLEVBQUUsR0FBRyxHQUFHLENBQUMsS0FBSyxDQUFDLEdBQUcsQ0FBQyxDQUFDO1FBQ3JGLElBQUksTUFBTSxLQUFLLENBQUMsSUFBSSxTQUFTLEtBQUssRUFBRTtZQUNsQyxNQUFNLElBQUksc0JBQVUsQ0FBQyx1QkFBdUIsQ0FBQyxDQUFDO1FBQ2hELElBQUksTUFBTSxFQUFFLEdBQUcsQ0FBQztRQUNoQixJQUFJLENBQUM7WUFDSCxNQUFNLEdBQUcsSUFBQSw2QkFBZSxFQUFDLGFBQWEsRUFBRSxzQkFBVSxFQUFFLGlDQUFpQyxDQUFDLENBQUM7WUFDdkYsTUFBTSxVQUFVLEdBQUcsSUFBQSwwQkFBWSxFQUFDLHNCQUFVLEVBQUUsNEJBQWMsRUFBRSxLQUFLLENBQUMsRUFBRSxNQUFNLEVBQUUsTUFBTSxDQUFDLENBQUM7WUFDcEYsR0FBRyxHQUFHLElBQUEseUJBQVcsRUFBQyxNQUFNLEVBQUUsVUFBVSxDQUFDLENBQUM7UUFDeEMsQ0FBQztRQUFDLE9BQU8sS0FBSyxFQUFFLENBQUM7WUFDZixNQUFNLEtBQUssWUFBWSxzQkFBVSxDQUFDLENBQUMsQ0FBQyxJQUFJLHNCQUFVLENBQUMsdUJBQXVCLEVBQUUsRUFBRSxLQUFLLEVBQUUsQ0FBQyxDQUFDLENBQUMsQ0FBQyxLQUFLLENBQUM7UUFDakcsQ0FBQztRQUNELElBQUksTUFBTSxDQUFDLEdBQUcsS0FBSyxNQUFNO1lBQ3ZCLE1BQU0sSUFBSSxzQkFBVSxDQUFDLHVCQUF1QixDQUFDLENBQUM7UUFDaEQsSUFBSSxDQUFDLEdBQUc7WUFDTixNQUFNLElBQUksc0JBQVUsQ0FBQyxxQ0FBcUMsQ0FBQyxDQUFDO1FBQzlELE9BQU8sRUFBRSxPQUFPLEVBQUUsSUFBQSxxQ0FBaUIsRUFBQyxNQUFNLEVBQUUsSUFBQSw2QkFBZSxFQUFDLGNBQWMsRUFBRSxTQUFTLEVBQUUsc0JBQVUsQ0FBQyxFQUFFLE9BQU8sQ0FBQyxFQUFFLE1BQU0sRUFBRSxDQUFDO0lBQ3pILENBQUM7Q0FDRjtBQUVDLG9DQUFZIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcTkVMU09OIEpVTElPXFxjcmV3YWlfb2xsYW1hXFxTRy1TU1QtRVJQXFxzZ3NzdC1hcGlcXG5vZGVfbW9kdWxlc1xcam9zZVxcZGlzdFxcd2ViYXBpXFxqd3RcXHVuc2VjdXJlZC5qcyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgKiBhcyBiNjR1IGZyb20gXCIuLi91dGlsL2Jhc2U2NHVybC5qc1wiO1xuaW1wb3J0IHsgZGVjb2RlQmFzZTY0dXJsLCBwYXJzZUpvc2VIZWFkZXIsIEpXU19SRUNPR05JWkVELCB2YWxpZGF0ZUI2NCwgdmFsaWRhdGVDcml0IH0gZnJvbSBcIi4uL2xpYi92YWxpZGF0ZS5qc1wiO1xuaW1wb3J0IHsgSldTSW52YWxpZCwgSldUSW52YWxpZCB9IGZyb20gXCIuLi91dGlsL2Vycm9ycy5qc1wiO1xuaW1wb3J0IHsgdmFsaWRhdGVDbGFpbXNTZXQsIEpXVENsYWltc0J1aWxkZXIsIGp3dERhdGEgfSBmcm9tIFwiLi4vbGliL2p3dF9jbGFpbXNfc2V0LmpzXCI7XG5jb25zdCBVbnNlY3VyZWRKV1RfYmFzZSA9IEpXVENsYWltc0J1aWxkZXI7XG5jbGFzcyBVbnNlY3VyZWRKV1QgZXh0ZW5kcyBVbnNlY3VyZWRKV1RfYmFzZSB7XG4gIGVuY29kZSgpIHtcbiAgICBjb25zdCBoZWFkZXIgPSBiNjR1LmVuY29kZShKU09OLnN0cmluZ2lmeSh7IGFsZzogXCJub25lXCIgfSkpLCBwYXlsb2FkID0gYjY0dS5lbmNvZGUoand0RGF0YSh0aGlzKSk7XG4gICAgcmV0dXJuIGAke2hlYWRlcn0uJHtwYXlsb2FkfS5gO1xuICB9XG4gIHN0YXRpYyBkZWNvZGUoand0LCBvcHRpb25zKSB7XG4gICAgaWYgKHR5cGVvZiBqd3QgIT0gXCJzdHJpbmdcIilcbiAgICAgIHRocm93IG5ldyBKV1RJbnZhbGlkKFwiVW5zZWN1cmVkIEpXVCBtdXN0IGJlIGEgc3RyaW5nXCIpO1xuICAgIGNvbnN0IHsgMDogZW5jb2RlZEhlYWRlciwgMTogZW5jb2RlZFBheWxvYWQsIDI6IHNpZ25hdHVyZSwgbGVuZ3RoIH0gPSBqd3Quc3BsaXQoXCIuXCIpO1xuICAgIGlmIChsZW5ndGggIT09IDMgfHwgc2lnbmF0dXJlICE9PSBcIlwiKVxuICAgICAgdGhyb3cgbmV3IEpXVEludmFsaWQoXCJJbnZhbGlkIFVuc2VjdXJlZCBKV1RcIik7XG4gICAgbGV0IGhlYWRlciwgYjY0O1xuICAgIHRyeSB7XG4gICAgICBoZWFkZXIgPSBwYXJzZUpvc2VIZWFkZXIoZW5jb2RlZEhlYWRlciwgSldTSW52YWxpZCwgXCJKV1MgUHJvdGVjdGVkIEhlYWRlciBpcyBpbnZhbGlkXCIpO1xuICAgICAgY29uc3QgZXh0ZW5zaW9ucyA9IHZhbGlkYXRlQ3JpdChKV1NJbnZhbGlkLCBKV1NfUkVDT0dOSVpFRCwgdm9pZCAwLCBoZWFkZXIsIGhlYWRlcik7XG4gICAgICBiNjQgPSB2YWxpZGF0ZUI2NChoZWFkZXIsIGV4dGVuc2lvbnMpO1xuICAgIH0gY2F0Y2ggKGNhdXNlKSB7XG4gICAgICB0aHJvdyBjYXVzZSBpbnN0YW5jZW9mIEpXU0ludmFsaWQgPyBuZXcgSldUSW52YWxpZChcIkludmFsaWQgVW5zZWN1cmVkIEpXVFwiLCB7IGNhdXNlIH0pIDogY2F1c2U7XG4gICAgfVxuICAgIGlmIChoZWFkZXIuYWxnICE9PSBcIm5vbmVcIilcbiAgICAgIHRocm93IG5ldyBKV1RJbnZhbGlkKFwiSW52YWxpZCBVbnNlY3VyZWQgSldUXCIpO1xuICAgIGlmICghYjY0KVxuICAgICAgdGhyb3cgbmV3IEpXVEludmFsaWQoXCJKV1RzIE1VU1QgTk9UIHVzZSB1bmVuY29kZWQgcGF5bG9hZFwiKTtcbiAgICByZXR1cm4geyBwYXlsb2FkOiB2YWxpZGF0ZUNsYWltc1NldChoZWFkZXIsIGRlY29kZUJhc2U2NHVybChlbmNvZGVkUGF5bG9hZCwgXCJwYXlsb2FkXCIsIEpXVEludmFsaWQpLCBvcHRpb25zKSwgaGVhZGVyIH07XG4gIH1cbn1cbmV4cG9ydCB7XG4gIFVuc2VjdXJlZEpXVFxufTtcbiJdLCJ2ZXJzaW9uIjozfQ==

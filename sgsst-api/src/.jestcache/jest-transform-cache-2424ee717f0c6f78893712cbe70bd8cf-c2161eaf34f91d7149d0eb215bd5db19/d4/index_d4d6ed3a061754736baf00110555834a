@@ -1,0 +1,106 @@
+9579af6f19e2b487827ade8d23145041
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.jwtVerify = exports.jwtDecrypt = exports.jwksCache = exports.importX509 = exports.importSPKI = exports.importPKCS8 = exports.importJWK = exports.generateSecret = exports.generateKeyPair = exports.generalVerify = exports.generalDecrypt = exports.flattenedVerify = exports.flattenedDecrypt = exports.exportSPKI = exports.exportPKCS8 = exports.exportJWK = exports.errors = exports.decodeProtectedHeader = exports.decodeJwt = exports.customFetch = exports.cryptoRuntime = exports.createRemoteJWKSet = exports.createLocalJWKSet = exports.compactVerify = exports.compactDecrypt = exports.calculateJwkThumbprintUri = exports.calculateJwkThumbprint = exports.base64url = exports.UnsecuredJWT = exports.SignJWT = exports.GeneralSign = exports.GeneralEncrypt = exports.FlattenedSign = exports.FlattenedEncrypt = exports.EncryptJWT = exports.EmbeddedJWK = exports.CompactSign = exports.CompactEncrypt = void 0;
+const decrypt_js_1 = require("./jwe/compact/decrypt.js");
+Object.defineProperty(exports, "compactDecrypt", { enumerable: true, get: function () { return decrypt_js_1.compactDecrypt; } });
+const decrypt_js_2 = require("./jwe/flattened/decrypt.js");
+Object.defineProperty(exports, "flattenedDecrypt", { enumerable: true, get: function () { return decrypt_js_2.flattenedDecrypt; } });
+const decrypt_js_3 = require("./jwe/general/decrypt.js");
+Object.defineProperty(exports, "generalDecrypt", { enumerable: true, get: function () { return decrypt_js_3.generalDecrypt; } });
+const encrypt_js_1 = require("./jwe/general/encrypt.js");
+Object.defineProperty(exports, "GeneralEncrypt", { enumerable: true, get: function () { return encrypt_js_1.GeneralEncrypt; } });
+const verify_js_1 = require("./jws/compact/verify.js");
+Object.defineProperty(exports, "compactVerify", { enumerable: true, get: function () { return verify_js_1.compactVerify; } });
+const verify_js_2 = require("./jws/flattened/verify.js");
+Object.defineProperty(exports, "flattenedVerify", { enumerable: true, get: function () { return verify_js_2.flattenedVerify; } });
+const verify_js_3 = require("./jws/general/verify.js");
+Object.defineProperty(exports, "generalVerify", { enumerable: true, get: function () { return verify_js_3.generalVerify; } });
+const verify_js_4 = require("./jwt/verify.js");
+Object.defineProperty(exports, "jwtVerify", { enumerable: true, get: function () { return verify_js_4.jwtVerify; } });
+const decrypt_js_4 = require("./jwt/decrypt.js");
+Object.defineProperty(exports, "jwtDecrypt", { enumerable: true, get: function () { return decrypt_js_4.jwtDecrypt; } });
+const encrypt_js_2 = require("./jwe/compact/encrypt.js");
+Object.defineProperty(exports, "CompactEncrypt", { enumerable: true, get: function () { return encrypt_js_2.CompactEncrypt; } });
+const encrypt_js_3 = require("./jwe/flattened/encrypt.js");
+Object.defineProperty(exports, "FlattenedEncrypt", { enumerable: true, get: function () { return encrypt_js_3.FlattenedEncrypt; } });
+const sign_js_1 = require("./jws/compact/sign.js");
+Object.defineProperty(exports, "CompactSign", { enumerable: true, get: function () { return sign_js_1.CompactSign; } });
+const sign_js_2 = require("./jws/flattened/sign.js");
+Object.defineProperty(exports, "FlattenedSign", { enumerable: true, get: function () { return sign_js_2.FlattenedSign; } });
+const sign_js_3 = require("./jws/general/sign.js");
+Object.defineProperty(exports, "GeneralSign", { enumerable: true, get: function () { return sign_js_3.GeneralSign; } });
+const sign_js_4 = require("./jwt/sign.js");
+Object.defineProperty(exports, "SignJWT", { enumerable: true, get: function () { return sign_js_4.SignJWT; } });
+const encrypt_js_4 = require("./jwt/encrypt.js");
+Object.defineProperty(exports, "EncryptJWT", { enumerable: true, get: function () { return encrypt_js_4.EncryptJWT; } });
+const thumbprint_js_1 = require("./jwk/thumbprint.js");
+Object.defineProperty(exports, "calculateJwkThumbprint", { enumerable: true, get: function () { return thumbprint_js_1.calculateJwkThumbprint; } });
+Object.defineProperty(exports, "calculateJwkThumbprintUri", { enumerable: true, get: function () { return thumbprint_js_1.calculateJwkThumbprintUri; } });
+const embedded_js_1 = require("./jwk/embedded.js");
+Object.defineProperty(exports, "EmbeddedJWK", { enumerable: true, get: function () { return embedded_js_1.EmbeddedJWK; } });
+const local_js_1 = require("./jwks/local.js");
+Object.defineProperty(exports, "createLocalJWKSet", { enumerable: true, get: function () { return local_js_1.createLocalJWKSet; } });
+const remote_js_1 = require("./jwks/remote.js");
+Object.defineProperty(exports, "createRemoteJWKSet", { enumerable: true, get: function () { return remote_js_1.createRemoteJWKSet; } });
+Object.defineProperty(exports, "jwksCache", { enumerable: true, get: function () { return remote_js_1.jwksCache; } });
+Object.defineProperty(exports, "customFetch", { enumerable: true, get: function () { return remote_js_1.customFetch; } });
+const unsecured_js_1 = require("./jwt/unsecured.js");
+Object.defineProperty(exports, "UnsecuredJWT", { enumerable: true, get: function () { return unsecured_js_1.UnsecuredJWT; } });
+const export_js_1 = require("./key/export.js");
+Object.defineProperty(exports, "exportPKCS8", { enumerable: true, get: function () { return export_js_1.exportPKCS8; } });
+Object.defineProperty(exports, "exportSPKI", { enumerable: true, get: function () { return export_js_1.exportSPKI; } });
+Object.defineProperty(exports, "exportJWK", { enumerable: true, get: function () { return export_js_1.exportJWK; } });
+const import_js_1 = require("./key/import.js");
+Object.defineProperty(exports, "importSPKI", { enumerable: true, get: function () { return import_js_1.importSPKI; } });
+Object.defineProperty(exports, "importPKCS8", { enumerable: true, get: function () { return import_js_1.importPKCS8; } });
+Object.defineProperty(exports, "importX509", { enumerable: true, get: function () { return import_js_1.importX509; } });
+Object.defineProperty(exports, "importJWK", { enumerable: true, get: function () { return import_js_1.importJWK; } });
+const decode_protected_header_js_1 = require("./util/decode_protected_header.js");
+Object.defineProperty(exports, "decodeProtectedHeader", { enumerable: true, get: function () { return decode_protected_header_js_1.decodeProtectedHeader; } });
+const decode_jwt_js_1 = require("./util/decode_jwt.js");
+Object.defineProperty(exports, "decodeJwt", { enumerable: true, get: function () { return decode_jwt_js_1.decodeJwt; } });
+const errors = __importStar(require("./util/errors.js"));
+exports.errors = errors;
+const generate_key_pair_js_1 = require("./key/generate_key_pair.js");
+Object.defineProperty(exports, "generateKeyPair", { enumerable: true, get: function () { return generate_key_pair_js_1.generateKeyPair; } });
+const generate_secret_js_1 = require("./key/generate_secret.js");
+Object.defineProperty(exports, "generateSecret", { enumerable: true, get: function () { return generate_secret_js_1.generateSecret; } });
+const base64url = __importStar(require("./util/base64url.js"));
+exports.base64url = base64url;
+const cryptoRuntime = "WebCryptoAPI";
+exports.cryptoRuntime = cryptoRuntime;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxORUxTT04gSlVMSU9cXGNyZXdhaV9vbGxhbWFcXFNHLVNTVC1FUlBcXHNnc3N0LWFwaVxcbm9kZV9tb2R1bGVzXFxqb3NlXFxkaXN0XFx3ZWJhcGlcXGluZGV4LmpzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLHlEQUEwRDtBQTRDeEQsK0ZBNUNPLDJCQUFjLE9BNENQO0FBM0NoQiwyREFBOEQ7QUF1RDVELGlHQXZETyw2QkFBZ0IsT0F1RFA7QUF0RGxCLHlEQUEwRDtBQXdEeEQsK0ZBeERPLDJCQUFjLE9Bd0RQO0FBdkRoQix5REFBMEQ7QUFrQ3hELCtGQWxDTywyQkFBYyxPQWtDUDtBQWpDaEIsdURBQXdEO0FBeUN0RCw4RkF6Q08seUJBQWEsT0F5Q1A7QUF4Q2YseURBQTREO0FBb0QxRCxnR0FwRE8sMkJBQWUsT0FvRFA7QUFuRGpCLHVEQUF3RDtBQXFEdEQsOEZBckRPLHlCQUFhLE9BcURQO0FBcERmLCtDQUE0QztBQTZEMUMsMEZBN0RPLHFCQUFTLE9BNkRQO0FBNURYLGlEQUE4QztBQTJENUMsMkZBM0RPLHVCQUFVLE9BMkRQO0FBMURaLHlEQUEwRDtBQXNCeEQsK0ZBdEJPLDJCQUFjLE9Bc0JQO0FBckJoQiwyREFBOEQ7QUF5QjVELGlHQXpCTyw2QkFBZ0IsT0F5QlA7QUF4QmxCLG1EQUFvRDtBQXFCbEQsNEZBckJPLHFCQUFXLE9BcUJQO0FBcEJiLHFEQUF3RDtBQXdCdEQsOEZBeEJPLHVCQUFhLE9Bd0JQO0FBdkJmLG1EQUFvRDtBQXlCbEQsNEZBekJPLHFCQUFXLE9BeUJQO0FBeEJiLDJDQUF3QztBQXlCdEMsd0ZBekJPLGlCQUFPLE9BeUJQO0FBeEJULGlEQUE4QztBQW1CNUMsMkZBbkJPLHVCQUFVLE9BbUJQO0FBbEJaLHVEQUF3RjtBQTBCdEYsdUdBMUJPLHNDQUFzQixPQTBCUDtBQUN0QiwwR0EzQitCLHlDQUF5QixPQTJCL0I7QUExQjNCLG1EQUFnRDtBQWdCOUMsNEZBaEJPLHlCQUFXLE9BZ0JQO0FBZmIsOENBQW9EO0FBNEJsRCxrR0E1Qk8sNEJBQWlCLE9BNEJQO0FBM0JuQixnREFBOEU7QUE0QjVFLG1HQTVCTyw4QkFBa0IsT0E0QlA7QUFtQmxCLDBGQS9DMkIscUJBQVMsT0ErQzNCO0FBakJULDRGQTlCc0MsdUJBQVcsT0E4QnRDO0FBN0JiLHFEQUFrRDtBQW9CaEQsNkZBcEJPLDJCQUFZLE9Bb0JQO0FBbkJkLCtDQUFxRTtBQWlDbkUsNEZBakNPLHVCQUFXLE9BaUNQO0FBQ1gsMkZBbENvQixzQkFBVSxPQWtDcEI7QUFGViwwRkFoQ2dDLHFCQUFTLE9BZ0NoQztBQS9CWCwrQ0FBaUY7QUEwQy9FLDJGQTFDTyxzQkFBVSxPQTBDUDtBQURWLDRGQXpDbUIsdUJBQVcsT0F5Q25CO0FBRVgsMkZBM0NnQyxzQkFBVSxPQTJDaEM7QUFIViwwRkF4QzRDLHFCQUFTLE9Bd0M1QztBQXZDWCxrRkFBMEU7QUE0QnhFLHNHQTVCTyxrREFBcUIsT0E0QlA7QUEzQnZCLHdEQUFpRDtBQTBCL0MsMEZBMUJPLHlCQUFTLE9BMEJQO0FBekJYLHlEQUEyQztBQTJCekMsd0JBQU07QUExQlIscUVBQTZEO0FBa0MzRCxnR0FsQ08sc0NBQWUsT0FrQ1A7QUFqQ2pCLGlFQUEwRDtBQWtDeEQsK0ZBbENPLG1DQUFjLE9Ba0NQO0FBakNoQiwrREFBaUQ7QUFhL0MsOEJBQVM7QUFaWCxNQUFNLGFBQWEsR0FBRyxjQUFjLENBQUM7QUFtQm5DLHNDQUFhIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcTkVMU09OIEpVTElPXFxjcmV3YWlfb2xsYW1hXFxTRy1TU1QtRVJQXFxzZ3NzdC1hcGlcXG5vZGVfbW9kdWxlc1xcam9zZVxcZGlzdFxcd2ViYXBpXFxpbmRleC5qcyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBjb21wYWN0RGVjcnlwdCB9IGZyb20gXCIuL2p3ZS9jb21wYWN0L2RlY3J5cHQuanNcIjtcbmltcG9ydCB7IGZsYXR0ZW5lZERlY3J5cHQgfSBmcm9tIFwiLi9qd2UvZmxhdHRlbmVkL2RlY3J5cHQuanNcIjtcbmltcG9ydCB7IGdlbmVyYWxEZWNyeXB0IH0gZnJvbSBcIi4vandlL2dlbmVyYWwvZGVjcnlwdC5qc1wiO1xuaW1wb3J0IHsgR2VuZXJhbEVuY3J5cHQgfSBmcm9tIFwiLi9qd2UvZ2VuZXJhbC9lbmNyeXB0LmpzXCI7XG5pbXBvcnQgeyBjb21wYWN0VmVyaWZ5IH0gZnJvbSBcIi4vandzL2NvbXBhY3QvdmVyaWZ5LmpzXCI7XG5pbXBvcnQgeyBmbGF0dGVuZWRWZXJpZnkgfSBmcm9tIFwiLi9qd3MvZmxhdHRlbmVkL3ZlcmlmeS5qc1wiO1xuaW1wb3J0IHsgZ2VuZXJhbFZlcmlmeSB9IGZyb20gXCIuL2p3cy9nZW5lcmFsL3ZlcmlmeS5qc1wiO1xuaW1wb3J0IHsgand0VmVyaWZ5IH0gZnJvbSBcIi4vand0L3ZlcmlmeS5qc1wiO1xuaW1wb3J0IHsgand0RGVjcnlwdCB9IGZyb20gXCIuL2p3dC9kZWNyeXB0LmpzXCI7XG5pbXBvcnQgeyBDb21wYWN0RW5jcnlwdCB9IGZyb20gXCIuL2p3ZS9jb21wYWN0L2VuY3J5cHQuanNcIjtcbmltcG9ydCB7IEZsYXR0ZW5lZEVuY3J5cHQgfSBmcm9tIFwiLi9qd2UvZmxhdHRlbmVkL2VuY3J5cHQuanNcIjtcbmltcG9ydCB7IENvbXBhY3RTaWduIH0gZnJvbSBcIi4vandzL2NvbXBhY3Qvc2lnbi5qc1wiO1xuaW1wb3J0IHsgRmxhdHRlbmVkU2lnbiB9IGZyb20gXCIuL2p3cy9mbGF0dGVuZWQvc2lnbi5qc1wiO1xuaW1wb3J0IHsgR2VuZXJhbFNpZ24gfSBmcm9tIFwiLi9qd3MvZ2VuZXJhbC9zaWduLmpzXCI7XG5pbXBvcnQgeyBTaWduSldUIH0gZnJvbSBcIi4vand0L3NpZ24uanNcIjtcbmltcG9ydCB7IEVuY3J5cHRKV1QgfSBmcm9tIFwiLi9qd3QvZW5jcnlwdC5qc1wiO1xuaW1wb3J0IHsgY2FsY3VsYXRlSndrVGh1bWJwcmludCwgY2FsY3VsYXRlSndrVGh1bWJwcmludFVyaSB9IGZyb20gXCIuL2p3ay90aHVtYnByaW50LmpzXCI7XG5pbXBvcnQgeyBFbWJlZGRlZEpXSyB9IGZyb20gXCIuL2p3ay9lbWJlZGRlZC5qc1wiO1xuaW1wb3J0IHsgY3JlYXRlTG9jYWxKV0tTZXQgfSBmcm9tIFwiLi9qd2tzL2xvY2FsLmpzXCI7XG5pbXBvcnQgeyBjcmVhdGVSZW1vdGVKV0tTZXQsIGp3a3NDYWNoZSwgY3VzdG9tRmV0Y2ggfSBmcm9tIFwiLi9qd2tzL3JlbW90ZS5qc1wiO1xuaW1wb3J0IHsgVW5zZWN1cmVkSldUIH0gZnJvbSBcIi4vand0L3Vuc2VjdXJlZC5qc1wiO1xuaW1wb3J0IHsgZXhwb3J0UEtDUzgsIGV4cG9ydFNQS0ksIGV4cG9ydEpXSyB9IGZyb20gXCIuL2tleS9leHBvcnQuanNcIjtcbmltcG9ydCB7IGltcG9ydFNQS0ksIGltcG9ydFBLQ1M4LCBpbXBvcnRYNTA5LCBpbXBvcnRKV0sgfSBmcm9tIFwiLi9rZXkvaW1wb3J0LmpzXCI7XG5pbXBvcnQgeyBkZWNvZGVQcm90ZWN0ZWRIZWFkZXIgfSBmcm9tIFwiLi91dGlsL2RlY29kZV9wcm90ZWN0ZWRfaGVhZGVyLmpzXCI7XG5pbXBvcnQgeyBkZWNvZGVKd3QgfSBmcm9tIFwiLi91dGlsL2RlY29kZV9qd3QuanNcIjtcbmltcG9ydCAqIGFzIGVycm9ycyBmcm9tIFwiLi91dGlsL2Vycm9ycy5qc1wiO1xuaW1wb3J0IHsgZ2VuZXJhdGVLZXlQYWlyIH0gZnJvbSBcIi4va2V5L2dlbmVyYXRlX2tleV9wYWlyLmpzXCI7XG5pbXBvcnQgeyBnZW5lcmF0ZVNlY3JldCB9IGZyb20gXCIuL2tleS9nZW5lcmF0ZV9zZWNyZXQuanNcIjtcbmltcG9ydCAqIGFzIGJhc2U2NHVybCBmcm9tIFwiLi91dGlsL2Jhc2U2NHVybC5qc1wiO1xuY29uc3QgY3J5cHRvUnVudGltZSA9IFwiV2ViQ3J5cHRvQVBJXCI7XG5leHBvcnQge1xuICBDb21wYWN0RW5jcnlwdCxcbiAgQ29tcGFjdFNpZ24sXG4gIEVtYmVkZGVkSldLLFxuICBFbmNyeXB0SldULFxuICBGbGF0dGVuZWRFbmNyeXB0LFxuICBGbGF0dGVuZWRTaWduLFxuICBHZW5lcmFsRW5jcnlwdCxcbiAgR2VuZXJhbFNpZ24sXG4gIFNpZ25KV1QsXG4gIFVuc2VjdXJlZEpXVCxcbiAgYmFzZTY0dXJsLFxuICBjYWxjdWxhdGVKd2tUaHVtYnByaW50LFxuICBjYWxjdWxhdGVKd2tUaHVtYnByaW50VXJpLFxuICBjb21wYWN0RGVjcnlwdCxcbiAgY29tcGFjdFZlcmlmeSxcbiAgY3JlYXRlTG9jYWxKV0tTZXQsXG4gIGNyZWF0ZVJlbW90ZUpXS1NldCxcbiAgY3J5cHRvUnVudGltZSxcbiAgY3VzdG9tRmV0Y2gsXG4gIGRlY29kZUp3dCxcbiAgZGVjb2RlUHJvdGVjdGVkSGVhZGVyLFxuICBlcnJvcnMsXG4gIGV4cG9ydEpXSyxcbiAgZXhwb3J0UEtDUzgsXG4gIGV4cG9ydFNQS0ksXG4gIGZsYXR0ZW5lZERlY3J5cHQsXG4gIGZsYXR0ZW5lZFZlcmlmeSxcbiAgZ2VuZXJhbERlY3J5cHQsXG4gIGdlbmVyYWxWZXJpZnksXG4gIGdlbmVyYXRlS2V5UGFpcixcbiAgZ2VuZXJhdGVTZWNyZXQsXG4gIGltcG9ydEpXSyxcbiAgaW1wb3J0UEtDUzgsXG4gIGltcG9ydFNQS0ksXG4gIGltcG9ydFg1MDksXG4gIGp3a3NDYWNoZSxcbiAgand0RGVjcnlwdCxcbiAgand0VmVyaWZ5XG59O1xuIl0sInZlcnNpb24iOjN9

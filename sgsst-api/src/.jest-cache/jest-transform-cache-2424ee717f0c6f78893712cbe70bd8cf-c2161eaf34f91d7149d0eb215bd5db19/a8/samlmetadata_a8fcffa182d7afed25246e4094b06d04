@@ -1,0 +1,35 @@
+5a5369cf638d97aafa73839bb69d9e97
+"use strict";
+/**
+ * Utilidades para metadata SAML 2.0 del IdP: permiten configurar un proveedor
+ * pegando solo el XML de metadata (el cert y la URL SSO se extraen de ahi).
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseIdpMetadata = parseIdpMetadata;
+exports.normalizeIdpCertificate = normalizeIdpCertificate;
+/** Extrae cert X.509 (body base64) y URL SSO de la metadata XML del IdP. */
+function parseIdpMetadata(xml) {
+    const trimmed = xml.trim();
+    if (!trimmed.startsWith('<'))
+        return null;
+    // Los elementos pueden llevar prefijo de namespace (p. ej. <ds:X509Certificate>).
+    const certificate = trimmed.match(/<(?:[\w.-]+:)?X509Certificate>([^<]+)<\/(?:[\w.-]+:)?X509Certificate>/)?.[1] ?? null;
+    // Ultimo SingleSignOnService (los IdP suelen listar Redirect y POST).
+    const ssoUrl = [
+        ...trimmed.matchAll(/<(?:[\w.-]+:)?SingleSignOnService\b[^>]*\bLocation="([^"]+)"/g),
+    ].pop()?.[1] ?? null;
+    if (!certificate || !ssoUrl)
+        return null;
+    return {
+        certificate: certificate.replace(/\s+/g, ''),
+        ssoUrl,
+    };
+}
+/** Acepta PEM completo o body base64; devuelve el body sin espacios. */
+function normalizeIdpCertificate(cert) {
+    return cert
+        .replace(/-----BEGIN CERTIFICATE-----/, '')
+        .replace(/-----END CERTIFICATE-----/, '')
+        .replace(/\s+/g, '');
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxORUxTT04gSlVMSU9cXGNyZXdhaV9vbGxhbWFcXFNHLVNTVC1FUlBcXHNnc3N0LWFwaVxcc3JjXFxtb2R1bGVzXFxzc29cXHNhbWxcXHNhbWwtbWV0YWRhdGEudHMiLCJtYXBwaW5ncyI6IjtBQUFBOzs7R0FHRzs7QUFHSCw0Q0FzQkM7QUFHRCwwREFLQztBQS9CRCw0RUFBNEU7QUFDNUUsU0FBZ0IsZ0JBQWdCLENBQzlCLEdBQVc7SUFFWCxNQUFNLE9BQU8sR0FBRyxHQUFHLENBQUMsSUFBSSxFQUFFLENBQUM7SUFDM0IsSUFBSSxDQUFDLE9BQU8sQ0FBQyxVQUFVLENBQUMsR0FBRyxDQUFDO1FBQUUsT0FBTyxJQUFJLENBQUM7SUFDMUMsa0ZBQWtGO0lBQ2xGLE1BQU0sV0FBVyxHQUNmLE9BQU8sQ0FBQyxLQUFLLENBQ1gsdUVBQXVFLENBQ3hFLEVBQUUsQ0FBQyxDQUFDLENBQUMsSUFBSSxJQUFJLENBQUM7SUFDakIsc0VBQXNFO0lBQ3RFLE1BQU0sTUFBTSxHQUNWO1FBQ0UsR0FBRyxPQUFPLENBQUMsUUFBUSxDQUNqQiwrREFBK0QsQ0FDaEU7S0FDRixDQUFDLEdBQUcsRUFBRSxFQUFFLENBQUMsQ0FBQyxDQUFDLElBQUksSUFBSSxDQUFDO0lBQ3ZCLElBQUksQ0FBQyxXQUFXLElBQUksQ0FBQyxNQUFNO1FBQUUsT0FBTyxJQUFJLENBQUM7SUFDekMsT0FBTztRQUNMLFdBQVcsRUFBRSxXQUFXLENBQUMsT0FBTyxDQUFDLE1BQU0sRUFBRSxFQUFFLENBQUM7UUFDNUMsTUFBTTtLQUNQLENBQUM7QUFDSixDQUFDO0FBRUQsd0VBQXdFO0FBQ3hFLFNBQWdCLHVCQUF1QixDQUFDLElBQVk7SUFDbEQsT0FBTyxJQUFJO1NBQ1IsT0FBTyxDQUFDLDZCQUE2QixFQUFFLEVBQUUsQ0FBQztTQUMxQyxPQUFPLENBQUMsMkJBQTJCLEVBQUUsRUFBRSxDQUFDO1NBQ3hDLE9BQU8sQ0FBQyxNQUFNLEVBQUUsRUFBRSxDQUFDLENBQUM7QUFDekIsQ0FBQyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXE5FTFNPTiBKVUxJT1xcY3Jld2FpX29sbGFtYVxcU0ctU1NULUVSUFxcc2dzc3QtYXBpXFxzcmNcXG1vZHVsZXNcXHNzb1xcc2FtbFxcc2FtbC1tZXRhZGF0YS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIFV0aWxpZGFkZXMgcGFyYSBtZXRhZGF0YSBTQU1MIDIuMCBkZWwgSWRQOiBwZXJtaXRlbiBjb25maWd1cmFyIHVuIHByb3ZlZWRvclxuICogcGVnYW5kbyBzb2xvIGVsIFhNTCBkZSBtZXRhZGF0YSAoZWwgY2VydCB5IGxhIFVSTCBTU08gc2UgZXh0cmFlbiBkZSBhaGkpLlxuICovXG5cbi8qKiBFeHRyYWUgY2VydCBYLjUwOSAoYm9keSBiYXNlNjQpIHkgVVJMIFNTTyBkZSBsYSBtZXRhZGF0YSBYTUwgZGVsIElkUC4gKi9cbmV4cG9ydCBmdW5jdGlvbiBwYXJzZUlkcE1ldGFkYXRhKFxuICB4bWw6IHN0cmluZyxcbik6IHsgY2VydGlmaWNhdGU6IHN0cmluZzsgc3NvVXJsOiBzdHJpbmcgfSB8IG51bGwge1xuICBjb25zdCB0cmltbWVkID0geG1sLnRyaW0oKTtcbiAgaWYgKCF0cmltbWVkLnN0YXJ0c1dpdGgoJzwnKSkgcmV0dXJuIG51bGw7XG4gIC8vIExvcyBlbGVtZW50b3MgcHVlZGVuIGxsZXZhciBwcmVmaWpvIGRlIG5hbWVzcGFjZSAocC4gZWouIDxkczpYNTA5Q2VydGlmaWNhdGU+KS5cbiAgY29uc3QgY2VydGlmaWNhdGUgPVxuICAgIHRyaW1tZWQubWF0Y2goXG4gICAgICAvPCg/OltcXHcuLV0rOik/WDUwOUNlcnRpZmljYXRlPihbXjxdKyk8XFwvKD86W1xcdy4tXSs6KT9YNTA5Q2VydGlmaWNhdGU+LyxcbiAgICApPy5bMV0gPz8gbnVsbDtcbiAgLy8gVWx0aW1vIFNpbmdsZVNpZ25PblNlcnZpY2UgKGxvcyBJZFAgc3VlbGVuIGxpc3RhciBSZWRpcmVjdCB5IFBPU1QpLlxuICBjb25zdCBzc29VcmwgPVxuICAgIFtcbiAgICAgIC4uLnRyaW1tZWQubWF0Y2hBbGwoXG4gICAgICAgIC88KD86W1xcdy4tXSs6KT9TaW5nbGVTaWduT25TZXJ2aWNlXFxiW14+XSpcXGJMb2NhdGlvbj1cIihbXlwiXSspXCIvZyxcbiAgICAgICksXG4gICAgXS5wb3AoKT8uWzFdID8/IG51bGw7XG4gIGlmICghY2VydGlmaWNhdGUgfHwgIXNzb1VybCkgcmV0dXJuIG51bGw7XG4gIHJldHVybiB7XG4gICAgY2VydGlmaWNhdGU6IGNlcnRpZmljYXRlLnJlcGxhY2UoL1xccysvZywgJycpLFxuICAgIHNzb1VybCxcbiAgfTtcbn1cblxuLyoqIEFjZXB0YSBQRU0gY29tcGxldG8gbyBib2R5IGJhc2U2NDsgZGV2dWVsdmUgZWwgYm9keSBzaW4gZXNwYWNpb3MuICovXG5leHBvcnQgZnVuY3Rpb24gbm9ybWFsaXplSWRwQ2VydGlmaWNhdGUoY2VydDogc3RyaW5nKTogc3RyaW5nIHtcbiAgcmV0dXJuIGNlcnRcbiAgICAucmVwbGFjZSgvLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tLywgJycpXG4gICAgLnJlcGxhY2UoLy0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0vLCAnJylcbiAgICAucmVwbGFjZSgvXFxzKy9nLCAnJyk7XG59XG4iXSwidmVyc2lvbiI6M30=

@@ -16,7 +16,7 @@ import { AuditService } from '../audit/audit.service';
 import { ReportExportsQueryDto } from './dto/report-exports-query.dto';
 
 export type ReportKind =
-  'employees' | 'expired-documents' | 'audits' | 'summary';
+  'employees' | 'expired-documents' | 'audits' | 'summary' | 'annual-plan';
 export type ReportFormat = 'csv' | 'pdf';
 type ExportWhereBuildOptions = {
   includeSearch?: boolean;
@@ -28,6 +28,7 @@ const reportKinds: ReportKind[] = [
   'expired-documents',
   'audits',
   'summary',
+  'annual-plan',
 ];
 const reportFormats: ReportFormat[] = ['csv', 'pdf'];
 
@@ -726,6 +727,140 @@ export class ReportsService {
       }));
     }
 
+    // S8.4: cumplimiento del Plan Anual de Trabajo (una fila por actividad
+    // con % de avance, estado y evidencia; la cabecera del plan se repite
+    // para que el CSV/PDF sea autocontenido).
+    if (kind === 'annual-plan') {
+      const plans = await this.prisma.annualWorkPlan.findMany({
+        where: { ...companyScope },
+        include: {
+          company: { select: { name: true, nit: true } },
+          activities: {
+            orderBy: { createdAt: 'asc' },
+            include: { owner: { select: { name: true } } },
+          },
+        },
+        orderBy: { year: 'desc' },
+      });
+      const buildRows = async (
+        plan: Prisma.AnnualWorkPlanGetPayload<{
+          include: {
+            company: { select: { name: true; nit: true } };
+            activities: { include: { owner: { select: { name: true } } } };
+          };
+        }>,
+      ) => {
+        const active = plan.activities.filter(
+          (activity) => activity.status !== 'CANCELLED',
+        );
+        const planProgress =
+          active.length === 0
+            ? null
+            : Math.round(
+                (active.reduce((total, a) => total + a.progress, 0) /
+                  active.length) *
+                  100,
+              ) / 100;
+        const header = {
+          empresa: plan.company.name,
+          nit: plan.company.nit,
+          anio: plan.year,
+          estadoPlan: plan.status,
+          avancePlanPercent: planProgress ?? '',
+          actividad: 'RESUMEN DEL PLAN',
+          ciclo: '',
+          fechaCompromiso: '',
+          avancePercent: '',
+          estadoActividad: '',
+          responsable: '',
+          evidencia: '',
+        };
+        const rows = plan.activities.map((activity) => ({
+          empresa: plan.company.name,
+          nit: plan.company.nit,
+          anio: plan.year,
+          estadoPlan: plan.status,
+          avancePlanPercent: planProgress ?? '',
+          actividad: activity.name,
+          ciclo: activity.cycle,
+          fechaCompromiso: activity.dueDate?.toISOString().slice(0, 10) ?? '',
+          avancePercent: activity.progress,
+          estadoActividad: activity.status,
+          responsable: activity.owner?.name ?? '',
+          evidencia: activity.evidenceId ? 'Adjunta' : 'Pendiente',
+        }));
+
+        // Seccion de inspecciones (planeadas y no planeadas) del mismo anio:
+        // verificable en el reporte del plan anual (S9 integrado con S8.4).
+        const yearStart = new Date(`${plan.year}-01-01`);
+        const yearEnd = new Date(`${plan.year + 1}-01-01`);
+        const [planned, unplanned] = await Promise.all([
+          this.prisma.plannedInspection.findMany({
+            where: {
+              companyId: plan.companyId,
+              scheduledAt: { gte: yearStart, lt: yearEnd },
+            },
+            include: {
+              site: { select: { name: true } },
+              inspector: { select: { name: true } },
+              findings: { include: { action: true } },
+            },
+          }),
+          this.prisma.unplannedInspection.findMany({
+            where: {
+              companyId: plan.companyId,
+              createdAt: { gte: yearStart, lt: yearEnd },
+            },
+            include: {
+              site: { select: { name: true } },
+              inspector: { select: { name: true } },
+              findings: { include: { action: true } },
+            },
+          }),
+        ]);
+        const inspectionRows = [
+          ...planned.map((inspection) => ({
+            empresa: plan.company.name,
+            nit: plan.company.nit,
+            anio: plan.year,
+            estadoPlan: plan.status,
+            avancePlanPercent: planProgress ?? '',
+            actividad: `Inspeccion planeada: ${inspection.title}`,
+            ciclo: inspection.type,
+            fechaCompromiso: inspection.scheduledAt.toISOString().slice(0, 10),
+            avancePercent: inspection.status === 'COMPLETED' ? 100 : 0,
+            estadoActividad: inspection.status,
+            responsable: inspection.inspector?.name
+              ? `Inspector: ${inspection.inspector.name}`
+              : '',
+            evidencia: `${inspection.findings.length} hallazgo(s), ${inspection.findings.filter((f) => f.action).length} accion(es)`,
+          })),
+          ...unplanned.map((inspection) => ({
+            empresa: plan.company.name,
+            nit: plan.company.nit,
+            anio: plan.year,
+            estadoPlan: plan.status,
+            avancePlanPercent: planProgress ?? '',
+            actividad: `Inspeccion no planeada: ${inspection.title}`,
+            ciclo: 'REACTIVA',
+            fechaCompromiso: inspection.createdAt.toISOString().slice(0, 10),
+            avancePercent: inspection.status === 'COMPLETED' ? 100 : 0,
+            estadoActividad: inspection.status,
+            responsable: inspection.inspector?.name
+              ? `Inspector: ${inspection.inspector.name}`
+              : '',
+            evidencia: `Motivo: ${inspection.reason.slice(0, 60)}`,
+          })),
+        ];
+        return [
+          ...(rows.length > 0 ? [header, ...rows] : [header]),
+          ...inspectionRows,
+        ];
+      };
+      const rowLists = await Promise.all(plans.map((plan) => buildRows(plan)));
+      return rowLists.flat();
+    }
+
     const [employees, criticalRisks, openIncidents, expiredDocuments, audits] =
       await this.prisma.$transaction([
         this.prisma.employee.count({
@@ -1003,6 +1138,7 @@ export class ReportsService {
       'expired-documents': 'Reporte de documentos vencidos',
       audits: 'Reporte de auditorias SG-SST',
       summary: 'Resumen ejecutivo SG-SST',
+      'annual-plan': 'Reporte de Plan Anual de Trabajo SG-SST',
     };
     return titles[kind];
   }

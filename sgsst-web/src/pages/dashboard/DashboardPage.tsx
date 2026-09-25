@@ -18,6 +18,7 @@ export function DashboardPage({
   onOpenSiteRisks,
   onOpenSiteTrainings,
   onOpenSiteDocuments,
+  onOpenSiteInspections,
   onDownloadReport,
   onScheduleReport,
 }: {
@@ -33,6 +34,7 @@ export function DashboardPage({
   onOpenSiteRisks?: (siteId: string) => void
   onOpenSiteTrainings?: (siteId: string) => void
   onOpenSiteDocuments?: (siteId: string) => void
+  onOpenSiteInspections?: (siteId: string) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
 }) {
@@ -177,6 +179,8 @@ export function DashboardPage({
                   <TableCell align="right">Incidentes abiertos</TableCell>
                   <TableCell align="right">Capacitaciones</TableCell>
                   <TableCell align="right">Documentos</TableCell>
+                  <TableCell align="right">Inspecciones</TableCell>
+                  <TableCell align="right">Hallazgos abiertos</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -221,6 +225,16 @@ export function DashboardPage({
                         key: 'documents',
                         value: kpi.documents,
                         onOpen: onOpenSiteDocuments,
+                      },
+                      {
+                        key: 'inspections',
+                        value: kpi.inspections,
+                        onOpen: onOpenSiteInspections,
+                      },
+                      {
+                        key: 'openFindings',
+                        value: kpi.openFindings,
+                        onOpen: onOpenSiteInspections,
                       },
                     ]).map(({ key, value, onOpen }) => (
                       <TableCell

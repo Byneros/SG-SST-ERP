@@ -1,7 +1,12 @@
 import axios, { AxiosHeaders } from 'axios'
 import type { AuthUser } from '../types'
 
-export type ReportKind = 'employees' | 'expired-documents' | 'audits' | 'summary'
+export type ReportKind =
+  | 'employees'
+  | 'expired-documents'
+  | 'audits'
+  | 'summary'
+  | 'annual-plan'
 export type ReportFormat = 'csv' | 'pdf'
 
 export const api = axios.create({
