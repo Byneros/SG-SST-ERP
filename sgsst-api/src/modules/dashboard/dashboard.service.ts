@@ -279,10 +279,10 @@ export class DashboardService implements OnModuleDestroy {
         where: { companyId, date: { gte: new Date() }, siteId: { not: null } },
         _count: { _all: true },
       }),
-      // Documentos activos por sede.
+      // Documentos por sede (hard delete desde el ADR de borrado: sin isActive).
       this.prisma.document.groupBy({
         by: ['siteId'],
-        where: { companyId, isActive: true, siteId: { not: null } },
+        where: { companyId, siteId: { not: null } },
         _count: { _all: true },
       }),
     ])) as [
