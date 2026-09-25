@@ -308,7 +308,6 @@ export class AuthService {
       email: user.email,
       role: user.role,
       companyId: user.companyId ?? null,
-      /*companyId: user.companyId,*/
       activeCompanyId,
       type: 'access',
     };
