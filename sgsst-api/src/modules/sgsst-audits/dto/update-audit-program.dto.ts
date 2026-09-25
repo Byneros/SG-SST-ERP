@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateAuditProgramDto {
   @IsOptional()
@@ -20,8 +20,4 @@ export class UpdateAuditProgramDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

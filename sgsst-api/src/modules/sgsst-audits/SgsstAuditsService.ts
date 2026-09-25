@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CompanyScopeService } from '../../common/company/company-scope.service';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { AuthenticatedUser } from '../../common/types/authenticated-request';
+import { AuditService } from '../audit/audit.service';
 import { CreateCorrectiveActionDto } from './dto/create-corrective-action.dto';
 import { CreateFindingDto } from './dto/create-finding.dto';
 import { CreateSgsstAuditDto } from './dto/create-sgsst-audit.dto';
@@ -19,6 +20,7 @@ export class SgsstAuditsService {
   constructor(
     private readonly repository: SgsstAuditsRepository,
     private readonly companyScope: CompanyScopeService,
+    private readonly auditService: AuditService,
   ) {}
 
   findAll(user: AuthenticatedUser, query: ListQueryDto, companyId?: string) {
@@ -64,9 +66,20 @@ export class SgsstAuditsService {
   }
 
   async remove(user: AuthenticatedUser, id: string) {
-    await this.findOne(user, id);
+    // Borrado fisico con traza de auditoria (ADR de borrado, fase 1):
+    // la cascada elimina findings/acciones/checklist; la traza preserva quien/que/cuando.
+    const audit = await this.findOne(user, id);
 
-    return this.repository.remove(id);
+    await this.repository.remove(id);
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'Audit',
+      entityId: id,
+      before: audit,
+    });
+
+    return { id, deleted: true };
   }
 
   async createFinding(
@@ -199,9 +212,19 @@ export class SgsstAuditsService {
   }
 
   async removeProgram(user: AuthenticatedUser, id: string) {
-    await this.findProgramById(user, id);
+    // Borrado fisico con traza de auditoria (ADR de borrado, fase 1).
+    const program = await this.findProgramById(user, id);
 
-    return this.repository.removeProgram(id);
+    await this.repository.removeProgram(id);
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'AuditProgram',
+      entityId: id,
+      before: program,
+    });
+
+    return { id, deleted: true };
   }
 
   // ----- FASE 7.1: checklist de auditoría -----------------------------------

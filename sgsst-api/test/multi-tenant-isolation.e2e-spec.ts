@@ -213,8 +213,6 @@ class MemoryStore {
     result: string | null;
     closedAt: Date | null;
     companyId: string;
-    isActive: boolean;
-    deletedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
   }> = [];
@@ -1300,8 +1298,6 @@ class MemorySgsstAuditsRepository {
       result: null,
       closedAt: null,
       companyId: dto.companyId,
-      isActive: true,
-      deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -1311,27 +1307,28 @@ class MemorySgsstAuditsRepository {
 
   update(
     id: string,
-    dto: { title?: string; status?: string; isActive?: boolean },
+    dto: { title?: string; status?: string },
   ) {
     const audit = this.store.audits.find((a) => a.id === id);
     if (!audit) throw new Error('Audit not found');
     Object.assign(audit, {
       title: dto.title ?? audit.title,
       status: dto.status ?? audit.status,
-      isActive: dto.isActive ?? audit.isActive,
-      deletedAt:
-        dto.isActive === undefined
-          ? audit.deletedAt
-          : dto.isActive
-            ? null
-            : new Date(),
       updatedAt: new Date(),
     });
     return Promise.resolve(this.withRelations(audit));
   }
 
   remove(id: string) {
-    return this.update(id, { isActive: false });
+    const index = this.store.audits.findIndex((a) => a.id === id);
+    if (index < 0) throw new Error('Audit not found');
+    // La cascada en la BD elimina findings, acciones y checklist del audit.
+    this.store.findings = this.store.findings.filter((f) => f.auditId !== id);
+    this.store.actions = this.store.actions.filter(
+      (a) => !this.store.findings.some((f) => f.id === a.findingId),
+    );
+    this.store.audits.splice(index, 1);
+    return Promise.resolve({ id, deleted: true });
   }
 
   createFinding(auditId: string, dto: { title: string; severity?: string }) {

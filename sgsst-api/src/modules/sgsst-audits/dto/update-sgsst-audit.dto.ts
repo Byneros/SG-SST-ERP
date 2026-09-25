@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsDateString,
   IsIn,
   IsOptional,
@@ -43,8 +42,4 @@ export class UpdateSgsstAuditDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

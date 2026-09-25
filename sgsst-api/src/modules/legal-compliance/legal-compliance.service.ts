@@ -973,11 +973,12 @@ export class LegalComplianceService {
     }
 
     if (entity === 'Audit') {
+      // Audit es hard delete (ADR de borrado): si existe, esta activa.
       const audit = await this.prisma.audit.findUnique({
         where: { id: entityId },
-        select: { companyId: true, isActive: true },
+        select: { companyId: true },
       });
-      if (!audit || audit.companyId !== companyId || !audit.isActive) {
+      if (!audit || audit.companyId !== companyId) {
         throw new BadRequestException(
           'Evidence audit does not belong to the company scope',
         );

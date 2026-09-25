@@ -1,7 +1,7 @@
 import { AddTask, Delete, Edit, TaskAlt } from '@mui/icons-material'
 import { Button, Chip, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
-import { ActiveChip, ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
+import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
 import type { PageMeta, SgsstAudit, TableState } from '../../types'
 
 export function SgsstAuditsPage(props: {
@@ -63,7 +63,6 @@ export function SgsstAuditsPage(props: {
                 <TableCell>{audit.scheduledAt.slice(0, 10)}</TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1}>
-                    <ActiveChip active={audit.isActive} />
                     <Chip size="small" label={audit.status} variant="outlined" />
                   </Stack>
                 </TableCell>

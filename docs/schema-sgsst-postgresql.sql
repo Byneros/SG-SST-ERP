@@ -696,7 +696,6 @@ CREATE TABLE audit_programs (
   status workflow_status NOT NULL DEFAULT 'DRAFT',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at TIMESTAMPTZ,
   UNIQUE (company_id, period_year, name)
 );
 
@@ -715,8 +714,7 @@ CREATE TABLE audits (
   status audit_status NOT NULL DEFAULT 'PLANNED',
   report_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at TIMESTAMPTZ
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE audit_checklist_items (

@@ -174,8 +174,6 @@ model Audit {
   scope             String?
   auditorName       String?
   closedAt          DateTime?
-  isActive          Boolean              @default(true)
-  deletedAt         DateTime?
   updatedAt         DateTime             @updatedAt
   programId         String?
   program           AuditProgram?        @relation(fields: [programId], references: [id])
@@ -192,8 +190,6 @@ model AuditProgram {
   objective String?
   scope     String?
   companyId String
-  isActive  Boolean   @default(true)
-  deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   company   Company   @relation(fields: [companyId], references: [id])

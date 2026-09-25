@@ -35,7 +35,6 @@ export class SgsstAuditsRepository {
     const search = query.search?.trim();
     const where: Prisma.AuditWhereInput = {
       companyId,
-      isActive: query.isActive,
       ...(search
         ? {
             OR: [
@@ -79,24 +78,14 @@ export class SgsstAuditsRepository {
   update(id: string, dto: UpdateSgsstAuditDto) {
     return this.prisma.audit.update({
       where: { id },
-      data: {
-        ...(this.toAuditData(dto) as Prisma.AuditUncheckedUpdateInput),
-        deletedAt:
-          dto.isActive === undefined
-            ? undefined
-            : dto.isActive
-              ? null
-              : new Date(),
-      },
+      data: this.toAuditData(dto) as Prisma.AuditUncheckedUpdateInput,
       include: { findings: { include: { actions: true } } },
     });
   }
 
+  /** Borrado fisico; la cascada elimina findings, acciones y checklist (ADR de borrado). */
   remove(id: string) {
-    return this.prisma.audit.update({
-      where: { id },
-      data: { isActive: false, deletedAt: new Date() },
-    });
+    return this.prisma.audit.delete({ where: { id } });
   }
 
   createFinding(auditId: string, dto: CreateFindingDto) {
@@ -188,7 +177,6 @@ export class SgsstAuditsRepository {
     const search = query.search?.trim();
     const where: Prisma.AuditProgramWhereInput = {
       companyId,
-      isActive: query.isActive,
       ...(search
         ? {
             OR: [
@@ -226,23 +214,13 @@ export class SgsstAuditsRepository {
   updateProgram(id: string, dto: UpdateAuditProgramDto) {
     return this.prisma.auditProgram.update({
       where: { id },
-      data: {
-        ...dto,
-        deletedAt:
-          dto.isActive === undefined
-            ? undefined
-            : dto.isActive
-              ? null
-              : new Date(),
-      },
+      data: { ...dto },
     });
   }
 
+  /** Borrado fisico del programa; las auditorias asociadas quedan huerfanas de programa. */
   removeProgram(id: string) {
-    return this.prisma.auditProgram.update({
-      where: { id },
-      data: { isActive: false, deletedAt: new Date() },
-    });
+    return this.prisma.auditProgram.delete({ where: { id } });
   }
 
   // ----- FASE 7.1: checklist por auditoría ---------------------------------

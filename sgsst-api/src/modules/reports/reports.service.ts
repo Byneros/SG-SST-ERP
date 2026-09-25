@@ -704,7 +704,7 @@ export class ReportsService {
 
     if (kind === 'audits') {
       const audits = await this.prisma.audit.findMany({
-        where: { ...companyScope, isActive: true },
+        where: { ...companyScope },
         include: {
           company: { select: { name: true, nit: true } },
           findings: { include: { actions: true } },
@@ -744,7 +744,7 @@ export class ReportsService {
             expiresAt: { lt: new Date() },
           },
         }),
-        this.prisma.audit.count({ where: { ...companyScope, isActive: true } }),
+        this.prisma.audit.count({ where: { ...companyScope } }),
       ]);
     return [
       {

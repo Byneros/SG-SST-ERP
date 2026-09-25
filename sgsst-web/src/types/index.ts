@@ -316,7 +316,6 @@ export type SgsstAudit = {
   closedAt?: string
   result?: string
   companyId: string
-  isActive: boolean
   company?: Pick<Company, 'id' | 'name' | 'nit'>
   findings?: AuditFinding[]
 }

@@ -185,7 +185,6 @@ export class DashboardService implements OnModuleDestroy {
         where: {
           ...scope,
           status: { in: ['PLANNED', 'IN_PROGRESS'] },
-          isActive: true,
         },
       }),
       this.prisma.auditFinding.count({
