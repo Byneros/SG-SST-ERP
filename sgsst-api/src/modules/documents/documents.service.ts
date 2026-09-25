@@ -12,6 +12,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { SitesRepository } from '../sites/sites.repository';
 import { DocumentsRepository } from './documents.repository';
+import { DocumentsStorageService } from './documents-storage.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreateDocumentVersionDto } from './dto/create-document-version.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
@@ -22,6 +23,7 @@ export class DocumentsService {
     private readonly documentsRepository: DocumentsRepository,
     private readonly auditService: AuditService,
     private readonly sitesRepository: SitesRepository,
+    private readonly documentsStorageService: DocumentsStorageService,
   ) {}
 
   /** La sede debe existir y pertenecer a la empresa del scope. */
@@ -104,7 +106,7 @@ export class DocumentsService {
     }
     await this.auditService.log({
       user,
-      action: this.resolveStateAction(before.isActive, dto.isActive),
+      action: 'UPDATE',
       entity: 'Document',
       entityId: id,
       before,
@@ -139,7 +141,10 @@ export class DocumentsService {
   }
 
   async remove(id: string, user?: AuthenticatedUser) {
+    // Borrado fisico con traza de auditoria (ADR de borrado): ademas del row
+    // se elimina el archivo en storage (local o S3), unico dominio con artefacto fisico.
     const before = await this.findOne(id, user);
+
     if (user && user.companyId) {
       const removed = await this.documentsRepository.removeScoped(
         id,
@@ -148,30 +153,27 @@ export class DocumentsService {
       if (!removed) {
         throw new NotFoundException('Document not found');
       }
-      const updated = await this.documentsRepository.findByIdScoped(
-        id,
-        user.companyId,
-      );
-      await this.auditService.log({
-        user,
-        action: 'DEACTIVATE',
-        entity: 'Document',
-        entityId: id,
-        before,
-        after: updated,
-      });
-      return updated;
+    } else {
+      await this.documentsRepository.remove(id);
     }
-    const updated = await this.documentsRepository.remove(id);
+
+    // La fila ya no existe: si el archivo no se puede eliminar, no bloquea el
+    // borrado logico completado (quedaria huerfano, revisable en storage).
+    try {
+      await this.documentsStorageService.deleteDocumentFile(before.fileUrl);
+    } catch {
+      // El delete de la fila ya se ejecuto; no se revierte por el archivo.
+    }
+
     await this.auditService.log({
       user,
-      action: 'DEACTIVATE',
+      action: 'DELETE',
       entity: 'Document',
       entityId: id,
       before,
-      after: updated,
     });
-    return updated;
+
+    return { id, deleted: true };
   }
 
   private assertCompanyScope(companyId: string, user?: AuthenticatedUser) {
@@ -179,15 +181,5 @@ export class DocumentsService {
       return;
     }
     assertCompanyScope(user, companyId);
-  }
-
-  private resolveStateAction(beforeActive: boolean, nextActive?: boolean) {
-    if (nextActive === true && !beforeActive) {
-      return 'REACTIVATE';
-    }
-    if (nextActive === false && beforeActive) {
-      return 'DEACTIVATE';
-    }
-    return 'UPDATE';
   }
 }

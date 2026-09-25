@@ -7,6 +7,7 @@ describe('DocumentsService', () => {
     findByIdScoped: jest.fn(),
   };
   const auditService = { log: jest.fn() };
+  const documentsStorageService = { deleteDocumentFile: jest.fn() };
   const companyAUser = {
     sub: 'user-a',
     email: 'sst@company-a.test',
@@ -26,6 +27,7 @@ describe('DocumentsService', () => {
       documentsRepository as never,
       auditService as never,
       { findByIdScoped: jest.fn().mockResolvedValue(null) } as never,
+      documentsStorageService as never,
     );
 
     await expect(

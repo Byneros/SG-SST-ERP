@@ -101,7 +101,7 @@ export class DashboardService implements OnModuleDestroy {
       }),
       this.prisma.user.count({ where: { ...companyScope, isActive: true } }),
       this.prisma.document.count({
-        where: { ...companyScope, isActive: true },
+        where: { ...companyScope },
       }),
       this.prisma.risk.count({
         where: { ...companyScope, level: RiskLevel.CRITICAL },

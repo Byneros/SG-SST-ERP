@@ -687,7 +687,7 @@ export class ReportsService {
     if (kind === 'expired-documents') {
       const now = new Date();
       const documents = await this.prisma.document.findMany({
-        where: { ...companyScope, isActive: true, expiresAt: { lt: now } },
+        where: { ...companyScope, expiresAt: { lt: now } },
         include: { company: { select: { name: true, nit: true } } },
         orderBy: { expiresAt: 'asc' },
       });
@@ -740,7 +740,6 @@ export class ReportsService {
         this.prisma.document.count({
           where: {
             ...companyScope,
-            isActive: true,
             expiresAt: { lt: new Date() },
           },
         }),

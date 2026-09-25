@@ -960,11 +960,12 @@ export class LegalComplianceService {
     companyId: string,
   ) {
     if (entity === 'Document') {
+      // Document es hard delete (ADR de borrado): si existe, esta activo.
       const document = await this.prisma.document.findUnique({
         where: { id: entityId },
-        select: { companyId: true, isActive: true },
+        select: { companyId: true },
       });
-      if (!document || document.companyId !== companyId || !document.isActive) {
+      if (!document || document.companyId !== companyId) {
         throw new BadRequestException(
           'Evidence document does not belong to the company scope',
         );

@@ -1,4 +1,4 @@
-import { Delete, Edit, OpenInNew, RestoreFromTrash } from '@mui/icons-material'
+import { Delete, Edit, OpenInNew } from '@mui/icons-material'
 import {
   Chip,
   Button,
@@ -16,7 +16,7 @@ import {
   Tooltip,
 } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
-import { ActiveChip, ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
+import { ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
 import { documentCategoryLabels, documentStatusLabels } from '../../constants/catalogs'
 import type { PageMeta, SgsstDocument, Site, TableState } from '../../types'
 
@@ -34,7 +34,6 @@ export function DocumentsPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: SgsstDocument) => void
   onDelete: (id: string) => void
-  onRestore: (id: string) => void
   onDownload: (document: SgsstDocument) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
@@ -112,7 +111,6 @@ export function DocumentsPage(props: {
                 <TableCell>v{document.version}</TableCell>
                 <TableCell>{document.expiresAt ? document.expiresAt.slice(0, 10) : '-'}</TableCell>
                 <TableCell>
-                  <ActiveChip active={document.isActive} />{' '}
                   <Chip size="small" label={documentStatusLabels[document.status]} variant="outlined" />
                 </TableCell>
                 <TableCell align="right">
@@ -126,15 +124,9 @@ export function DocumentsPage(props: {
                   <IconButton disabled={!props.canManage} onClick={() => props.onEdit(document)}>
                     <Edit />
                   </IconButton>
-                  {document.isActive ? (
-                    <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDelete(document.id)}>
-                      <Delete />
-                    </IconButton>
-                  ) : (
-                    <IconButton disabled={!props.canManage} color="success" onClick={() => props.onRestore(document.id)}>
-                      <RestoreFromTrash />
-                    </IconButton>
-                  )}
+                  <IconButton disabled={!props.canManage} color="error" onClick={() => props.onDelete(document.id)}>
+                    <Delete />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}

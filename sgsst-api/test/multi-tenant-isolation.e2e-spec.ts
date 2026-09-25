@@ -150,8 +150,6 @@ class MemoryStore {
     version: number;
     expiresAt: Date | null;
     companyId: string;
-    isActive: boolean;
-    deletedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
   }> = [];
@@ -730,8 +728,6 @@ class MemoryDocumentsRepository {
       version: 1,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       companyId: dto.companyId,
-      isActive: true,
-      deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -747,7 +743,6 @@ class MemoryDocumentsRepository {
       fileUrl?: string;
       expiresAt?: string;
       companyId?: string;
-      isActive?: boolean;
     },
   ) {
     const document = this.store.documents.find((d) => d.id === id);
@@ -757,13 +752,6 @@ class MemoryDocumentsRepository {
       description: dto.description ?? document.description,
       fileUrl: dto.fileUrl ?? document.fileUrl,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : document.expiresAt,
-      isActive: dto.isActive ?? document.isActive,
-      deletedAt:
-        dto.isActive === undefined
-          ? document.deletedAt
-          : dto.isActive
-            ? null
-            : new Date(),
       updatedAt: new Date(),
     });
     return Promise.resolve(this.withCompany(document));
@@ -778,7 +766,6 @@ class MemoryDocumentsRepository {
       fileUrl?: string;
       expiresAt?: string;
       companyId?: string;
-      isActive?: boolean;
     },
   ) {
     const document = this.store.documents.find(
@@ -799,12 +786,11 @@ class MemoryDocumentsRepository {
   }
 
   removeScoped(id: string, companyId: string) {
-    const document = this.store.documents.find(
+    const index = this.store.documents.findIndex(
       (d) => d.id === id && d.companyId === companyId,
     );
-    if (!document) return false;
-    document.isActive = false;
-    document.deletedAt = new Date();
+    if (index < 0) return false;
+    this.store.documents.splice(index, 1);
     return true;
   }
 

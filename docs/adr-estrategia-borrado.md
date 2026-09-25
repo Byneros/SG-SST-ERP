@@ -12,7 +12,8 @@ El modelo convive con dos semanticas de borrado sin criterio documentado:
 |---|---|---|
 | `SgsstEvaluation`, `Indicator` | **Hard delete** con cascada (desde `3c730b6`) | `delete()` en sus servicios; cascada `onDelete: Cascade` en items/metas/mediciones |
 | `Audit`, `AuditProgram` | **Hard delete** con traza (fase 1) | `remove`/`removeProgram` con `delete()` + `AuditLog` accion `DELETE`; cascada en findings/acciones/checklist |
-| `Employee`, `Site`, `Document`, `User` | Soft delete (`isActive: false` + `deletedAt`) | `removeScoped` en sus repositorios |
+| `Document` | **Hard delete** con traza y borrado del archivo (fase 1) | `remove`/`removeScoped` con `delete()` + `AuditLog` accion `DELETE`; `deleteDocumentFile` elimina el artefacto en storage (local o S3) |
+| `Employee`, `Site`, `User` | Soft delete (`isActive: false` + `deletedAt`) | `removeScoped` en sus repositorios |
 | `Company` | Desactivacion con traza de auditoria | `remove` → `AuditLog` accion `DEACTIVATE` |
 
 El bug que motivo el cambio en evaluaciones/indicadores (borrados visibles en listados, `@@unique([companyId, code])` bloqueado por filas legacy) expone riesgos del patron mixto cuando no se acompana de filtros garantizados. El mismo riesgo de unique existe hoy en `Site` (`@@unique([companyId, code])`, linea 101 del schema): un site borrado logicamente impide reutilizar su `code`.
@@ -28,7 +29,7 @@ Regla general: **el borrado es hard delete con traza de auditoria en `AuditLog`,
 - Rationale: la trazabilidad que exige la norma es de la **eliminacion** (quien, cuando, que), no del cadaver en la tabla. La traza queda en `AuditLog` (con snapshot `before`), que es el mecanismo de auditoria transversal.
 - `Indicator` y `SgsstEvaluation`: ya operan asi.
 - `Audit`/`AuditProgram`: migrados de soft a hard + traza (fase 1). Cascada verificada: `AuditFinding`, `CorrectiveAction` y `AuditChecklistItem` tienen `onDelete: Cascade`; `Audit.programId` es opcional, y al borrar un programa las auditorias se desvinculan (quedan sin programa). Columnas `isActive`/`deletedAt` retiradas por migracion.
-- `Document`: ademas del row, eliminar el archivo en el storage (driver local o S3) en la misma operacion; es el unico dominio con artefacto fisico asociado.
+- `Document`: migrado de soft a hard + traza (fase 1). Ademas del row, `deleteDocumentFile` elimina el archivo en el storage (driver local o S3) tras el delete de la fila; si el artefacto no se puede eliminar el borrado no se revierte (queda huerfano revisable). URLs legacy/externas fuera del storage gestionado se ignoran. Columnas `isActive`/`deletedAt` retiradas por migracion.
 
 ### 2. Soft delete con filtros garantizados (operativos con historial)
 
@@ -56,7 +57,7 @@ Regla general: **el borrado es hard delete con traza de auditoria en `AuditLog`,
 
 ## Consecuencias y fases
 
-- **Fase 1 (sin migracion):** trazas `AuditLog` en evaluaciones/indicadores (hoy sin auditoria); migrar `Audit`/`AuditProgram` a hard+traza; documentar escape explicito en DTOs. Estado: evaluaciones/indicadores cerrado (`3eca5f1`); `Audit`/`AuditProgram` cerrado con migracion de drop de columnas (el resto de la fase no requiere migracion).
+- **Fase 1 (sin migracion):** trazas `AuditLog` en evaluaciones/indicadores (hoy sin auditoria); migrar `Audit`/`AuditProgram` a hard+traza; documentar escape explicito en DTOs. Estado: fase 1 completa. Evaluaciones/indicadores cerrado (`3eca5f1`); `Audit`/`AuditProgram` y `Document` cerrados con migracion de drop de columnas (Document incluye ademas el borrado del archivo en storage).
 - **Fase 2 (con migracion):** unique parcial para `Site.code` (o refactor de unicidad a nivel de servicio); retirar columnas vestigiales `isActive`/`deletedAt` de `SgsstEvaluation` e `Indicator` (decision diferida en #2) una vez el patron quede formalizado.
 - Las columnas de baja logica se conservan solo en los dominios soft/suspend; no se introducen en dominios hard.
 

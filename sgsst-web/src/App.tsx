@@ -1455,20 +1455,6 @@ function App() {
     await saveRecord(() => api.delete(`/documents/${id}`).then())
   }
 
-  function confirmRestoreDocument(documentItem: SgsstDocument) {
-    openConfirmDialog(
-      'Restaurar documento',
-      `¿Seguro que deseas restaurar el documento ${documentItem.name}?`,
-      'Restaurar',
-      'success',
-      () => { void restoreDocument(documentItem.id) },
-    )
-  }
-
-  async function restoreDocument(id: string) {
-    await saveRecord(() => api.patch(`/documents/${id}`, { isActive: true }).then())
-  }
-
   function openSgsstEvaluationForm(item?: SgsstEvaluation) {
     setSgsstEvaluationForm(
       item
@@ -2089,12 +2075,6 @@ function App() {
                   const documentItem = documents.find((item) => item.id === id)
                   if (documentItem) {
                     confirmDeleteDocument(documentItem)
-                  }
-                }}
-                onRestore={(id) => {
-                  const documentItem = documents.find((item) => item.id === id)
-                  if (documentItem) {
-                    confirmRestoreDocument(documentItem)
                   }
                 }}
                 onDownload={handleDownloadDocument}

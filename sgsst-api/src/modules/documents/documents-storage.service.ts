@@ -76,6 +76,48 @@ export class DocumentsStorageService {
     return { deleted: true };
   }
 
+  /**
+   * Elimina el archivo de un documento de la carpeta `documents/` (local o S3).
+   * Parte del hard delete de Document (ADR de borrado): al eliminar la fila se
+   * elimina tambien el artefacto fisico en la misma operacion.
+   */
+  async deleteDocumentFile(fileUrl?: string | null) {
+    if (!fileUrl) {
+      return { deleted: false };
+    }
+    // URLs legacy/externas (fuera del storage gestionado) no se tocan: no hay
+    // artefacto propio que eliminar y el delete de la fila no debe fallar.
+    let storageKey: string;
+    try {
+      storageKey = this.documentStorageKey(fileUrl);
+    } catch {
+      return { deleted: false };
+    }
+    if (env.documentStorageDriver === 's3') {
+      await this.deleteFromS3(storageKey);
+      return { deleted: true };
+    }
+    if (env.documentStorageDriver !== 'local') {
+      throw new BadRequestException(
+        'Configured document storage driver is not supported',
+      );
+    }
+
+    const uploadsRoot = resolve(env.uploadsPath);
+    const target = resolve(env.uploadsPath, storageKey);
+    if (target !== uploadsRoot && !target.startsWith(`${uploadsRoot}${sep}`)) {
+      throw new BadRequestException('Invalid storage key');
+    }
+    try {
+      await unlink(target);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+    return { deleted: true };
+  }
+
   async readDocument(fileUrl: string): Promise<Buffer> {
     const storageKey = this.documentStorageKey(fileUrl);
     if (env.documentStorageDriver === 's3') {

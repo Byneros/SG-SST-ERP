@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsDateString,
   IsIn,
   IsOptional,
@@ -57,8 +56,4 @@ export class UpdateDocumentDto {
   @IsOptional()
   @IsUUID()
   siteId?: string | null;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

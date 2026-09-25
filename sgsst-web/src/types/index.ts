@@ -137,8 +137,6 @@ export type SgsstDocument = {
   expiresAt?: string
   companyId: string
   siteId?: string
-  isActive: boolean
-  deletedAt?: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
   site?: Pick<Site, 'id' | 'name' | 'code'>
   versions?: SgsstDocumentVersion[]

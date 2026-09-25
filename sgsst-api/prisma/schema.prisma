@@ -287,8 +287,6 @@ model Document {
   mimeType    String?
   version     Int               @default(1)
   expiresAt   DateTime?
-  isActive    Boolean           @default(true)
-  deletedAt   DateTime?
   updatedAt   DateTime          @updatedAt
   company     Company           @relation(fields: [companyId], references: [id])
   siteId      String?

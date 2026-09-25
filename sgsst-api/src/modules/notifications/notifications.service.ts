@@ -528,7 +528,6 @@ export class NotificationsService {
       this.prisma.document.findMany({
         where: {
           ...companyScope,
-          isActive: true,
           expiresAt: { gte: now, lte: next30Days },
         },
         select: { id: true, name: true, expiresAt: true, companyId: true },

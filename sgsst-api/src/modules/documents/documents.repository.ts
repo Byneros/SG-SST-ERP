@@ -25,7 +25,6 @@ export class DocumentsRepository {
     const search = query.search?.trim();
     const where: Prisma.DocumentWhereInput = {
       companyId,
-      isActive: query.isActive,
       ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
       ...(search
         ? {
@@ -89,15 +88,7 @@ export class DocumentsRepository {
     }
     return this.prisma.document.update({
       where: { id },
-      data: {
-        ...(this.toPrismaData(dto) as Prisma.DocumentUncheckedUpdateInput),
-        deletedAt:
-          dto.isActive === undefined
-            ? undefined
-            : dto.isActive
-              ? null
-              : new Date(),
-      },
+      data: this.toPrismaData(dto) as Prisma.DocumentUncheckedUpdateInput,
       include: {
         ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
@@ -142,13 +133,10 @@ export class DocumentsRepository {
     });
   }
 
+  /** Borrado fisico restrictivo; el archivo en storage lo elimina el servicio. */
   async removeScoped(id: string, companyId: string) {
-    const result = await this.prisma.document.updateMany({
+    const result = await this.prisma.document.deleteMany({
       where: { id, companyId },
-      data: {
-        isActive: false,
-        deletedAt: new Date(),
-      },
     });
     return result.count > 0;
   }
@@ -177,15 +165,7 @@ export class DocumentsRepository {
   update(id: string, dto: UpdateDocumentDto) {
     return this.prisma.document.update({
       where: { id },
-      data: {
-        ...(this.toPrismaData(dto) as Prisma.DocumentUncheckedUpdateInput),
-        deletedAt:
-          dto.isActive === undefined
-            ? undefined
-            : dto.isActive
-              ? null
-              : new Date(),
-      },
+      data: this.toPrismaData(dto) as Prisma.DocumentUncheckedUpdateInput,
       include: {
         ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
@@ -223,14 +203,9 @@ export class DocumentsRepository {
     });
   }
 
+  /** Borrado fisico; el archivo en storage lo elimina el servicio. */
   remove(id: string) {
-    return this.prisma.document.update({
-      where: { id },
-      data: {
-        isActive: false,
-        deletedAt: new Date(),
-      },
-    });
+    return this.prisma.document.delete({ where: { id } });
   }
 
   private toPrismaData(dto: CreateDocumentDto | UpdateDocumentDto) {
