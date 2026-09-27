@@ -1,6 +1,12 @@
 import { config } from 'dotenv';
 
-config({ override: true, quiet: true });
+// DOTENV_CONFIG_PATH permite apuntar a un .env alternativo (p. ej. el e2e de
+// integracion usa test/.env.e2e-db) sin tocar el .env del desarrollador.
+config({
+  override: true,
+  quiet: true,
+  path: process.env.DOTENV_CONFIG_PATH,
+});
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -75,6 +81,16 @@ export const env = {
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
   externalDeliveryRetryCron:
     process.env.EXTERNAL_DELIVERY_RETRY_CRON ?? '*/10 * * * *',
+  // Asistente inteligente (Sprint 16). Deshabilitado por defecto: sin API key
+  // el endpoint responde 503 acotado y el ERP sigue funcionando.
+  aiEnabled: (process.env.AI_ENABLED ?? 'false') === 'true',
+  aiBaseUrl: process.env.AI_BASE_URL ?? '',
+  aiApiKey: process.env.AI_API_KEY ?? '',
+  aiModel: process.env.AI_MODEL ?? 'gpt-4o-mini',
+  aiTemperature: Number(process.env.AI_TEMPERATURE ?? 0.2),
+  aiMaxTokens: Number(process.env.AI_MAX_TOKENS ?? 700),
+  aiRequestTimeoutMs: Number(process.env.AI_REQUEST_TIMEOUT_MS ?? 20_000),
+  aiHistoryMaxMessages: Number(process.env.AI_HISTORY_MAX_MESSAGES ?? 8),
   externalDeliveryMaxAttempts: Number(
     process.env.EXTERNAL_DELIVERY_MAX_ATTEMPTS ?? 3,
   ),
@@ -140,6 +156,14 @@ export function assertProductionEnv() {
   ) {
     throw new Error(
       'S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required for S3 storage',
+    );
+  }
+  if (
+    env.aiEnabled &&
+    (!env.aiApiKey.trim() || !env.aiBaseUrl.trim())
+  ) {
+    throw new Error(
+      'AI_ENABLED=true requires AI_API_KEY and AI_BASE_URL in production',
     );
   }
 }
