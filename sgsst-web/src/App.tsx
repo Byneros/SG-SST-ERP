@@ -1927,7 +1927,8 @@ function App() {
     // no aplica: el API soporta crear items en el POST inicial; para agregar
     // post-creacion se usa el endpoint de respuesta por item con creacion.
     await saveRecord(async () => {
-      await api.post(`/planned-inspections/${inspectionId}/items`, { question })
+      // El API espera el array `questions` (creacion en lote).
+      await api.post(`/planned-inspections/${inspectionId}/items`, { questions: [question] })
       await loadPlannedInspection(inspectionId)
     })
   }

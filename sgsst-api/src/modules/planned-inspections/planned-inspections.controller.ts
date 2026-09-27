@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -97,13 +98,16 @@ export class PlannedInspectionsController {
   addItems(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: { questions: Array<string | { question: string }> },
+    // Acepta `questions` (lote) o `question` (singular); normalizado aqui.
+    @Body() dto: { questions?: Array<string | { question: string }>; question?: string },
   ) {
-    const questions: string[] = Array.isArray(dto?.questions)
-      ? dto.questions.map((item) =>
-          typeof item === 'string' ? item : item.question,
-        )
+    const raw = dto?.questions ?? (dto?.question ? [dto.question] : []);
+    const questions: string[] = Array.isArray(raw)
+      ? raw.map((item) => (typeof item === 'string' ? item : item.question))
       : [];
+    if (questions.length === 0) {
+      throw new BadRequestException('Debe enviar `question` o `questions` con al menos una pregunta');
+    }
     return this.service.addItems(user, id, questions);
   }
 

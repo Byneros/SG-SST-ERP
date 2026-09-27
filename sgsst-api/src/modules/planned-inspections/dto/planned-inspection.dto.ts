@@ -40,6 +40,11 @@ export class CreatePlannedInspectionDto {
   @IsDateString()
   scheduledAt!: string;
 
+  /** Estado inicial; el default de BD es PLANNED (paridad con no planeadas). */
+  @IsOptional()
+  @IsIn(INSPECTION_STATUSES)
+  status?: (typeof INSPECTION_STATUSES)[number];
+
   @IsOptional()
   @IsUUID()
   siteId?: string | null;

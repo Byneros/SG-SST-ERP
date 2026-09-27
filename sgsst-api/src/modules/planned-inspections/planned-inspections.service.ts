@@ -244,11 +244,9 @@ export class PlannedInspectionsService {
       return finding.action;
     }
 
+    // createCorrectiveAction enlaza la accion al hallazgo (inspectionFindingId)
+    // en una sola escritura; el hallazgo queda vinculado por actionId.
     const action = await this.repository.createCorrectiveAction(findingId, dto);
-    await this.prisma.inspectionFinding.update({
-      where: { id: findingId },
-      data: { actionId: action.id },
-    });
 
     await this.auditService.log({
       user: currentUser,

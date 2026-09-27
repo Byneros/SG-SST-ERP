@@ -121,6 +121,7 @@ export class UnsafeReportsRepository {
     });
   }
 
+  /** La accion nace del hallazgo del reporte: se enlaza por su lado (actionId). */
   createCorrectiveAction(findingId: string, dto: CreateCorrectiveActionDto) {
     return this.prisma.correctiveAction.create({
       data: {
@@ -128,7 +129,7 @@ export class UnsafeReportsRepository {
         description: dto.description,
         responsible: dto.responsible,
         dueDate: new Date(dto.dueDate),
-        findingId,
+        inspectionFinding: { connect: { id: findingId } },
       },
     });
   }

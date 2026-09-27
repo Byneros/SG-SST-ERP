@@ -151,7 +151,8 @@ export class SgsstAuditsService {
       this.companyScope.resolveCompanyId(user),
     );
 
-    if (!action) {
+    if (!action || !action.finding) {
+      // Sin `finding` la accion nace de inspeccion/reporte (S9), no del modulo de auditorias.
       throw new NotFoundException('Action not found');
     }
 

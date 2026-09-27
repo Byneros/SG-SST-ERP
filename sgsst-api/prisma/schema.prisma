@@ -342,7 +342,7 @@ model InspectionFinding {
   riskId                String?
   risk                  Risk?                @relation(fields: [riskId], references: [id], onDelete: SetNull)
   actionId              String?              @unique
-  action                CorrectiveAction?    @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  action                CorrectiveAction?    @relation("InspectionFindingAction", fields: [actionId], references: [id], onDelete: SetNull)
   unsafeReport          UnsafeReport?        @relation(fields: [unsafeReportId], references: [id], onDelete: Cascade)
   unsafeReportId        String?
 
@@ -581,9 +581,12 @@ model CorrectiveAction {
   closedAt          DateTime?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
-  findingId         String
-  finding           AuditFinding           @relation(fields: [findingId], references: [id], onDelete: Cascade)
-  inspectionFinding InspectionFinding?
+  // Padre opcional: una accion nace de un hallazgo de auditoria (via
+  // findingId) o de inspeccion/reporte (via inspectionFindingId, SetNull).
+  findingId           String?
+  finding             AuditFinding?        @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  inspectionFindingId String?              @unique
+  inspectionFinding   InspectionFinding?   @relation("InspectionFindingAction")
 }
 
 model Document {

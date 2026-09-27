@@ -65,6 +65,7 @@ export class PlannedInspectionsRepository {
         type: dto.type,
         frequency: dto.frequency,
         scheduledAt: new Date(dto.scheduledAt),
+        status: dto.status,
         siteId: dto.siteId ?? null,
         inspectorId: dto.inspectorId ?? null,
         companyId,
@@ -198,6 +199,7 @@ export class PlannedInspectionsRepository {
     });
   }
 
+  /** La accion nace del hallazgo de inspeccion: se enlaza por su lado (actionId). */
   createCorrectiveAction(findingId: string, dto: CreateCorrectiveActionDto) {
     return this.prisma.correctiveAction.create({
       data: {
@@ -205,7 +207,7 @@ export class PlannedInspectionsRepository {
         description: dto.description,
         responsible: dto.responsible,
         dueDate: new Date(dto.dueDate),
-        findingId,
+        inspectionFinding: { connect: { id: findingId } },
       },
     });
   }

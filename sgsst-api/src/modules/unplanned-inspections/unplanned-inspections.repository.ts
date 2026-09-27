@@ -165,6 +165,7 @@ export class UnplannedInspectionsRepository {
     });
   }
 
+  /** La accion nace del hallazgo de inspeccion: se enlaza por su lado (actionId). */
   createCorrectiveAction(findingId: string, dto: CreateCorrectiveActionDto) {
     return this.prisma.correctiveAction.create({
       data: {
@@ -172,7 +173,7 @@ export class UnplannedInspectionsRepository {
         description: dto.description,
         responsible: dto.responsible,
         dueDate: new Date(dto.dueDate),
-        findingId,
+        inspectionFinding: { connect: { id: findingId } },
       },
     });
   }

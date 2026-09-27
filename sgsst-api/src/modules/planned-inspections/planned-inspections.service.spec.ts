@@ -166,6 +166,7 @@ describe('PlannedInspectionsService', () => {
     });
 
     expect(result).toEqual(action);
+    // La vinculación ocurre dentro del repositorio (inspectionFinding connect).
     expect(repository.createCorrectiveAction).toHaveBeenCalledWith(
       'finding-1',
       {
@@ -174,10 +175,7 @@ describe('PlannedInspectionsService', () => {
         dueDate: '2026-10-15',
       },
     );
-    expect(prisma.inspectionFinding.update).toHaveBeenCalledWith({
-      where: { id: 'finding-1' },
-      data: { actionId: 'action-1' },
-    });
+    expect(prisma.inspectionFinding.update).not.toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'CREATE',

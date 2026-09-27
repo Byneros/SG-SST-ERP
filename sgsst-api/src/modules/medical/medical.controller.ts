@@ -60,7 +60,9 @@ export class MedicalController {
   @Roles('ADMIN', 'SST', 'AUDITOR')
   findExams(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('employeeId', ParseUUIDPipe) employeeId?: string,
+    // Query opcional: sin ParseUUIDPipe (patron del codebase); el servicio
+    // valida scope del empleado cuando viene.
+    @Query('employeeId') employeeId?: string,
   ) {
     return this.service.findExams(user, employeeId);
   }
@@ -99,7 +101,8 @@ export class MedicalController {
   @Roles('ADMIN', 'SST', 'AUDITOR')
   findRestrictions(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('employeeId', ParseUUIDPipe) employeeId?: string,
+    // Query opcional: sin ParseUUIDPipe (patron del codebase).
+    @Query('employeeId') employeeId?: string,
   ) {
     return this.service.findRestrictions(user, employeeId);
   }
