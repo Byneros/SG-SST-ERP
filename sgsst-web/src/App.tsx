@@ -58,6 +58,7 @@ import {
 } from './constants/forms'
 import { AppLayout } from './layout/AppLayout'
 import {
+  AssistantChatPage,
   AuditPage,
   AnnualWorkPlanDialog,
   AnnualWorkPlansPage,
@@ -169,6 +170,7 @@ import { isPaginated, reportExportParams, sanitize, tableParams } from './utils'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ALL_VIEWS: View[] = [
   'dashboard',
+  'aiAssistant',
   'companies',
   'sites',
   'employees',
@@ -419,12 +421,17 @@ function App() {
   const canViewUsers = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canManageUsers = isPlatformAdmin || user?.role === 'ADMIN'
   const canViewAudit = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
+  // Asistente IA (Sprint 16): los mismos roles autorizados por el backend.
+  // EMPLOYEE queda fuera (el backend responde 403 a sus consultas de datos).
+  const canUseAssistant = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canRetryDeliveries = user?.role === 'ADMIN'
 
   const selectedTitle =
     view === 'dashboard'
       ? 'Dashboard'
-      : view === 'companies'
+      : view === 'aiAssistant'
+        ? 'Asistente inteligente'
+        : view === 'companies'
         ? 'Empresas'
         : view === 'sites'
           ? 'Sedes'
@@ -2510,7 +2517,7 @@ function App() {
   function selectView(nextView: View) {
     // Defensa en profundidad: el backend es la autoridad, aqui solo evitamos
     // navegaciones que producirian 403 para roles sin permisos.
-    const employeeBlocked: View[] = ['companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'annualWorkPlans', 'ppe', 'medical', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
+    const employeeBlocked: View[] = ['aiAssistant', 'companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'annualWorkPlans', 'ppe', 'medical', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
     if (isEmployee && employeeBlocked.includes(nextView)) {
       return
     }
@@ -2636,6 +2643,7 @@ function App() {
           canViewMedical={canViewMedical}
           canViewReports={canViewReports}
           canViewAudit={canViewAudit}
+          canUseAssistant={canUseAssistant}
           canRetryDeliveries={canRetryDeliveries}
           canGenerateNotifications={canManageDocuments}
           notifications={notifications}
@@ -3115,6 +3123,7 @@ function App() {
             {view === 'audit' && (
               <AuditPage logs={auditLogs} meta={auditMeta} tableState={auditTable} onTableChange={setAuditTable} />
             )}
+            {view === 'aiAssistant' && <AssistantChatPage />}
             {view === 'externalDeliveries' && canRetryDeliveries && (
               <ExternalDeliveriesPage
                 deliveries={externalDeliveries}

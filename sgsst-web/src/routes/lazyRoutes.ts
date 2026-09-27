@@ -3,6 +3,7 @@ import type { View } from '../types'
 
 const pageLoaders = {
   dashboard: () => import('../pages/dashboard/DashboardPage'),
+  aiAssistant: () => import('../pages/ai-assistant/AssistantChatPage'),
   companies: () => import('../pages/companies/CompaniesPage'),
   sites: () => import('../pages/sites/SitesPage'),
   employees: () => import('../pages/employees/EmployeesPage'),
@@ -46,6 +47,9 @@ const dialogLoaders = {
   user: () => import('../pages/users/UserDialog'),
 }
 
+export const AssistantChatPage = lazy(() =>
+  pageLoaders.aiAssistant().then((module) => ({ default: module.AssistantChatPage })),
+)
 export const DashboardPage = lazy(() =>
   pageLoaders.dashboard().then((module) => ({ default: module.DashboardPage })),
 )

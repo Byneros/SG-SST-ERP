@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'

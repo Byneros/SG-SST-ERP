@@ -1,6 +1,6 @@
 # Sprint 16 — Asistente inteligente (diseño y fase 1 backend)
 
-Estado: **fase 1 backend implementada y probada** (Tareas 16.1, 16.3 y 16.6 del plan). La UI conversacional (16.2) y la ayuda extendida (16.4) quedan como siguiente paso.
+Estado: **fase 1 backend + UI conversacional implementadas** (Tareas 16.1, 16.2, 16.3 y 16.6 del plan). La ayuda extendida (16.4) queda como siguiente paso.
 
 ## Arquitectura
 
@@ -55,8 +55,13 @@ En producción, `assertProductionEnv()` exige `AI_API_KEY` y `AI_BASE_URL` si `A
 - Unitarias: `ai-assistant.service.spec.ts` (enrutamiento `@datos`, auditoría, sanitización del historial, capabilities), `ai-assistant.tools.spec.ts` (rol EMPLOYEE fuera, scope por empresa con `resolveCompanyScope`, mapeo de cada herramienta) y `ai-provider.client.spec.ts` (503 sin configuración, forma de la petición, degradación por error HTTP/red/timeout). Total: 28 pruebas.
 - E2E de integración con PostgreSQL real: `test/prisma-integration.db-e2e-spec.ts` valida aislamiento multi-tenant del endpoint (auditoría de `@datos`, EMPLOYEE 403, capabilities) junto con el scoping Prisma de companies/sites/employees/risks. Correr con `npm run test:e2e:db` (job `api-integration-db` en CI).
 
+## UI conversacional (16.2)
+
+- Panel de chat en `sgsst-web/src/pages/ai-assistant/AssistantChatPage.tsx`, consumiendo `GET /ai-assistant/capabilities` y `POST /ai-assistant/ask` con el cliente API existente (`src/api/client.ts`), incluido el refresh de token del interceptor.
+- Vista `aiAssistant` con hash routing (`#/aiAssistant`), lazy chunk propio y botón "Asistente IA" en el sidebar (visible para los roles autorizados; EMPLOYEE bloqueado en `selectView`).
+- El historial lo mantiene la UI y viaja en cada petición (el backend lo sanea); los mensajes de error acotados (p. ej. 503 sin proveedor) no se reenvían en el historial. Banner informativo si el proveedor no está configurado; la UI nunca envía `companyId`.
+
 ## Siguientes pasos
 
-- UI conversacional (16.2): panel de chat en `sgsst-web` consumiendo `/ai-assistant/*` con el cliente API existente.
 - Ayuda extendida (16.4): curar documentación real de módulos y añadirla como contexto.
 - Normativa con fuentes (16.5): indexar documentos normativos verificados y citar secciones.
