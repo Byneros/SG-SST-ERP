@@ -343,11 +343,12 @@ model InspectionFinding {
   risk                  Risk?                @relation(fields: [riskId], references: [id], onDelete: SetNull)
   actionId              String?              @unique
   action                CorrectiveAction?    @relation(fields: [actionId], references: [id], onDelete: SetNull)
-  unsafeReport          UnsafeReport?        @relation(fields: [unsafeReportId], references: [id])
+  unsafeReport          UnsafeReport?        @relation(fields: [unsafeReportId], references: [id], onDelete: Cascade)
   unsafeReportId        String?
 
   @@index([inspectionId])
   @@index([unplannedInspectionId])
+  @@index([unsafeReportId])
 }
 
 // Inspecciones no planeadas (S9.2): reactivas, con motivo obligatorio.
@@ -450,6 +451,8 @@ model MedicalExamRequirement {
   periodicityMonths Int            @default(12)
   profileId         String
   profile           MedicalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 // Examen ocupacional de un trabajador: solo concepto operativo (APT0/RESTRICCION/

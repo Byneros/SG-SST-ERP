@@ -3,6 +3,9 @@
 -- generar acciones correctivas. Borrado hard con traza (ADR); el plan arrastra
 -- cascada a items y hallazgos.
 
+-- CreateEnum
+CREATE TYPE "InspectionStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+
 -- CreateTable
 CREATE TABLE "PlannedInspection" (
     "id" TEXT NOT NULL,
