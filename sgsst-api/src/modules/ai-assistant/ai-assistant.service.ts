@@ -2,6 +2,11 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { env } from '../../config/env';
 import { AuditService } from '../audit/audit.service';
+import {
+  buildHelpContext,
+  findNormSources,
+  HELP_TOPICS,
+} from './ai-assistant.knowledge';
 import { AiProviderClient } from './ai-provider.client';
 import {
   ASSISTANT_ALLOWED_ROLES,
@@ -47,12 +52,17 @@ export class AiAssistantService {
       return this.runDataTool(user, message, dto);
     }
 
-    // Ayuda conversacional estandar.
+    // Ayuda conversacional estandar, con contexto curado del modulo preguntado
+    // (tarea 16.4) y fuentes normativas verificadas (tarea 16.5). El contexto
+    // es de solo lectura y sin datos de tenant.
     const result = await this.providerClient.complete({
-      systemPrompt: this.buildSystemPrompt(),
+      systemPrompt: this.buildSystemPrompt(message),
       messages: this.buildMessages(dto),
     });
-    return result;
+    const sources = findNormSources(message)
+      .filter((norm) => norm.status === 'vigente')
+      .map((norm) => norm.name);
+    return sources.length > 0 ? { ...result, sources } : result;
   }
 
   capabilities() {
@@ -60,6 +70,7 @@ export class AiAssistantService {
       enabled: env.aiEnabled && Boolean(env.aiApiKey),
       roles: ASSISTANT_ALLOWED_ROLES,
       dataTools: this.toolsList(),
+      helpTopics: HELP_TOPICS.map((topic) => topic.title),
       capabilities: ASSISTANT_CAPABILITIES,
       limits: {
         maxMessageLength: 4000,
@@ -102,7 +113,7 @@ export class AiAssistantService {
     // El modelo solo recibe datos YA filtrados por empresa.
     const result = await this.providerClient.complete({
       systemPrompt:
-        `${this.buildSystemPrompt()}\n\n` +
+        `${this.buildSystemPrompt('')}\n\n` +
         `El usuario consulto la herramienta autorizada "${tool}". ` +
         `Responde en espanol, en un maximo de 8 lineas, usando EXCLUSIVAMENTE ` +
         `los datos JSON siguientes. Si un dato no viene en el JSON, di que no ` +
@@ -138,21 +149,24 @@ export class AiAssistantService {
       'incidents_summary',
       'trainings_summary',
     ];
-  }
-
-  private buildSystemPrompt(): string {
+  } /**
+   * Prompt de sistema (tarea 16.4): reglas fijas + contexto curado del modulo
+   * preguntado. El contexto se elige por palabras clave sobre el mensaje.
+   */
+  private buildSystemPrompt(message: string): string {
     return (
       'Eres el asistente del ERP SG-SST para gestion de seguridad y salud en ' +
       'el trabajo en Colombia. Ayudas a los usuarios a usar los modulos del ' +
-      'sistema: empresas, sedes, empleados, usuarios, documentos, riesgos ' +
-      '(GTC 45), incidentes, capacitaciones, inspecciones y EPP. ' +
+      'sistema. ' +
       'Reglas: (1) responde en espanol, breve y accionable; ' +
       '(2) si no sabes algo o el modulo no existe, dilo claramente y no ' +
       'inventes funcionalidades ni datos; (3) no entregues instrucciones de ' +
       'diagnostico medico ni interpretes resultados de examenes; ' +
-      '(4) cuando hagas afirmaciones normativas (Decreto 1072 de 2015, ' +
-      'Resolucion 0312 de 2019, GTC 45), nombralas como fuente y distingue ' +
-      'norma de recomendacion; (5) nunca reveles datos de otras empresas.'
+      '(4) cuando hagas afirmaciones normativas nombralas como fuente y ' +
+      'distingue norma de recomendacion; (5) nunca reveles datos de otras ' +
+      'empresas; (6) usa solo los modulos y normas del contexto entregado, ' +
+      'sin inventar menus ni rutas.\n\n' +
+      buildHelpContext(message)
     );
   }
 

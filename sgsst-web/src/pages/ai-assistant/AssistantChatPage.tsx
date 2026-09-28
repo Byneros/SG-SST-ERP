@@ -31,6 +31,8 @@ type ChatMessage = {
   content: string
   /** Herramienta usada por el backend cuando la consulta fue @datos. */
   usedTool?: string
+  /** Fuentes normativas vigentes verificadas en backend (tarea 16.5). */
+  sources?: string[]
   /** Errores de transporte (p. ej. 503 sin proveedor); no viajan en historial. */
   isError?: boolean
 }
@@ -115,6 +117,7 @@ export function AssistantChatPage() {
       const response = await api.post<{
         content: string
         usedTool?: string
+        sources?: string[]
       }>('/ai-assistant/ask', {
         message,
         conversationId: conversationIdRef.current,
@@ -122,7 +125,12 @@ export function AssistantChatPage() {
       })
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: response.data.content, usedTool: response.data.usedTool },
+        {
+          role: 'assistant',
+          content: response.data.content,
+          usedTool: response.data.usedTool,
+          sources: response.data.sources,
+        },
       ])
     } catch (error) {
       // Error acotado del backend (p. ej. 503 sin proveedor): el chat sigue vivo.
@@ -252,6 +260,13 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             variant="outlined"
             sx={{ mt: 1 }}
           />
+        )}
+        {message.sources && message.sources.length > 0 && (
+          <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', rowGap: 0.5, mt: 1 }}>
+            {message.sources.map((source) => (
+              <Chip key={source} label={source} size="small" color="primary" variant="outlined" />
+            ))}
+          </Stack>
         )}
       </Paper>
     </Box>

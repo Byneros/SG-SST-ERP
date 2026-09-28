@@ -68,7 +68,7 @@ describe('AiAssistantService', () => {
     expect(providerClient.complete).not.toHaveBeenCalled();
   });
 
-  it('pasa el mensaje al proveedor con el prompt de sistema anti-alucinacion', async () => {
+  it('pasa el mensaje al proveedor con prompt anti-alucinacion y contexto curado (16.4)', async () => {
     providerClient.complete.mockResolvedValue({ content: 'respuesta' });
 
     const result = await service.ask(
@@ -78,12 +78,64 @@ describe('AiAssistantService', () => {
 
     expect(result).toEqual({ content: 'respuesta' });
     const call = providerClient.complete.mock.calls[0][0];
+    // Contexto del modulo recuperado por keywords + normas citables.
+    expect(call.systemPrompt).toContain('Riesgos y matriz de peligros');
     expect(call.systemPrompt).toContain('Decreto 1072');
+    expect(call.systemPrompt).toContain(
+      'no cites normas que no esten en esta lista',
+    );
     expect(call.messages).toEqual([
       { role: 'user', content: 'como creo un riesgo?' },
     ]);
     expect(tools.run).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
+  });
+
+  it('respuestas normativas citan solo fuentes vigentes verificadas (16.5)', async () => {
+    providerClient.complete.mockResolvedValue({ content: 'respuesta' });
+
+    const result = await service.ask(
+      admin,
+      dto({ message: 'que norma regula el plan anual de trabajo?' }),
+    );
+
+    // El indice verifica vigencia: la 2346 derogada nunca aparece.
+    expect(result.sources).toContain('Decreto 1072 de 2015');
+    expect(result.sources).not.toContain('Resolucion 2346 de 2007');
+
+    // Con contexto de examen ocupacional, la fuente vigente es la 1843 de 2025.
+    const examenes = await service.ask(
+      admin,
+      dto({ message: 'cada cuando me toca el examen ocupacional?' }),
+    );
+    expect(examenes.sources).toContain('Resolucion 1843 de 2025');
+    expect(examenes.sources).not.toContain('Resolucion 2346 de 2007');
+  });
+
+  it('no devuelve sources cuando la consulta no es normativa', async () => {
+    providerClient.complete.mockResolvedValue({ content: 'respuesta' });
+
+    const result = await service.ask(
+      admin,
+      dto({ message: 'como cambio mi contrasena?' }),
+    );
+
+    expect(result.sources).toBeUndefined();
+  });
+
+  it('no inyecta modulos no implementados del ERP en el contexto', async () => {
+    providerClient.complete.mockResolvedValue({ content: 'respuesta' });
+
+    await service.ask(
+      admin,
+      dto({ message: 'como configuro el plan de emergencias?' }),
+    );
+
+    const call = providerClient.complete.mock.calls[0][0];
+    expect(call.systemPrompt).not.toContain('emergencias.');
+    expect(call.systemPrompt).toContain(
+      'el sistema no cuenta con esa funcionalidad hoy',
+    );
   });
 
   it('@datos enruta a la herramienta, audita y entrega solo JSON ya filtrado por empresa', async () => {
@@ -190,6 +242,8 @@ describe('AiAssistantService', () => {
     expect(capabilities.roles).toContain('ADMIN');
     expect(capabilities.roles).not.toContain('EMPLOYEE');
     expect(capabilities.dataTools).toContain('risks_summary');
+    expect(Array.isArray(capabilities.helpTopics)).toBe(true);
+    expect(capabilities.helpTopics.length).toBeGreaterThanOrEqual(12);
     expect(capabilities.limits.maxMessageLength).toBe(4000);
   });
 });

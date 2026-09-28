@@ -10,7 +10,7 @@ El diseno funcional debe alinearse, como minimo, con:
 - Resolucion 0312 de 2019: Estandares Minimos del SG-SST, ajustados por tamano de empresa, actividad economica y clase de riesgo.
 - Ley 1562 de 2012: Sistema General de Riesgos Laborales y definicion moderna de SST/SG-SST.
 - Resolucion 1401 de 2007: investigacion de incidentes y accidentes de trabajo.
-- Resolucion 2346 de 2007: evaluaciones medicas ocupacionales e historia clinica ocupacional.
+- Resolucion 1843 de 2025: evaluaciones medicas ocupacionales, historias clinicas ocupacionales y manejo de datos de salud (derogo la Resolucion 2346 de 2007).
 - Normas complementarias aplicables por sector, tarea critica o peligro especifico: alturas, espacios confinados, riesgo electrico, sustancias quimicas, seguridad vial, riesgo psicosocial, emergencias, contratistas y proteccion de datos personales.
 
 El sistema debe permitir configurar el nivel de cumplimiento segun:

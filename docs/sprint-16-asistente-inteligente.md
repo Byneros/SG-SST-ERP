@@ -1,6 +1,6 @@
 # Sprint 16 — Asistente inteligente (diseño y fase 1 backend)
 
-Estado: **fase 1 backend + UI conversacional implementadas** (Tareas 16.1, 16.2, 16.3 y 16.6 del plan). La ayuda extendida (16.4) queda como siguiente paso.
+Estado: **backend + UI conversacional + ayuda extendida + normativa con fuentes implementadas** (Tareas 16.1 a 16.6 del plan).
 
 ## Arquitectura
 
@@ -52,7 +52,7 @@ En producción, `assertProductionEnv()` exige `AI_API_KEY` y `AI_BASE_URL` si `A
 
 ## Pruebas (16.6)
 
-- Unitarias: `ai-assistant.service.spec.ts` (enrutamiento `@datos`, auditoría, sanitización del historial, capabilities), `ai-assistant.tools.spec.ts` (rol EMPLOYEE fuera, scope por empresa con `resolveCompanyScope`, mapeo de cada herramienta) y `ai-provider.client.spec.ts` (503 sin configuración, forma de la petición, degradación por error HTTP/red/timeout). Total: 28 pruebas.
+- Unitarias: `ai-assistant.service.spec.ts` (enrutamiento `@datos`, auditoría, sanitización del historial, capabilities, fuentes normativas citables), `ai-assistant.tools.spec.ts` (rol EMPLOYEE fuera, scope por empresa con `resolveCompanyScope`, mapeo de cada herramienta), `ai-assistant.knowledge.spec.ts` (cobertura de temas, índice de normas con vigencia y secciones, `findNormSources`, anti-alucinación de módulos no implementados) y `ai-provider.client.spec.ts` (503 sin configuración, forma de la petición, degradación por error HTTP/red/timeout). Total: 42 pruebas.
 - E2E de integración con PostgreSQL real: `test/prisma-integration.db-e2e-spec.ts` valida aislamiento multi-tenant del endpoint (auditoría de `@datos`, EMPLOYEE 403, capabilities) junto con el scoping Prisma de companies/sites/employees/risks. Correr con `npm run test:e2e:db` (job `api-integration-db` en CI).
 
 ## UI conversacional (16.2)
@@ -61,7 +61,21 @@ En producción, `assertProductionEnv()` exige `AI_API_KEY` y `AI_BASE_URL` si `A
 - Vista `aiAssistant` con hash routing (`#/aiAssistant`), lazy chunk propio y botón "Asistente IA" en el sidebar (visible para los roles autorizados; EMPLOYEE bloqueado en `selectView`).
 - El historial lo mantiene la UI y viaja en cada petición (el backend lo sanea); los mensajes de error acotados (p. ej. 503 sin proveedor) no se reenvían en el historial. Banner informativo si el proveedor no está configurado; la UI nunca envía `companyId`.
 
+## Ayuda extendida (16.4)
+
+- Base de conocimiento curada en `ai-assistant.knowledge.ts`: 13 temas (uno por módulo real del ERP) con descripción funcional, vista donde aplica, palabras clave y normas de referencia. Fuente: `docs/modulos-funcionales-sgsst-colombia.md` y los módulos implementados; los módulos NO implementados (p. ej. emergencias, contratistas) se excluyen explícitamente para que el modelo no los ofrezca.
+- Recuperación por palabras clave (`findHelpTopics`, tolerante a acentos/mayúsculas, con fallback a contexto general) e inyección en el prompt de sistema de cada consulta conversacional; también un índice cerrado de normas citables (evolucionado en 16.5 a `NORM_SOURCES` con vigencia y secciones) con la instrucción de no citar otras.
+- El contexto es de solo lectura y sin datos de tenant (los datos solo viajan por `@datos`). `GET /capabilities` ahora expone `helpTopics` para que la UI los muestre.
+
+## Normativa con fuentes (16.5)
+
+- Índice de fuentes verificadas en `ai-assistant.knowledge.ts` (`NORM_SOURCES`): nombre, alcance, **estado de vigencia** (`vigente`/`derogada`), secciones citables y fecha de última verificación (`lastVerified`, 2026-09-28 contra funcionpublica.gov.co, alcaldiabogota.gov.co y fondoriesgoslaborales.gov.co).
+- **Resolución 2346 de 2007 derogada** por la Resolución 1843 de 2025 (evaluaciones médicas ocupacionales, vigente desde mayo 2025): la medicina laboral del asistente cita la 1843 y la 2346 queda marcada como derogada para que el modelo no la use como vigente.
+- Secciones verificadas citables: Decreto 1072 arts. 2.2.4.6.4, 2.2.4.6.8, 2.2.4.6.12, 2.2.4.6.13 y 2.2.4.6.15; Res. 0312 art. 4 y anexo (capítulos de estándares); Ley 1562 arts. 3, 4 y 10; Res. 1401 arts. 4 y 6; Res. 1843 arts. 4, 8–14 y 19; GTC 45 (metodología). El prompt solo permite citar lo listado.
+- Recuperación de fuentes (`findNormSources`) por palabras clave con tolerancia a acentos; el servicio adjunta `sources` (solo normas vigentes) a las respuestas conversacionales normativas y la UI las muestra como chips; `@datos` nunca devuelve `sources`.
+- Contexto del prompt: `buildHelpContext` ahora lista cada norma con sus secciones verificadas y marca las derogadas (`[DEROGADA por ...; no la cites como vigente]`).
+- El seed de `legal-compliance` no referenciaba la 2346 (su matriz base usa Decreto 1072 y Res. 0312), por lo que no requirió cambios.
+
 ## Siguientes pasos
 
-- Ayuda extendida (16.4): curar documentación real de módulos y añadirla como contexto.
-- Normativa con fuentes (16.5): indexar documentos normativos verificados y citar secciones.
+- Operar el asistente con un proveedor real y afinar prompts con casos de uso de campo.
