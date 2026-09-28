@@ -126,7 +126,8 @@ export class AiAssistantTools {
       topRisks: risks.slice(0, 10).map((risk) => ({
         title: risk.title,
         level: risk.level,
-        siteId: risk.siteId,
+        // Nombre de sede legible; nunca identificadores crudos al modelo.
+        site: risk.site?.name ?? null,
       })),
     };
   }

@@ -153,11 +153,21 @@ describe('AiAssistantTools (scope multi-tenant)', () => {
     });
   });
 
-  it('risks_summary agrega por nivel', async () => {
+  it('risks_summary agrega por nivel y mapea el nombre de la sede (sin siteId crudo)', async () => {
     risksRepository.findAll.mockResolvedValue([
-      { title: 'R1', level: 'MEDIUM', siteId: 's1' },
-      { title: 'R2', level: 'HIGH', siteId: null },
-      { title: 'R3', level: 'MEDIUM', siteId: 's2' },
+      {
+        title: 'R1',
+        level: 'MEDIUM',
+        siteId: 's1',
+        site: { name: 'Sede Norte' },
+      },
+      { title: 'R2', level: 'HIGH', siteId: null, site: null },
+      {
+        title: 'R3',
+        level: 'MEDIUM',
+        siteId: 's2',
+        site: { name: 'Sede Sur' },
+      },
     ]);
 
     const result = await tools.run('risks_summary', adminA);
@@ -167,9 +177,9 @@ describe('AiAssistantTools (scope multi-tenant)', () => {
       total: 3,
       byLevel: { MEDIUM: 2, HIGH: 1 },
       topRisks: [
-        { title: 'R1', level: 'MEDIUM', siteId: 's1' },
-        { title: 'R2', level: 'HIGH', siteId: null },
-        { title: 'R3', level: 'MEDIUM', siteId: 's2' },
+        { title: 'R1', level: 'MEDIUM', site: 'Sede Norte' },
+        { title: 'R2', level: 'HIGH', site: null },
+        { title: 'R3', level: 'MEDIUM', site: 'Sede Sur' },
       ],
     });
   });
