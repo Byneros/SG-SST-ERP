@@ -1291,10 +1291,7 @@ class MemorySgsstAuditsRepository {
     return Promise.resolve(this.withRelations(audit));
   }
 
-  update(
-    id: string,
-    dto: { title?: string; status?: string },
-  ) {
+  update(id: string, dto: { title?: string; status?: string }) {
     const audit = this.store.audits.find((a) => a.id === id);
     if (!audit) throw new Error('Audit not found');
     Object.assign(audit, {

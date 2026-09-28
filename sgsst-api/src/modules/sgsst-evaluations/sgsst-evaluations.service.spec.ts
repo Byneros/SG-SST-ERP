@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { SgsstEvaluationsService } from './sgsst-evaluations.service';
 
 /**
@@ -84,9 +83,16 @@ describe('SgsstEvaluationsService (hard delete y listado)', () => {
     const result = await service.findAll(adminA, { page: 1, pageSize: 10 });
 
     expect(result.data).toEqual([evaluation]);
-    const where = prisma.sgsstEvaluation.findMany.mock.calls[0][0].where;
+    const where = (
+      prisma.sgsstEvaluation.findMany.mock.calls[0] as [
+        { where: { companyId: string } },
+      ]
+    )[0].where;
     expect(where).toEqual({ companyId: 'company-a' });
     // count comparte el mismo where.
-    expect(prisma.sgsstEvaluation.count.mock.calls[0][0].where).toEqual(where);
+    expect(
+      (prisma.sgsstEvaluation.count.mock.calls[0] as [{ where: unknown }])[0]
+        .where,
+    ).toEqual(where);
   });
 });

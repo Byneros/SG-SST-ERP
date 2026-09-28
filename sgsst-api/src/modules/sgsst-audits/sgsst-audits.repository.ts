@@ -78,7 +78,7 @@ export class SgsstAuditsRepository {
   update(id: string, dto: UpdateSgsstAuditDto) {
     return this.prisma.audit.update({
       where: { id },
-      data: this.toAuditData(dto) as Prisma.AuditUncheckedUpdateInput,
+      data: this.toAuditData(dto),
       include: { findings: { include: { actions: true } } },
     });
   }

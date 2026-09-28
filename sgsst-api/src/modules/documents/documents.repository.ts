@@ -88,7 +88,7 @@ export class DocumentsRepository {
     }
     return this.prisma.document.update({
       where: { id },
-      data: this.toPrismaData(dto) as Prisma.DocumentUncheckedUpdateInput,
+      data: this.toPrismaData(dto),
       include: {
         ...documentInclude,
         versions: { orderBy: { version: 'desc' } },
@@ -165,7 +165,7 @@ export class DocumentsRepository {
   update(id: string, dto: UpdateDocumentDto) {
     return this.prisma.document.update({
       where: { id },
-      data: this.toPrismaData(dto) as Prisma.DocumentUncheckedUpdateInput,
+      data: this.toPrismaData(dto),
       include: {
         ...documentInclude,
         versions: { orderBy: { version: 'desc' } },

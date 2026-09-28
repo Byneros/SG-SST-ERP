@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { IndicatorsService } from './indicators.service';
 
 /**
@@ -84,10 +83,16 @@ describe('IndicatorsService (hard delete y listado)', () => {
     const result = await service.findAll(adminA, { page: 1, pageSize: 10 });
 
     expect(result.data).toEqual([indicator]);
-    const where = prisma.indicator.findMany.mock.calls[0][0].where;
+    const where = (
+      prisma.indicator.findMany.mock.calls[0] as [
+        { where: { companyId: string; isActive?: string } },
+      ]
+    )[0].where;
     expect(where.companyId).toEqual('company-a');
     expect(where.isActive).toBeUndefined();
     // count comparte el mismo where.
-    expect(prisma.indicator.count.mock.calls[0][0].where).toEqual(where);
+    expect(
+      (prisma.indicator.count.mock.calls[0] as [{ where: unknown }])[0].where,
+    ).toEqual(where);
   });
 });

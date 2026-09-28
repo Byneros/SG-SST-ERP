@@ -507,9 +507,8 @@ describe('SsoService', () => {
         encrypt,
       );
 
-      const data = (
-        result as unknown as { data: Record<string, unknown> }
-      ).data;
+      const data = (result as unknown as { data: Record<string, unknown> })
+        .data;
       expect(data.clientSecret).toBe('encrypted(raw-secret)');
       expect(data.scopes).toBe('openid email profile');
       expect(data.defaultRole).toBe('SST');
@@ -579,9 +578,8 @@ describe('SsoService', () => {
         encrypt,
       );
 
-      const data = (
-        result as unknown as { data: Record<string, unknown> }
-      ).data;
+      const data = (result as unknown as { data: Record<string, unknown> })
+        .data;
       expect(data.idpCertificate).toBe('META-CERT');
       expect(data.idpSsoUrl).toBe('https://idp/sso/post');
     });
