@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import type { Role } from '@prisma/client';
 import {
   IsBoolean,
   IsIn,
@@ -8,6 +8,7 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
+import type { AssignableRole } from '../sso-roles';
 
 const assignableRoles: Role[] = ['EMPLOYEE', 'SST', 'AUDITOR', 'ADMIN'];
 
@@ -79,7 +80,7 @@ export class UpdateSsoProviderDto {
 
   @IsOptional()
   @IsIn(assignableRoles)
-  defaultRole?: Role;
+  defaultRole?: AssignableRole;
 
   // Overrides de rol por grupo del IdP; objeto vacio o null para limpiar.
   @IsOptional()

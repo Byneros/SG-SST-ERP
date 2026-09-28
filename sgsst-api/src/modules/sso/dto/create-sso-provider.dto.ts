@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import type { Role } from '@prisma/client';
 import {
   IsBoolean,
   IsIn,
@@ -9,6 +9,7 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
+import type { AssignableRole } from '../sso-roles';
 
 const assignableRoles: Role[] = ['EMPLOYEE', 'SST', 'AUDITOR', 'ADMIN'];
 
@@ -85,7 +86,7 @@ export class CreateSsoProviderDto {
 
   @IsOptional()
   @IsIn(assignableRoles)
-  defaultRole?: Role;
+  defaultRole?: AssignableRole;
 
   // Overrides de rol por grupo del IdP: { "grupo": "SST", ... }. Objeto JSON
   // o string JSON; vacio/null = sin mapeo (todos con defaultRole).

@@ -18,6 +18,7 @@ export class CreateUserDto {
   @MinLength(8)
   password!: string;
 
+  // DEVELOPER no se asigna via API: solo seed/consola (ver users.service).
   @IsIn(['SUPER_ADMIN', 'ADMIN', 'SST', 'EMPLOYEE', 'AUDITOR'])
   role!: string;
 

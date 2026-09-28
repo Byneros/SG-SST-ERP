@@ -1,6 +1,6 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR'
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -570,6 +570,185 @@ export type ExternalDeliveryFilters = {
   provider: 'all' | ExternalDeliveryProvider
   status: 'all' | ExternalDeliveryStatus
   companyId: string
+}
+
+// --- Contratistas (S11) ------------------------------------------------------
+
+export type ContractorStatus = 'ACTIVE' | 'SUSPENDED' | 'BLOCKED'
+export type ContractorWorkerStatus = 'ACTIVE' | 'INACTIVE'
+export type ContractorDocumentStatus = 'PENDING' | 'VALID' | 'EXPIRED' | 'REJECTED'
+
+export type Contractor = {
+  id: string
+  name: string
+  nit: string
+  contact?: string
+  phone?: string
+  arl?: string
+  activity?: string
+  status: ContractorStatus
+  companyId: string
+  company?: Pick<Company, 'id' | 'name'>
+  createdAt: string
+  updatedAt: string
+  _count?: { workers: number; documents: number }
+}
+
+export type ContractorWorker = {
+  id: string
+  document: string
+  firstName: string
+  lastName: string
+  job?: string
+  inductedAt?: string | null
+  status: ContractorWorkerStatus
+  contractorId: string
+  companyId: string
+  contractor?: Pick<Contractor, 'id' | 'name' | 'nit' | 'status'>
+}
+
+export type ContractorDocument = {
+  id: string
+  documentType: string
+  description?: string
+  expiresAt?: string | null
+  status: ContractorDocumentStatus
+  contractorId: string
+  evidenceId?: string | null
+  companyId: string
+  evidence?: Pick<SgsstDocument, 'id' | 'name'> & { status?: string; expiresAt?: string | null } | null
+}
+
+/** Respuesta de GET /contractors/:id/entry-authorization. */
+export type ContractorEntryAuthorization = {
+  contractor: Pick<Contractor, 'id' | 'name'> & { status: string } | null
+  documentsTotal: number
+  byDocumentStatus: Record<string, number>
+  workersTotal: number
+  workersActive: number
+  canAuthorizeEntry: boolean
+  blockingReasons: string[]
+  expiredByDate: Array<Pick<ContractorDocument, 'id' | 'documentType' | 'expiresAt'>>
+  workersWithoutInduction: number
+}
+
+export type ContractorFormValues = {
+  name: string
+  nit: string
+  contact: string
+  phone: string
+  arl: string
+  activity: string
+  status: ContractorStatus
+  companyId: string
+}
+
+export type ContractorWorkerFormValues = {
+  document: string
+  firstName: string
+  lastName: string
+  job: string
+  inductedAt: string
+  status: ContractorWorkerStatus
+  companyId: string
+}
+
+export type ContractorDocumentFormValues = {
+  documentType: string
+  description: string
+  expiresAt: string
+  status: ContractorDocumentStatus
+  evidenceId: string
+  companyId: string
+}
+
+// --- Panel de desarrollador (rol DEVELOPER) ----------------------------------
+
+export type DeveloperDependency = 'ok' | 'error'
+
+export type DeveloperOverview = {
+  status: 'ok'
+  service: string
+  environment: string
+  timestamp: string
+  dependencies: {
+    database: DeveloperDependency
+    redis: DeveloperDependency
+  }
+  queues: {
+    notifications: boolean
+    reports: boolean
+  }
+}
+
+export type DeveloperModuleInfo = {
+  name: string
+  enabled: boolean
+  detail?: string
+}
+
+export type DeveloperModules = {
+  modules: DeveloperModuleInfo[]
+  platform: {
+    environment: string
+    companies: number
+    users: number
+    auditLogs: number
+  }
+}
+
+export type DeveloperQueues = {
+  notifications: {
+    enabled: boolean
+    worker: boolean
+    cron: string
+  }
+  reports: {
+    enabled: boolean
+    worker: boolean
+    cleanupCron: string
+    metricsCron: string
+  }
+  redis: string
+}
+
+export type DeveloperAuditEntry = {
+  id: string
+  action: string
+  entity: string
+  entityId?: string | null
+  createdAt: string
+  actor?: { id: string; name: string; email: string; role: string } | null
+}
+
+export type DeveloperDiagnostics = {
+  companies: { total: number; active: number }
+  users: { total: number; active: number; developers: number }
+  auditLogs: number
+  database: 'reachable'
+}
+
+export type DeveloperErrorEvent = {
+  timestamp: string
+  level: 'error' | 'warn'
+  context: string
+  message: string
+  trace?: string
+  requestId?: string
+}
+
+export type DeveloperErrors = {
+  data: DeveloperErrorEvent[]
+  total: number
+}
+
+export type DeveloperPanelData = {
+  overview: DeveloperOverview | null
+  modules: DeveloperModules | null
+  queues: DeveloperQueues | null
+  audit: DeveloperAuditEntry[]
+  diagnostics: DeveloperDiagnostics | null
+  errors: DeveloperErrors | null
 }
 
 export type LegalComplianceFilters = {

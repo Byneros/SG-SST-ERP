@@ -17,6 +17,7 @@ export class UpdateUserDto {
   email?: string;
 
   @IsOptional()
+  // DEVELOPER excluido: nadie puede promover a DEVELOPER via API.
   @IsIn(['SUPER_ADMIN', 'ADMIN', 'SST', 'EMPLOYEE', 'AUDITOR'])
   role?: string;
 

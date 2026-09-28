@@ -138,6 +138,14 @@ export class UsersService {
       return;
     }
 
+    // DEVELOPER es rol de plataforma: vive fuera de toda empresa (igual que
+    // SUPER_ADMIN) y no se asigna via API; solo seed/consola lo crea.
+    if (role === 'DEVELOPER') {
+      throw new ForbiddenException(
+        'DEVELOPER users cannot be managed through the users API',
+      );
+    }
+
     if (!companyId) {
       throw new BadRequestException(
         'Users with company roles must belong to one company',
@@ -151,6 +159,13 @@ export class UsersService {
     companyId?: string | null,
   ) {
     if (!actor) return;
+    // DEVELOPER no entra ni sale por la API de usuarios (evita que un ADMIN
+    // promueva a DEVELOPER o que un DEVELOPER mute su propio rol aqui).
+    if (role === 'DEVELOPER') {
+      throw new ForbiddenException(
+        'DEVELOPER users cannot be managed through the users API',
+      );
+    }
     if (role === 'SUPER_ADMIN') {
       if (actor.role !== 'SUPER_ADMIN') {
         throw new ForbiddenException(

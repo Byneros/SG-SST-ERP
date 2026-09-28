@@ -11,6 +11,8 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 import { AnnualWorkPlansModule } from './modules/annual-work-plans/annual-work-plans.module';
+import { ContractorsModule } from './modules/contractors/contractors.module';
+import { DeveloperModule } from './modules/developer/developer.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { PlannedInspectionsModule } from './modules/planned-inspections/planned-inspections.module';
 import { UnplannedInspectionsModule } from './modules/unplanned-inspections/unplanned-inspections.module';
@@ -41,6 +43,8 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     AiAssistantModule,
     AnnualWorkPlansModule,
+    ContractorsModule,
+    DeveloperModule,
     PlannedInspectionsModule,
     UnplannedInspectionsModule,
     UnsafeReportsModule,

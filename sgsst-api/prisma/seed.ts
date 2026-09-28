@@ -268,6 +268,53 @@ async function main() {
   console.log(
     'Seed listo: admin@sgsst.com, sst@sgsst.com y empleado@sgsst.com / Admin12345',
   );
+
+  // --- Usuario DEVELOPER (rol tecnico de plataforma) -------------------------
+  // Solo se crea si DEVELOPER_EMAIL y DEVELOPER_PASSWORD estan definidos.
+  // Idempotente: upsert por email; nunca guarda la password en claro.
+  // DEVELOPER vive fuera de toda empresa (companyId null) y no se gestiona
+  // por la API de usuarios.
+  const developerEmail = process.env.DEVELOPER_EMAIL?.trim().toLowerCase();
+  const developerPassword = process.env.DEVELOPER_PASSWORD ?? '';
+
+  if (developerEmail && developerPassword) {
+    if (developerPassword.length < 12) {
+      console.warn(
+        'DEVELOPER_PASSWORD ignorada: debe tener al menos 12 caracteres.',
+      );
+    } else {
+      const existingDeveloper = await prisma.user.findUnique({
+        where: { email: developerEmail },
+        select: { id: true, role: true },
+      });
+
+      if (existingDeveloper && existingDeveloper.role !== Role.DEVELOPER) {
+        // El email existe con otro rol: no se toca (evita escalada accidental).
+        console.warn(
+          `Seed DEVELOPER omitido: ${developerEmail} ya existe con rol ${existingDeveloper.role}.`,
+        );
+      } else {
+        const passwordHash = await bcrypt.hash(developerPassword, 12);
+        await prisma.user.upsert({
+          where: { email: developerEmail },
+          update: { name: 'Desarrollador SG-SST', role: Role.DEVELOPER },
+          create: {
+            name: 'Desarrollador SG-SST',
+            email: developerEmail,
+            password: passwordHash,
+            role: Role.DEVELOPER,
+            // Sin empresa: rol de plataforma independiente de los tenants.
+            companyId: null,
+          },
+        });
+        console.log(`Usuario DEVELOPER listo: ${developerEmail}`);
+      }
+    }
+  } else {
+    console.log(
+      'Seed DEVELOPER omitido: define DEVELOPER_EMAIL y DEVELOPER_PASSWORD para crearlo.',
+    );
+  }
 }
 
 main()

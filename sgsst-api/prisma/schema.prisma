@@ -90,6 +90,9 @@ model Company {
   users                         User[]
   annualPlanActivities          AnnualPlanActivity[]
   unplannedInspections          UnplannedInspection[]
+  contractors                   Contractor[]
+  contractorWorkers             ContractorWorker[]
+  contractorDocuments           ContractorDocument[]
 }
 
 model Site {
@@ -278,6 +281,87 @@ model AnnualPlanActivity {
 
   @@index([planId])
   @@index([companyId, status])
+}
+
+// Contratistas (S11): empresas contratistas, personal y documentos requeridos.
+// Regla de negocio: no se autoriza ingreso con documentos vencidos/rechazados
+// o contratista no activo (responsabilidad solidaria). Evidencia documental se
+// integra con documents via FK (mismo patron de AnnualPlanActivity.evidence).
+// Borrado: hard delete con traza en AuditLog (ADR de estrategia de borrado).
+model Contractor {
+  id        String               @id @default(uuid())
+  name      String
+  nit       String
+  contact   String?
+  phone     String?
+  arl       String?
+  activity  String?
+  status    ContractorStatus     @default(ACTIVE)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  companyId String
+  company   Company              @relation(fields: [companyId], references: [id])
+  workers   ContractorWorker[]
+  documents ContractorDocument[]
+
+  @@unique([companyId, nit])
+  @@index([companyId, status])
+}
+
+model ContractorWorker {
+  id           String                 @id @default(uuid())
+  document     String
+  firstName    String
+  lastName     String
+  job          String?
+  inductedAt   DateTime?
+  status       ContractorWorkerStatus @default(ACTIVE)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  contractorId String
+  contractor   Contractor             @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company                @relation(fields: [companyId], references: [id])
+
+  @@unique([contractorId, document])
+  @@index([companyId])
+}
+
+model ContractorDocument {
+  id           String                   @id @default(uuid())
+  documentType String
+  description  String?
+  expiresAt    DateTime?
+  status       ContractorDocumentStatus @default(PENDING)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  contractorId String
+  contractor   Contractor               @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  evidenceId   String?
+  evidence     Document?                @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+  companyId    String
+  company      Company                  @relation(fields: [companyId], references: [id])
+
+  @@index([contractorId])
+  @@index([companyId, status])
+}
+
+enum ContractorStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+enum ContractorWorkerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ContractorDocumentStatus {
+  PENDING
+  VALID
+  EXPIRED
+  REJECTED
 }
 
 // Inspecciones planeadas (S9.1): programacion por sede, checklist de items y
@@ -572,21 +656,24 @@ model AuditFinding {
 }
 
 model CorrectiveAction {
-  id                String                 @id @default(uuid())
-  title             String
-  description       String?
-  responsible       String
-  dueDate           DateTime
-  status            CorrectiveActionStatus @default(PENDING)
-  closedAt          DateTime?
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
+  id                  String                 @id @default(uuid())
+  title               String
+  description         String?
+  responsible         String
+  dueDate             DateTime
+  status              CorrectiveActionStatus @default(PENDING)
+  closedAt            DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
   // Padre opcional: una accion nace de un hallazgo de auditoria (via
   // findingId) o de inspeccion/reporte (via inspectionFindingId, SetNull).
+  // Nota: coexisten las columnas inspectionFindingId (escritura en creates de
+  // S9) y InspectionFinding.actionId (lectura de idempotencia); ver
+  // 20260925190000_s9_corrective_action_link.
   findingId           String?
-  finding             AuditFinding?        @relation(fields: [findingId], references: [id], onDelete: Cascade)
-  inspectionFindingId String?              @unique
-  inspectionFinding   InspectionFinding?   @relation("InspectionFindingAction")
+  finding             AuditFinding?          @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  inspectionFindingId String?                @unique
+  inspectionFinding   InspectionFinding?     @relation("InspectionFindingAction")
 }
 
 model Document {
@@ -608,6 +695,7 @@ model Document {
   site                 Site?                @relation(fields: [siteId], references: [id])
   versions             DocumentVersion[]
   annualPlanActivities AnnualPlanActivity[]
+  contractorDocuments  ContractorDocument[]
 }
 
 model DocumentVersion {
@@ -905,6 +993,8 @@ enum Role {
   EMPLOYEE
   AUDITOR
   SUPER_ADMIN
+  /// Rol tecnico de plataforma: sin empresa, sin datos de tenants.
+  DEVELOPER
 }
 
 enum RiskLevel {

@@ -33,6 +33,9 @@ import type { SsoConfigValues } from './auth/ssoConfig'
 import {
   emptyAnnualWorkPlan,
   emptyCompany,
+  emptyContractor,
+  emptyContractorDocument,
+  emptyContractorWorker,
   emptyDocument,
   emptyPlannedInspection,
   emptyPpeDelivery,
@@ -60,6 +63,12 @@ import { AppLayout } from './layout/AppLayout'
 import {
   AssistantChatPage,
   AuditPage,
+  DeveloperPanelPage,
+  ContractorsPage,
+  ContractorDialog,
+  ContractorWorkerDialog,
+  ContractorDocumentDialog,
+  ContractorDetailDialog,
   AnnualWorkPlanDialog,
   AnnualWorkPlansPage,
   PlannedInspectionDialog,
@@ -103,6 +112,7 @@ import {
   preloadSgsstAuditDialog,
   preloadSgsstEvaluationDialog,
   preloadCompanyDialog,
+  preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
   preloadIncidentDialog,
@@ -126,6 +136,17 @@ import type {
   AnnualWorkPlan,
   AppNotification,
   AuditLog,
+  Contractor,
+  ContractorDocument,
+  ContractorEntryAuthorization,
+  ContractorWorker,
+  DeveloperAuditEntry,
+  DeveloperDiagnostics,
+  DeveloperErrors,
+  DeveloperModules,
+  DeveloperOverview,
+  DeveloperQueues,
+  DeveloperPanelData,
   PlannedInspection,
   UnplannedInspection,
   UnsafeReport,
@@ -172,6 +193,8 @@ const ALL_VIEWS: View[] = [
   'dashboard',
   'aiAssistant',
   'companies',
+  'contractors',
+  'developer',
   'sites',
   'employees',
   'incidents',
@@ -238,6 +261,24 @@ function App() {
   const [view, setView] = useState<View>(initialHash.view)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
+  // S11 Contratistas: listado + sub-recursos + autorizacion de ingreso.
+  const [contractors, setContractors] = useState<Contractor[]>([])
+  const [contractorMeta, setContractorMeta] = useState(emptyMeta)
+  const [contractorTable, setContractorTable] = useState(initialTableState)
+  const [contractorWorkers, setContractorWorkers] = useState<ContractorWorker[]>([])
+  const [contractorDocuments, setContractorDocuments] = useState<ContractorDocument[]>([])
+  const [contractorEntryAuth, setContractorEntryAuth] = useState<ContractorEntryAuthorization | null>(null)
+  const [contractorEntryAuthLoading, setContractorEntryAuthLoading] = useState(false)
+  // Panel de desarrollador (rol DEVELOPER): datos tecnicos de plataforma.
+  const emptyDeveloperPanel: DeveloperPanelData = {
+    overview: null,
+    modules: null,
+    queues: null,
+    audit: [],
+    diagnostics: null,
+    errors: null,
+  }
+  const [developerPanel, setDeveloperPanel] = useState<DeveloperPanelData>(emptyDeveloperPanel)
   const [sites, setSites] = useState<Site[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
@@ -345,6 +386,10 @@ function App() {
     confirmPassword: '',
   })
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; item?: Company }>({ open: false })
+  const [contractorDialog, setContractorDialog] = useState<{ open: boolean; item?: Contractor }>({ open: false })
+  const [contractorDetail, setContractorDetail] = useState<Contractor | null>(null)
+  const [contractorWorkerDialog, setContractorWorkerDialog] = useState<{ open: boolean; item?: ContractorWorker }>({ open: false })
+  const [contractorDocumentDialog, setContractorDocumentDialog] = useState<{ open: boolean; item?: ContractorDocument }>({ open: false })
   const [siteDialog, setSiteDialog] = useState<{ open: boolean; item?: Site }>({ open: false })
   const [employeeDialog, setEmployeeDialog] = useState<{ open: boolean; item?: Employee }>({ open: false })
   const [incidentDialog, setIncidentDialog] = useState<{ open: boolean; item?: Incident }>({ open: false })
@@ -362,6 +407,9 @@ function App() {
   const [indicatorDialog, setIndicatorDialog] = useState<{ open: boolean; item?: Indicator }>({ open: false })
   const [userDialog, setUserDialog] = useState<{ open: boolean; item?: SystemUser }>({ open: false })
   const [companyForm, setCompanyForm] = useState(emptyCompany)
+  const [contractorForm, setContractorForm] = useState(emptyContractor)
+  const [contractorWorkerForm, setContractorWorkerForm] = useState(emptyContractorWorker)
+  const [contractorDocumentForm, setContractorDocumentForm] = useState(emptyContractorDocument)
   const [siteForm, setSiteForm] = useState(emptySite)
   const [employeeForm, setEmployeeForm] = useState(emptyEmployee)
   const [incidentForm, setIncidentForm] = useState(emptyIncident)
@@ -392,6 +440,11 @@ function App() {
   const isEmployee = user?.role === 'EMPLOYEE'
   const activeCompanyId = user?.activeCompanyId ?? user?.companyId
   const canManageCompanies = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  // S11 Contratistas: lectura para ADMIN/SST/AUDITOR/EMPLOYEE; gestion y
+  // autorizacion de ingreso sin EMPLOYEE (mismo criterio del backend).
+  const canViewContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
+  const canManageContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canViewEntryAuth = canManageContractors || user?.role === 'AUDITOR'
   const canManageEmployees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   // Autoservicio: el trabajador reporta incidentes y consulta riesgos/capacitaciones.
   const canManageOperations = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
@@ -421,6 +474,8 @@ function App() {
   const canViewUsers = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canManageUsers = isPlatformAdmin || user?.role === 'ADMIN'
   const canViewAudit = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
+  // Panel tecnico: exclusivo del rol de plataforma DEVELOPER.
+  const isDeveloper = user?.role === 'DEVELOPER'
   // Asistente IA (Sprint 16): los mismos roles autorizados por el backend.
   // EMPLOYEE queda fuera (el backend responde 403 a sus consultas de datos).
   const canUseAssistant = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
@@ -433,6 +488,10 @@ function App() {
         ? 'Asistente inteligente'
         : view === 'companies'
         ? 'Empresas'
+        : view === 'contractors'
+          ? 'Contratistas'
+        : view === 'developer'
+          ? 'Panel de desarrollador'
         : view === 'sites'
           ? 'Sedes'
           : view === 'employees'
@@ -492,7 +551,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters])
+  }, [token, companyTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -532,6 +591,15 @@ function App() {
           : hasCompanyScope
             ? api.get<Company>(`/companies/${activeCompanyId}`)
             : Promise.resolve({ data: [] as Company[] })
+      // S11 Contratistas: paginado y scoped por empresa activa.
+      const contractorRequest = canViewContractors && hasCompanyScope
+        ? api.get<Paginated<Contractor>>('/contractors', {
+            params: {
+              ...tableParams(contractorTable),
+              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
+            },
+          })
+        : Promise.resolve({ data: { data: [] as Contractor[], meta: emptyMeta } })
       const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
             params: {
@@ -708,6 +776,7 @@ function App() {
         : Promise.resolve({ data: emptySummary })
       const [
         companyResponse,
+        contractorResponse,
         siteResponse,
         employeeResponse,
         incidentsResponse,
@@ -736,6 +805,7 @@ function App() {
         summaryResponse,
       ] = await Promise.all([
         companyRequest,
+        contractorRequest,
         siteRequest,
         employeeRequest,
         incidentsRequest,
@@ -771,6 +841,13 @@ function App() {
         const data = Array.isArray(companyResponse.data) ? companyResponse.data : [companyResponse.data]
         setCompanies(data)
         setCompanyMeta({ ...emptyMeta, total: data.length, totalPages: 1 })
+      }
+      if (isPaginated<Contractor>(contractorResponse.data)) {
+        setContractors(contractorResponse.data.data)
+        setContractorMeta(contractorResponse.data.meta)
+      } else {
+        setContractors([])
+        setContractorMeta(emptyMeta)
       }
       setSites(siteResponse.data.data)
       setSiteMeta(siteResponse.data.meta)
@@ -1152,6 +1229,213 @@ function App() {
     )
     setCompanyDialog({ open: true, item })
     preloadCompanyDialog()
+  }
+
+  // --- Panel de desarrollador -------------------------------------------------
+
+  async function loadDeveloperPanel() {
+    setLoading(true)
+    setError('')
+    try {
+      const [overview, modules, queues, audit, diagnostics, errors] = await Promise.all([
+        api.get<DeveloperOverview>('/developer/overview'),
+        api.get<DeveloperModules>('/developer/modules'),
+        api.get<DeveloperQueues>('/developer/queues'),
+        api.get<{ data: DeveloperAuditEntry[] }>('/developer/audit'),
+        api.get<DeveloperDiagnostics>('/developer/diagnostics'),
+        api.get<DeveloperErrors>('/developer/errors'),
+      ])
+      setDeveloperPanel({
+        overview: overview.data,
+        modules: modules.data,
+        queues: queues.data,
+        audit: Array.isArray(audit.data?.data) ? audit.data.data : [],
+        diagnostics: diagnostics.data,
+        errors: errors.data,
+      })
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // --- Contratistas (S11) -----------------------------------------------------
+
+  function openContractorForm(item?: Contractor) {
+    setContractorForm(
+      item
+        ? {
+            name: item.name,
+            nit: item.nit,
+            contact: item.contact ?? '',
+            phone: item.phone ?? '',
+            arl: item.arl ?? '',
+            activity: item.activity ?? '',
+            status: item.status,
+            companyId: item.companyId,
+          }
+        : { ...emptyContractor, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setContractorDialog({ open: true, item })
+    preloadContractorDialogs()
+  }
+
+  async function saveContractor() {
+    await saveRecord(async () => {
+      const payload = sanitize(contractorForm) as Record<string, unknown>
+      if (contractorDialog.item) {
+        await api.patch(`/contractors/${contractorDialog.item.id}`, payload)
+      } else {
+        await api.post('/contractors', payload)
+      }
+      setContractorDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteContractor(contractor: Contractor) {
+    openConfirmDialog(
+      'Eliminar contratista',
+      `¿Seguro que deseas eliminar el contratista ${contractor.name}? Se eliminan tambien su personal y documentos.`,
+      'Eliminar',
+      'error',
+      () => { void removeContractor(contractor.id) },
+    )
+  }
+
+  async function removeContractor(id: string) {
+    await saveRecord(() => api.delete(`/contractors/${id}`).then())
+  }
+
+  /** Abre el detalle y carga personal + documentos del contratista. */
+  async function openContractorDetail(item: Contractor) {
+    setContractorDetail(item)
+    setContractorWorkers([])
+    setContractorDocuments([])
+    try {
+      const [workersResponse, documentsResponse] = await Promise.all([
+        api.get<ContractorWorker[]>(`/contractors/${item.id}/workers`),
+        api.get<ContractorDocument[]>(`/contractors/${item.id}/documents`),
+      ])
+      setContractorWorkers(Array.isArray(workersResponse.data) ? workersResponse.data : [])
+      setContractorDocuments(Array.isArray(documentsResponse.data) ? documentsResponse.data : [])
+    } catch (currentError) {
+      setError(readApiError(currentError))
+      setContractorDetail(null)
+    }
+  }
+
+  /** Consulta la autorizacion de ingreso: la decision viene del backend. */
+  async function openEntryAuthorization(item: Contractor) {
+    setContractorEntryAuth(null)
+    setContractorEntryAuthLoading(true)
+    try {
+      const response = await api.get<ContractorEntryAuthorization>(`/contractors/${item.id}/entry-authorization`)
+      setContractorEntryAuth(response.data)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setContractorEntryAuthLoading(false)
+    }
+  }
+
+  function openContractorWorkerForm(item?: ContractorWorker) {
+    if (!contractorDetail) return
+    setContractorWorkerForm(
+      item
+        ? {
+            document: item.document,
+            firstName: item.firstName,
+            lastName: item.lastName,
+            job: item.job ?? '',
+            inductedAt: item.inductedAt?.slice(0, 10) ?? '',
+            status: item.status,
+            companyId: item.companyId,
+          }
+        : { ...emptyContractorWorker, companyId: contractorDetail.companyId },
+    )
+    setContractorWorkerDialog({ open: true, item })
+  }
+
+  async function saveContractorWorker() {
+    if (!contractorDetail) return
+    await saveRecord(async () => {
+      const payload = sanitize(contractorWorkerForm) as Record<string, unknown>
+      if (contractorWorkerDialog.item) {
+        await api.patch(`/contractors/${contractorDetail.id}/workers/${contractorWorkerDialog.item.id}`, payload)
+      } else {
+        await api.post(`/contractors/${contractorDetail.id}/workers`, payload)
+      }
+      setContractorWorkerDialog({ open: false })
+      await openContractorDetail(contractorDetail)
+    })
+  }
+
+  function confirmDeleteContractorWorker(worker: ContractorWorker) {
+    openConfirmDialog(
+      'Eliminar personal',
+      `¿Seguro que deseas eliminar a ${worker.firstName} ${worker.lastName}?`,
+      'Eliminar',
+      'error',
+      () => { void removeContractorWorker(worker.id) },
+    )
+  }
+
+  async function removeContractorWorker(id: string) {
+    if (!contractorDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/contractors/${contractorDetail.id}/workers/${id}`)
+      await openContractorDetail(contractorDetail)
+    })
+  }
+
+  function openContractorDocumentForm(item?: ContractorDocument) {
+    if (!contractorDetail) return
+    setContractorDocumentForm(
+      item
+        ? {
+            documentType: item.documentType,
+            description: item.description ?? '',
+            expiresAt: item.expiresAt?.slice(0, 10) ?? '',
+            status: item.status,
+            evidenceId: item.evidenceId ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyContractorDocument, companyId: contractorDetail.companyId },
+    )
+    setContractorDocumentDialog({ open: true, item })
+  }
+
+  async function saveContractorDocument() {
+    if (!contractorDetail) return
+    await saveRecord(async () => {
+      const payload = sanitize(contractorDocumentForm) as Record<string, unknown>
+      if (contractorDocumentDialog.item) {
+        await api.patch(`/contractors/${contractorDetail.id}/documents/${contractorDocumentDialog.item.id}`, payload)
+      } else {
+        await api.post(`/contractors/${contractorDetail.id}/documents`, payload)
+      }
+      setContractorDocumentDialog({ open: false })
+      await openContractorDetail(contractorDetail)
+    })
+  }
+
+  function confirmDeleteContractorDocument(document: ContractorDocument) {
+    openConfirmDialog(
+      'Eliminar documento',
+      `¿Seguro que deseas eliminar el documento ${document.documentType}?`,
+      'Eliminar',
+      'error',
+      () => { void removeContractorDocument(document.id) },
+    )
+  }
+
+  async function removeContractorDocument(id: string) {
+    if (!contractorDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/contractors/${contractorDetail.id}/documents/${id}`)
+      await openContractorDetail(contractorDetail)
+    })
   }
 
   function openSiteForm(item?: Site) {
@@ -2517,7 +2801,8 @@ function App() {
   function selectView(nextView: View) {
     // Defensa en profundidad: el backend es la autoridad, aqui solo evitamos
     // navegaciones que producirian 403 para roles sin permisos.
-    const employeeBlocked: View[] = ['aiAssistant', 'companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'annualWorkPlans', 'ppe', 'medical', 'reports', 'users', 'externalDeliveries', 'audit', 'sites']
+    // Nota: 'contractors' SI esta permitido para EMPLOYEE (lectura, igual que el backend).
+    const employeeBlocked: View[] = ['aiAssistant', 'companies', 'documents', 'sgsstAudits', 'sgsstEvaluations', 'indicators', 'legalCompliance', 'annualWorkPlans', 'ppe', 'medical', 'reports', 'users', 'externalDeliveries', 'audit', 'sites', 'developer']
     if (isEmployee && employeeBlocked.includes(nextView)) {
       return
     }
@@ -2635,6 +2920,7 @@ function App() {
           loading={loading}
           error={error}
           canViewUsers={canViewUsers}
+          canViewContractors={canViewContractors}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
           canViewAnnualPlans={canViewAnnualPlans}
@@ -2643,6 +2929,7 @@ function App() {
           canViewMedical={canViewMedical}
           canViewReports={canViewReports}
           canViewAudit={canViewAudit}
+          isDeveloper={isDeveloper}
           canUseAssistant={canUseAssistant}
           canRetryDeliveries={canRetryDeliveries}
           canGenerateNotifications={canManageDocuments}
@@ -2720,6 +3007,25 @@ function App() {
                     confirmHardDeleteCompany(company)
                   }
                 }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'contractors' && (
+              <ContractorsPage
+                contractors={contractors}
+                meta={contractorMeta}
+                tableState={contractorTable}
+                canManage={canManageContractors}
+                canViewEntryAuth={canViewEntryAuth}
+                onTableChange={setContractorTable}
+                onCreate={() => openContractorForm()}
+                onPreloadCreate={preloadContractorDialogs}
+                onEdit={openContractorForm}
+                onDelete={confirmDeleteContractor}
+                onOpenEntryAuth={openEntryAuthorization}
+                entryAuth={contractorEntryAuth}
+                entryAuthLoading={contractorEntryAuthLoading}
+                onCloseEntryAuth={() => setContractorEntryAuth(null)}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -3123,6 +3429,13 @@ function App() {
             {view === 'audit' && (
               <AuditPage logs={auditLogs} meta={auditMeta} tableState={auditTable} onTableChange={setAuditTable} />
             )}
+            {view === 'developer' && isDeveloper && (
+              <DeveloperPanelPage
+                data={developerPanel}
+                loading={loading}
+                onRefresh={() => { void loadDeveloperPanel() }}
+              />
+            )}
             {view === 'aiAssistant' && <AssistantChatPage />}
             {view === 'externalDeliveries' && canRetryDeliveries && (
               <ExternalDeliveriesPage
@@ -3157,6 +3470,53 @@ function App() {
               onChange={setCompanyForm}
               onClose={() => setCompanyDialog({ open: false })}
               onSave={saveCompany}
+            />
+            <ContractorDialog
+              open={contractorDialog.open}
+              editing={Boolean(contractorDialog.item)}
+              values={contractorForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setContractorForm}
+              onClose={() => setContractorDialog({ open: false })}
+              onSave={saveContractor}
+            />
+            <ContractorDetailDialog
+              contractor={contractorDetail}
+              workers={contractorWorkers}
+              documents={contractorDocuments}
+              loading={loading}
+              canManage={canManageContractors}
+              onAddWorker={() => openContractorWorkerForm()}
+              onEditWorker={openContractorWorkerForm}
+              onDeleteWorker={confirmDeleteContractorWorker}
+              onAddDocument={() => openContractorDocumentForm()}
+              onEditDocument={openContractorDocumentForm}
+              onDeleteDocument={confirmDeleteContractorDocument}
+              onClose={() => setContractorDetail(null)}
+            />
+            <ContractorWorkerDialog
+              open={contractorWorkerDialog.open}
+              editing={Boolean(contractorWorkerDialog.item)}
+              values={contractorWorkerForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setContractorWorkerForm}
+              onClose={() => setContractorWorkerDialog({ open: false })}
+              onSave={saveContractorWorker}
+            />
+            <ContractorDocumentDialog
+              open={contractorDocumentDialog.open}
+              editing={Boolean(contractorDocumentDialog.item)}
+              values={contractorDocumentForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setContractorDocumentForm}
+              onClose={() => setContractorDocumentDialog({ open: false })}
+              onSave={saveContractorDocument}
             />
             <SiteDialog
               open={siteDialog.open}

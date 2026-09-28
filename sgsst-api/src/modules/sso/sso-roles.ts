@@ -9,10 +9,15 @@ import type { Role } from '@prisma/client';
  * aplica el rol por defecto del proveedor.
  */
 
-/** Roles asignables via SSO: nunca SUPER_ADMIN (provision automatica). */
+/** Roles asignables via SSO: nunca SUPER_ADMIN ni DEVELOPER (plataforma). */
 const ASSIGNABLE_ROLES: Role[] = ['EMPLOYEE', 'SST', 'AUDITOR', 'ADMIN'];
 
+export const ASSIGNABLE_SSO_ROLES = ASSIGNABLE_ROLES;
+
 export type RoleGroupMap = Record<string, Role>;
+
+/** Subconjunto de Role provisionable por SSO (excluye roles de plataforma). */
+export type AssignableRole = Exclude<Role, 'SUPER_ADMIN' | 'DEVELOPER'>;
 
 /** Valida la forma { grupo: ROL }; lanza 400 con detalle si es invalida. */
 export function parseRoleGroups(value: unknown): RoleGroupMap {

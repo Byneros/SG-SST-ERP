@@ -2,14 +2,19 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { SensitiveDataLogger } from './common/logger/sensitive-data-logger';
+import { DeveloperLoggerService } from './modules/developer/developer-logger.service';
+import { ErrorEventsService } from './modules/developer/error-events.service';
 import { assertProductionEnv, env } from './config/env';
 
 async function bootstrap() {
   assertProductionEnv();
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  // Todos los logs de la app pasan por el mascaramiento de datos sensibles.
-  app.useLogger(new SensitiveDataLogger());
+  // Todos los logs pasan por el mascaramiento de datos sensibles y, ademas,
+  // los error/warn alimentan el ring buffer del panel de desarrollador.
+  const errorEvents = new ErrorEventsService();
+  app.useLogger(new DeveloperLoggerService(errorEvents));
+  // El mismo buffer que consume el logger es el que expone DeveloperModule.
+  (app.get(AppModule) as unknown as { developerErrorEvents?: ErrorEventsService }).developerErrorEvents = errorEvents;
 
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();

@@ -5,6 +5,7 @@ const pageLoaders = {
   dashboard: () => import('../pages/dashboard/DashboardPage'),
   aiAssistant: () => import('../pages/ai-assistant/AssistantChatPage'),
   companies: () => import('../pages/companies/CompaniesPage'),
+  contractors: () => import('../pages/contractors/ContractorsPage'),
   sites: () => import('../pages/sites/SitesPage'),
   employees: () => import('../pages/employees/EmployeesPage'),
   incidents: () => import('../pages/incidents/IncidentsPage'),
@@ -25,10 +26,12 @@ const pageLoaders = {
   users: () => import('../pages/users/UsersPage'),
   externalDeliveries: () => import('../pages/external-deliveries/ExternalDeliveriesPage'),
   audit: () => import('../pages/audit/AuditPage'),
+  developer: () => import('../pages/developer/DeveloperPanelPage'),
 }
 
 const dialogLoaders = {
   company: () => import('../pages/companies/CompanyDialog'),
+  contractorDialogs: () => import('../pages/contractors/ContractorDialogs'),
   site: () => import('../pages/sites/SiteDialog'),
   employee: () => import('../pages/employees/EmployeeDialog'),
   incident: () => import('../pages/incidents/IncidentDialog'),
@@ -55,6 +58,21 @@ export const DashboardPage = lazy(() =>
 )
 export const CompaniesPage = lazy(() =>
   pageLoaders.companies().then((module) => ({ default: module.CompaniesPage })),
+)
+export const ContractorsPage = lazy(() =>
+  pageLoaders.contractors().then((module) => ({ default: module.ContractorsPage })),
+)
+export const ContractorDialog = lazy(() =>
+  dialogLoaders.contractorDialogs().then((module) => ({ default: module.ContractorDialog })),
+)
+export const ContractorWorkerDialog = lazy(() =>
+  dialogLoaders.contractorDialogs().then((module) => ({ default: module.ContractorWorkerDialog })),
+)
+export const ContractorDocumentDialog = lazy(() =>
+  dialogLoaders.contractorDialogs().then((module) => ({ default: module.ContractorDocumentDialog })),
+)
+export const ContractorDetailDialog = lazy(() =>
+  dialogLoaders.contractorDialogs().then((module) => ({ default: module.ContractorDetailDialog })),
 )
 export const SitesPage = lazy(() =>
   pageLoaders.sites().then((module) => ({ default: module.SitesPage })),
@@ -115,6 +133,9 @@ export const ExternalDeliveriesPage = lazy(() =>
 )
 export const AuditPage = lazy(() =>
   pageLoaders.audit().then((module) => ({ default: module.AuditPage })),
+)
+export const DeveloperPanelPage = lazy(() =>
+  pageLoaders.developer().then((module) => ({ default: module.DeveloperPanelPage })),
 )
 
 export const CompanyDialog = lazy(() =>
@@ -184,6 +205,10 @@ export function preloadView(view: View) {
 
 export function preloadCompanyDialog() {
   void dialogLoaders.company()
+}
+
+export function preloadContractorDialogs() {
+  void dialogLoaders.contractorDialogs()
 }
 
 export function preloadSiteDialog() {

@@ -19,6 +19,7 @@ import {
   normalizeRoleGroupsInput,
   parseRoleGroups,
   resolveRoleFromGroups,
+  ASSIGNABLE_SSO_ROLES,
   type RoleGroupMap,
 } from './sso-roles';
 import { UpdateSsoProviderDto } from './dto/update-sso-provider.dto';
@@ -48,7 +49,9 @@ export type SsoProviderRecord = {
   tokenEndpoint: string;
   userinfoEndpoint: string | null;
   scopes: string;
-  defaultRole: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
+  // Rol por defecto del provision SSO: solo roles asignables (nunca
+  // SUPER_ADMIN/DEVELOPER: roles de plataforma fuera del alcance del IdP).
+  defaultRole: 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
   jwksUri: string | null;
   roleGroups: RoleGroupMap | null;
   isActive: boolean;
@@ -359,7 +362,7 @@ export class SsoService {
       idpSsoUrl?: string;
       idpCertificate?: string;
       spEntityId?: string;
-      defaultRole?: 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
+      defaultRole?: 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR';
       roleGroups?: Record<string, string> | string | null;
       isActive?: boolean;
     },
@@ -479,10 +482,17 @@ export class SsoService {
       roleGroups = parseRoleGroups(provider.roleGroups);
     }
     // El secreto se guarda cifrado en reposo; se descifra solo para usarlo.
+    // defaultRole se restringe al subconjunto asignable: la BD pudo ser
+    // poblada manualmente con un rol de plataforma y SSO no debe propagarlo.
     return {
       ...provider,
       clientSecret: decryptSecret(provider.clientSecret),
       roleGroups,
+      defaultRole: (ASSIGNABLE_SSO_ROLES as readonly string[]).includes(
+        provider.defaultRole,
+      )
+        ? (provider.defaultRole as SsoProviderRecord['defaultRole'])
+        : 'EMPLOYEE',
     };
   }
 

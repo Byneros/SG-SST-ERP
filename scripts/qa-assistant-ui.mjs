@@ -1,4 +1,8 @@
 export default async function run(page, ui) {
+  const Q1 = process.env.QA_Q1 ?? '¿Que modulos tiene el ERP para gestionar riesgos?';
+  const Q2 = process.env.QA_Q2 ?? '@datos resumen de riesgos';
+  const TOOL = process.env.QA_TOOL ?? 'risks_summary';
+  const Q2_MARKER = process.env.QA_Q2_MARKER ?? 'Trabajo en alturas|Planta Norte';
   const out = { steps: [], consoleErrors: [] };
   page.on('pageerror', (err) => out.consoleErrors.push(String(err).slice(0, 200)));
 
@@ -107,7 +111,7 @@ export default async function run(page, ui) {
   const inputRef2 =
     refOf(s2, /@(e\d+) textbox "Escribe tu consulta[^"]*"/) ||
     refOf(s2, /@(e\d+) textbox "Escribe tu consulta/);
-  await ui.fill(inputRef2, '@datos resumen de riesgos');
+  await ui.fill(inputRef2, Q2);
   const s3 = await ui.snapshot();
   const sendRef2 =
     refOf(s3, /@(e\d+) button "Enviar"(?!\s*\[disabled\])/) ||
@@ -119,16 +123,17 @@ export default async function run(page, ui) {
     await page.waitForTimeout(1000);
     const text = await page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
     if (/Pensando\.\.\./.test(text)) continue;
-    if (/Datos: risks_summary|Trabajo en alturas|Planta Norte/i.test(text)) {
+    const chip = new RegExp(`Datos: ${TOOL}`, 'i');
+    const marker = new RegExp(Q2_MARKER, 'i');
+    if (chip.test(text) && marker.test(text)) {
       answer2 = text;
       break;
     }
   }
   out.steps.push({
-    step: '@datos con chip de herramienta y nombre de sede',
+    step: `@datos (${TOOL}) con chip y contenido enriquecido`,
     ok: Boolean(answer2),
-    incluyeSede:
-      /Planta Norte/.test(answer2 || '') && !/[0-9a-f]{8}-[0-9a-f]{4}/i.test(answer2 || ''),
+    sinUuids: !/[0-9a-f]{8}-[0-9a-f]{4}/i.test(answer2 || ''),
   });
 
   out.ok = out.steps.every((s) => s.ok) && out.consoleErrors.length === 0;

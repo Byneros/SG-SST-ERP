@@ -1,4 +1,4 @@
-import { Assessment, AssignmentTurnedIn, Business, CalendarMonth, Campaign, Checklist, Description, Engineering, FactCheck, ForwardToInbox, Gavel, HealthAndSafety, History, LocationCity, Logout, ManageAccounts, MedicalInformation, Menu, Notifications, People, Percent, Refresh, ReportProblem, School, SmartToy, SpaceDashboard, Tour, WarningAmber } from '@mui/icons-material'
+import { Assessment, AssignmentTurnedIn, BugReport, Business, CalendarMonth, Campaign, Checklist, Description, Engineering, FactCheck, ForwardToInbox, Gavel, Handyman, HealthAndSafety, History, LocationCity, Logout, ManageAccounts, MedicalInformation, Menu, Notifications, People, Percent, Refresh, ReportProblem, School, SmartToy, SpaceDashboard, Tour, WarningAmber } from '@mui/icons-material'
 import { Alert, AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, FormControl, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, MenuItem, Paper, Select, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
 import { useState, type ReactNode } from 'react'
 import type { AppNotification, AuthUser, Company, View } from '../types'
@@ -16,6 +16,7 @@ export function AppLayout({
   loading,
   error,
   canViewUsers,
+  canViewContractors,
   canViewSites,
   canViewDocuments,
   canViewAnnualPlans,
@@ -24,6 +25,7 @@ export function AppLayout({
   canViewMedical,
   canViewReports,
   canViewAudit,
+  isDeveloper,
   canRetryDeliveries,
   canGenerateNotifications,
   canUseAssistant,
@@ -52,6 +54,7 @@ export function AppLayout({
   loading: boolean
   error: string
   canViewUsers: boolean
+  canViewContractors: boolean
   canViewSites: boolean
   canViewDocuments: boolean
   canViewAnnualPlans: boolean
@@ -60,6 +63,7 @@ export function AppLayout({
   canViewMedical: boolean
   canViewReports: boolean
   canViewAudit: boolean
+  isDeveloper: boolean
   canRetryDeliveries?: boolean
   canGenerateNotifications: boolean
   canUseAssistant: boolean
@@ -98,6 +102,7 @@ export function AppLayout({
         <NavButton active={view === 'dashboard'} icon={<SpaceDashboard />} label="Dashboard" onClick={() => onSelectView('dashboard')} onPreload={() => onPreloadView('dashboard')} />
         {canUseAssistant && <NavButton active={view === 'aiAssistant'} icon={<SmartToy />} label="Asistente IA" onClick={() => onSelectView('aiAssistant')} onPreload={() => onPreloadView('aiAssistant')} />}
         <NavButton active={view === 'companies'} icon={<Business />} label="Empresas" onClick={() => onSelectView('companies')} onPreload={() => onPreloadView('companies')} />
+        {canViewContractors && <NavButton active={view === 'contractors'} icon={<Handyman />} label="Contratistas" onClick={() => onSelectView('contractors')} onPreload={() => onPreloadView('contractors')} />}
         {canViewSites && <NavButton active={view === 'sites'} icon={<LocationCity />} label="Sedes" onClick={() => onSelectView('sites')} onPreload={() => onPreloadView('sites')} />}
         <NavButton active={view === 'employees'} icon={<People />} label="Empleados" onClick={() => onSelectView('employees')} onPreload={() => onPreloadView('employees')} />
         <NavButton active={view === 'incidents'} icon={<ReportProblem />} label="Incidentes" onClick={() => onSelectView('incidents')} onPreload={() => onPreloadView('incidents')} />
@@ -118,6 +123,7 @@ export function AppLayout({
         {canViewReports && <NavButton active={view === 'reports'} icon={<Assessment />} label="Mis reportes" onClick={() => onSelectView('reports')} onPreload={() => onPreloadView('reports')} />}
         {canViewUsers && <NavButton active={view === 'users'} icon={<ManageAccounts />} label="Usuarios" onClick={() => onSelectView('users')} onPreload={() => onPreloadView('users')} />}
         {canViewAudit && <NavButton active={view === 'audit'} icon={<History />} label="Auditoria" onClick={() => onSelectView('audit')} onPreload={() => onPreloadView('audit')} />}
+        {isDeveloper && <NavButton active={view === 'developer'} icon={<BugReport />} label="Panel de desarrollador" onClick={() => onSelectView('developer')} onPreload={() => onPreloadView('developer')} />}
       </Box>
       <Paper variant="outlined" className="session-card">
         <Stack direction="row" spacing={1.5} alignItems="center">

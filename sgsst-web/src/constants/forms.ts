@@ -2,6 +2,9 @@ import type {
   AnnualActivityFormValues,
   AnnualWorkPlanFormValues,
   CompanyFormValues,
+  ContractorDocumentFormValues,
+  ContractorFormValues,
+  ContractorWorkerFormValues,
   DashboardSummary,
   PlannedInspectionFormValues,
   PpeDeliveryFormValues,
@@ -68,6 +71,36 @@ export const emptySite: SiteFormValues = {
   city: '',
   department: '',
   isMain: false,
+  companyId: '',
+}
+
+export const emptyContractor: ContractorFormValues = {
+  name: '',
+  nit: '',
+  contact: '',
+  phone: '',
+  arl: '',
+  activity: '',
+  status: 'ACTIVE',
+  companyId: '',
+}
+
+export const emptyContractorWorker: ContractorWorkerFormValues = {
+  document: '',
+  firstName: '',
+  lastName: '',
+  job: '',
+  inductedAt: '',
+  status: 'ACTIVE',
+  companyId: '',
+}
+
+export const emptyContractorDocument: ContractorDocumentFormValues = {
+  documentType: '',
+  description: '',
+  expiresAt: '',
+  status: 'PENDING',
+  evidenceId: '',
   companyId: '',
 }
 
