@@ -83,6 +83,37 @@ Salida esperada: `OK` para API/web dev (3002/5176 por defecto) y API/web prod (3
 bash scripts/check-env-health.sh 3002 5176 skip skip
 ```
 
+### Conflicto de puerto 5433 con un servicio PostgreSQL de Windows
+
+Sintoma: el stack dev (`sgsst_postgres`) esta healthy y la API conecta, pero
+desde el host `prisma migrate deploy` (u otra herramienta TCP a
+`localhost:5433`) falla con `P1000: Authentication failed`.
+
+Causa: un PostgreSQL instalado como servicio de Windows (`postgres.exe`, fuera
+de Docker) escucha en el mismo host-port. El bind del servicio gana sobre el
+proxy de Docker en Windows: `localhost:5433` responde el servicio local, no el
+contenedor. `netstat -aon | findstr :5433` muestra dos PIDs de escucha
+(`com.docker.backend.exe` y `postgres.exe`).
+
+Opciones de resolucion (elegir una; **aplicada en este host: la primera**,
+con `POSTGRES_HOST_PORT=5434` en `.env` desde 2026-09-28):
+- Mover el puerto publicado del compose a uno libre: `POSTGRES_HOST_PORT` en
+  `.env` (parametrizado en `docker-compose.yml`, default 5433 para CI).
+- Cambiar el puerto del servicio Windows (postgresql.conf -> `port`).
+- Detener el servicio Windows mientras se usa el stack dev.
+
+Mientras tanto, operar la BD del compose sin pasar por el host-port:
+
+```bash
+# Migraciones y psql contra la BD dev, sin depender del 5433 del host:
+docker exec sgsst_api npx prisma migrate deploy
+docker exec sgsst_postgres psql -U postgres -d sgsst
+```
+
+Nota: `sgsst-api/.env` apunta su `DATABASE_URL` al servicio Windows (o a una
+credencial distinta); los comandos Prisma locales usan esa URL via
+`prisma.config.ts` y pueden ignorar un override en la linea de comando.
+
 ## Autocuracion programada (Windows)
 
 El stack dev se autocura cada 5 minutos mediante la tarea programada `SG-SST dev stack recovery`, que ejecuta `scripts/dev-stack-recover.cmd` (wrapper que invoca `dev-stack-recover.sh` via Git Bash). Si detecta contenedores del compose corriendo fuera de la red del proyecto, recrea el stack automaticamente.

@@ -66,6 +66,6 @@
 
 ## Pendiente para cierre formal (aceptacion)
 
-1. `npx prisma migrate deploy` contra la BD dev (migraciones 20260925140000/150000/160000).
-2. Smoke test UI de las cuatro historias (registro, ejecucion, hallazgos, acciones, EPP).
+1. ~~`npx prisma migrate deploy` contra la BD dev (migraciones 20260925140000/150000/160000).~~ VERIFICADO 2026-09-28 (ver `evidencia-smoke-s8-s10.md`).
+2. Smoke test API de las cuatro historias: VERIFICADO 24/24 (checklist, hallazgos, accion, riesgo GTC-45 reactivo, reporte anonimo, EPP; ver `evidencia-smoke-s8-s10.md`). Smoke UI pendiente de aceptacion humana.
 3. Marcar checkboxes en issues #21-#24 y en la matriz #43 con capturas.

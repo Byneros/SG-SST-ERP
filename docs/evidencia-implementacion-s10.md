@@ -43,8 +43,8 @@
 
 ## Pendiente de aceptacion formal (matriz #43)
 
-1. `prisma migrate deploy` en BD dev.
-2. Smoke test UI: login ADMIN -> crear profesiograma -> programar examen -> registrar concepto -> crear restriccion -> levantar restriccion -> verificar menú invisible para EMPLOYEE y 404 en API directa.
+1. ~~`prisma migrate deploy` en BD dev.~~ VERIFICADO 2026-09-28 (ver `evidencia-smoke-s8-s10.md`).
+2. Smoke test API del flujo: VERIFICADO 24/24 (profesiograma, examen con concepto, restriccion y levantamiento; ver `evidencia-smoke-s8-s10.md`). Smoke UI (incluido menu invisible para EMPLOYEE) pendiente de aceptacion humana.
 3. Marcar checkboxes y cerrar issues #25-#27.
 
 ---

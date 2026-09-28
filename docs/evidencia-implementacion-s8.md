@@ -49,6 +49,6 @@
 
 ## Pendiente para cierre formal (aceptacion)
 
-1. Ejecutar `npx prisma migrate deploy` contra la BD dev.
-2. Smoke test UI: crear plan 2026 -> agregar actividades -> responder avance -> disparar alertas -> descargar CSV/PDF.
+1. ~~Ejecutar `npx prisma migrate deploy` contra la BD dev.~~ VERIFICADO 2026-09-28 (ver `evidencia-smoke-s8-s10.md`).
+2. Smoke test API del flujo completo: VERIFICADO 24/24 (plan, actividad, avance, CSV/PDF; ver `evidencia-smoke-s8-s10.md`). Smoke UI pendiente de aceptacion humana.
 3. Marcar checkboxes en los issues #17-#20 y en la matriz #43 con capturas.
