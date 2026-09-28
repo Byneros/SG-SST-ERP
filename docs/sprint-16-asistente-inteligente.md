@@ -78,11 +78,12 @@ En producción, `assertProductionEnv()` exige `AI_API_KEY` y `AI_BASE_URL` si `A
 
 ## Proveedor IA en dev (2026-09-28)
 
-- Proveedor elegido: **SambaNova Cloud** (API OpenAI-compatible, `Meta-Llama-3.3-70B-Instruct`); el `AiProviderClient` no necesitó cambios.
-- Variables en `.env` raíz (no versionado) e inyectadas al contenedor `api` via compose: `AI_ENABLED`, `AI_BASE_URL=https://api.sambanova.ai/v1`, `AI_API_KEY`, `AI_MODEL`. Documentadas en `.env.example` (off por defecto).
-- Verificado: `GET /capabilities` reporta `enabled: true`; el chat degrada acotado (503) ante errores del proveedor sin afectar al ERP.
-- Pendiente del lado de la cuenta: la API responde `429` (rate limit de tier nuevo) y `402 Payment Required` — activar créditos/free tier en cloud.sambanova.ai para que el chat y `@datos` respondan con contenido real.
+- Proveedor activo: **OpenRouter** (`https://openrouter.ai/api/v1`), modelo `cohere/north-mini-code:free` — API OpenAI-compatible, sin tarjeta; el `AiProviderClient` no necesitó cambios.
+- Variables en `.env` raíz (no versionado) e inyectadas al contenedor `api` via compose: `AI_ENABLED`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`. Documentadas en `.env.example` (off por defecto).
+- **Verificado end-to-end**: `capabilities` → `enabled: true`; chat conversacional responde en español anclado a la base de conocimiento (módulo Riesgos/GTC 45, sin inventar módulos); `@datos resumen de riesgos` devuelve datos reales del tenant con `usedTool: risks_summary`, y la consulta queda en `AuditLog` (`AI_ASSISTANT_DATA_QUERY`).
+- Historia: SambaNova se descartó para dev (402 `PAYMENT_METHOD_REQUIRED`, exige tarjeta); entre los free de OpenRouter, `cohere/north-mini-code:free` fue el más consistente (gemma/qwen con 429 intermitentes; varios de razonamiento devuelven `content` vacío con `max_tokens` bajo).
+- Los 429 del pool free son intermitentes; el 503 acotado del backend los degrada sin afectar al ERP. Para producción, cambiar `AI_MODEL` a uno de pago es solo env.
 
 ## Siguientes pasos
 
-- Activar créditos de SambaNova y afinar prompts con casos de uso de campo.
+- Afinar prompts con casos de uso de campo y evaluar respuesta streaming en la UI.
