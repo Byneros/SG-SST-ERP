@@ -59,16 +59,22 @@ describe('ai-assistant.knowledge', () => {
   });
 
   it('findNormSources resuelve fuentes por palabras clave con acentos', () => {
-    const pat = findNormSources('¿Qué dice la norma sobre el plan anual de trabajo?');
+    const pat = findNormSources(
+      '¿Qué dice la norma sobre el plan anual de trabajo?',
+    );
     expect(pat.map((norm) => norm.name)).toContain('Decreto 1072 de 2015');
 
-    const investigacion = findNormSources('como investigo un ACCIDENTE de trabajo');
+    const investigacion = findNormSources(
+      'como investigo un ACCIDENTE de trabajo',
+    );
     expect(investigacion.map((norm) => norm.name)).toContain(
       'Resolucion 1401 de 2007',
     );
 
     const examenes = findNormSources('vigencia del examen ocupacional');
-    expect(examenes.map((norm) => norm.name)).toContain('Resolucion 1843 de 2025');
+    expect(examenes.map((norm) => norm.name)).toContain(
+      'Resolucion 1843 de 2025',
+    );
   });
 
   it('findNormSources no devuelve fuentes cuando la consulta no es normativa', () => {

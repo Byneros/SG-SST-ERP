@@ -98,8 +98,7 @@ export const env = {
     process.env.EXTERNAL_DELIVERY_RETRY_BASE_SECONDS ?? 300,
   ),
   corsOrigins: (
-    process.env.CORS_ORIGINS ??
-    'http://localhost:5176,http://127.0.0.1:5176'
+    process.env.CORS_ORIGINS ?? 'http://localhost:5176,http://127.0.0.1:5176'
   )
     .split(',')
     .map((origin) => origin.trim())
@@ -158,10 +157,7 @@ export function assertProductionEnv() {
       'S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required for S3 storage',
     );
   }
-  if (
-    env.aiEnabled &&
-    (!env.aiApiKey.trim() || !env.aiBaseUrl.trim())
-  ) {
+  if (env.aiEnabled && (!env.aiApiKey.trim() || !env.aiBaseUrl.trim())) {
     throw new Error(
       'AI_ENABLED=true requires AI_API_KEY and AI_BASE_URL in production',
     );
