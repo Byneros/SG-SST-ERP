@@ -76,6 +76,13 @@ En producción, `assertProductionEnv()` exige `AI_API_KEY` y `AI_BASE_URL` si `A
 - Contexto del prompt: `buildHelpContext` ahora lista cada norma con sus secciones verificadas y marca las derogadas (`[DEROGADA por ...; no la cites como vigente]`).
 - El seed de `legal-compliance` no referenciaba la 2346 (su matriz base usa Decreto 1072 y Res. 0312), por lo que no requirió cambios.
 
+## Proveedor IA en dev (2026-09-28)
+
+- Proveedor elegido: **SambaNova Cloud** (API OpenAI-compatible, `Meta-Llama-3.3-70B-Instruct`); el `AiProviderClient` no necesitó cambios.
+- Variables en `.env` raíz (no versionado) e inyectadas al contenedor `api` via compose: `AI_ENABLED`, `AI_BASE_URL=https://api.sambanova.ai/v1`, `AI_API_KEY`, `AI_MODEL`. Documentadas en `.env.example` (off por defecto).
+- Verificado: `GET /capabilities` reporta `enabled: true`; el chat degrada acotado (503) ante errores del proveedor sin afectar al ERP.
+- Pendiente del lado de la cuenta: la API responde `429` (rate limit de tier nuevo) y `402 Payment Required` — activar créditos/free tier en cloud.sambanova.ai para que el chat y `@datos` respondan con contenido real.
+
 ## Siguientes pasos
 
-- Operar el asistente con un proveedor real y afinar prompts con casos de uso de campo.
+- Activar créditos de SambaNova y afinar prompts con casos de uso de campo.
