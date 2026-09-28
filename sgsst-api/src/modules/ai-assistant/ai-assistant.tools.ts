@@ -94,6 +94,9 @@ export class AiAssistantTools {
         name: site.name,
         code: site.code,
         city: site.city,
+        department: site.department,
+        address: site.address,
+        isMain: site.isMain,
         employeesCount: site._count?.employees ?? 0,
       })),
     };

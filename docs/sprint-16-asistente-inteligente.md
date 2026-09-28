@@ -84,6 +84,12 @@ En producción, `assertProductionEnv()` exige `AI_API_KEY` y `AI_BASE_URL` si `A
 - Historia: SambaNova se descartó para dev (402 `PAYMENT_METHOD_REQUIRED`, exige tarjeta); entre los free de OpenRouter, `cohere/north-mini-code:free` fue el más consistente (gemma/qwen con 429 intermitentes; varios de razonamiento devuelven `content` vacío con `max_tokens` bajo).
 - Los 429 del pool free son intermitentes; el 503 acotado del backend los degrada sin afectar al ERP. Para producción, cambiar `AI_MODEL` a uno de pago es solo env.
 
+## Evaluacion de streaming en el chat (2026-09-28)
+
+- Verificado con spike: OpenRouter soporta `stream: true` (SSE) con el modelo free actual — HTTP 200, ~96 chunks delta para una respuesta corta, ~2s total.
+- Costo de implementacion real: variante `completeStream()` en `AiProviderClient` con parseo SSE, endpoint `POST /ai-assistant/ask/stream` (SSE con el mismo guard/RBAC) y consumidor `fetch`-stream en `AssistantChatPage` (EventSource no sirve: no puede enviar POST ni headers).
+- Decision: **aplazado**. Las respuestas son cortas por diseño (@datos ≤ 8 lineas, chat ~700 tokens max) y el spinner "Pensando..." es aceptable; el beneficio aparece con modelos de produccion mas lentos/respuestas largas. Reevaluar al migrar a modelo de pago.
+
 ## Siguientes pasos
 
-- Afinar prompts con casos de uso de campo y evaluar respuesta streaming en la UI.
+- Afinar prompts con casos de uso de campo; implementar streaming si se pasa a modelo de produccion.

@@ -90,7 +90,7 @@ describe('AiAssistantTools (scope multi-tenant)', () => {
     expect(result).toEqual({ company: null });
   });
 
-  it('sites_summary pagina y mapea el conteo de empleados con fallback 0', async () => {
+  it('sites_summary pagina y mapea datos completos de cada sede', async () => {
     sitesRepository.findAll.mockResolvedValue({
       meta: { total: 5 },
       data: [
@@ -98,9 +98,20 @@ describe('AiAssistantTools (scope multi-tenant)', () => {
           name: 'Sede 1',
           code: 'S1',
           city: 'Bogota',
+          department: 'Cundinamarca',
+          address: 'Calle 1 #2-03',
+          isMain: true,
           _count: { employees: 12 },
         },
-        { name: 'Sede 2', code: 'S2', city: null, _count: undefined },
+        {
+          name: 'Sede 2',
+          code: 'S2',
+          city: null,
+          department: null,
+          address: null,
+          isMain: false,
+          _count: undefined,
+        },
       ],
     });
 
@@ -113,8 +124,24 @@ describe('AiAssistantTools (scope multi-tenant)', () => {
     expect(result).toEqual({
       total: 5,
       sites: [
-        { name: 'Sede 1', code: 'S1', city: 'Bogota', employeesCount: 12 },
-        { name: 'Sede 2', code: 'S2', city: null, employeesCount: 0 },
+        {
+          name: 'Sede 1',
+          code: 'S1',
+          city: 'Bogota',
+          department: 'Cundinamarca',
+          address: 'Calle 1 #2-03',
+          isMain: true,
+          employeesCount: 12,
+        },
+        {
+          name: 'Sede 2',
+          code: 'S2',
+          city: null,
+          department: null,
+          address: null,
+          isMain: false,
+          employeesCount: 0,
+        },
       ],
     });
   });
