@@ -24,3 +24,6 @@
 !**/.vscode/launch.json
 !**/.vscode/extensions.json
 scripts/qa-artifacts/
+
+# Claves privadas locales (age, etc.)
+secrets/
