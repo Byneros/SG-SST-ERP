@@ -7,6 +7,7 @@ export type ReportKind =
   | 'audits'
   | 'summary'
   | 'annual-plan'
+  | 'surveillance'
 export type ReportFormat = 'csv' | 'pdf'
 
 export const api = axios.create({

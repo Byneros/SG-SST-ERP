@@ -43,6 +43,7 @@ import {
   emptyMedicalProfile,
   emptyMedicalExam,
   emptyMedicalRestriction,
+  emptyMedicalSurveillanceProgram,
   emptyUnsafeReport,
   emptyUnplannedInspection,
   emptyEmployee,
@@ -83,6 +84,7 @@ import {
   MedicalProfileDialog,
   MedicalExamDialog,
   MedicalRestrictionDialog,
+  MedicalSurveillanceProgramDialog,
   MedicalPage,
   ExternalDeliveriesPage,
   CompaniesPage,
@@ -155,9 +157,11 @@ import type {
   MedicalProfile,
   MedicalExam,
   MedicalRestriction,
+  MedicalSurveillanceProgram,
   MedicalProfileFormValues,
   MedicalExamFormValues,
   MedicalRestrictionFormValues,
+  MedicalSurveillanceProgramFormValues,
   ExternalDelivery,
   ExternalDeliveryFilters,
   AuthUser,
@@ -430,6 +434,9 @@ function App() {
   const [medicalProfileDialog, setMedicalProfileDialog] = useState(false)
   const [medicalExamDialog, setMedicalExamDialog] = useState<{ open: boolean; exam?: MedicalExam }>({ open: false })
   const [medicalRestrictionDialog, setMedicalRestrictionDialog] = useState(false)
+  const [surveillancePrograms, setSurveillancePrograms] = useState<MedicalSurveillanceProgram[]>([])
+  const [surveillanceProgramDialog, setSurveillanceProgramDialog] = useState(false)
+  const [surveillanceProgramForm, setSurveillanceProgramForm] = useState<MedicalSurveillanceProgramFormValues>(emptyMedicalSurveillanceProgram)
   const [medicalProfileForm, setMedicalProfileForm] = useState<MedicalProfileFormValues>(emptyMedicalProfile)
   const [medicalExamForm, setMedicalExamForm] = useState<MedicalExamFormValues>(emptyMedicalExam)
   const [medicalRestrictionForm, setMedicalRestrictionForm] = useState<MedicalRestrictionFormValues>(emptyMedicalRestriction)
@@ -749,6 +756,11 @@ function App() {
             params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
           })
         : Promise.resolve({ data: [] as MedicalRestriction[] })
+      const surveillanceProgramsRequest = canViewMedical && hasCompanyScope
+        ? api.get<MedicalSurveillanceProgram[]>('/medical/surveillance-programs', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as MedicalSurveillanceProgram[] })
       const reportExportsRequest = canViewReports && hasCompanyScope
         ? api.get<Paginated<ReportExport>>('/reports/exports', {
             params: reportExportParams(reportExportTable, reportExportFilters),
@@ -795,6 +807,7 @@ function App() {
         medicalProfilesResponse,
         medicalExamsResponse,
         medicalRestrictionsResponse,
+        surveillanceProgramsResponse,
         reportExportsResponse,
         reportMetricsResponse,
         reportMetricHistoryResponse,
@@ -824,6 +837,7 @@ function App() {
         medicalProfilesRequest,
         medicalExamsRequest,
         medicalRestrictionsRequest,
+        surveillanceProgramsRequest,
         reportExportsRequest,
         reportMetricsRequest,
         reportMetricHistoryRequest,
@@ -920,6 +934,7 @@ function App() {
       setMedicalExams(medicalExamRows)
       const medicalRestrictionRows = Array.isArray(medicalRestrictionsResponse.data) ? medicalRestrictionsResponse.data : []
       setMedicalRestrictions(medicalRestrictionRows)
+      setSurveillancePrograms(Array.isArray(surveillanceProgramsResponse.data) ? surveillanceProgramsResponse.data : [])
       setReportExports(reportExportsResponse.data.data)
       setReportExportMeta(reportExportsResponse.data.meta)
       setReportMetrics(reportMetricsResponse.data)
@@ -2550,6 +2565,70 @@ function App() {
     await saveRecord(() => api.patch(`/medical/restrictions/${id}/lift`))
   }
 
+  // --- Derivacion #25.2 y vigilancia S10.4 --------------------------------
+
+  async function deriveMedicalRequirements(profileId: string) {
+    try {
+      const response = await api.post<{
+        profileId: string
+        position: string
+        worstRiskLevel: string
+        created: { examType: string; periodicityMonths: number }[]
+      }>(`/medical/profiles/${profileId}/derive-requirements`, {
+        companyId: isPlatformAdmin ? undefined : activeCompanyId,
+      })
+      await loadData()
+      return { worstRiskLevel: response.data.worstRiskLevel, created: response.data.created }
+    } catch {
+      return null
+    }
+  }
+
+  function openSurveillanceProgramForm() {
+    setSurveillanceProgramForm({
+      ...emptyMedicalSurveillanceProgram,
+      companyId: activeCompanyId ?? companies[0]?.id ?? '',
+    })
+    setSurveillanceProgramDialog(true)
+  }
+
+  async function saveSurveillanceProgram() {
+    await saveRecord(async () => {
+      await api.post('/medical/surveillance-programs', {
+        name: surveillanceProgramForm.name,
+        riskType: surveillanceProgramForm.riskType,
+        objective: surveillanceProgramForm.objective || undefined,
+        companyId: surveillanceProgramForm.companyId,
+      })
+      setSurveillanceProgramDialog(false)
+    })
+  }
+
+  async function deriveSurveillanceCohort(programId: string, riskId: string) {
+    try {
+      const response = await api.post<{
+        cohortId: string
+        workersCount: number
+        reviewed: boolean
+      }>(`/medical/surveillance-programs/${programId}/cohorts/derive`, {
+        riskId,
+        companyId: isPlatformAdmin ? undefined : activeCompanyId,
+      })
+      await loadData()
+      return { workersCount: response.data.workersCount, reviewed: response.data.reviewed }
+    } catch {
+      return null
+    }
+  }
+
+  async function reviewSurveillanceCohort(cohortId: string) {
+    await saveRecord(() => api.patch(`/medical/surveillance-cohorts/${cohortId}`, { status: 'CLOSED' }))
+  }
+
+  async function exportSurveillanceReport(format: 'pdf' | 'csv') {
+    await downloadReport('surveillance', format, isPlatformAdmin ? undefined : activeCompanyId)
+  }
+
   function confirmDeleteMedicalExam(exam: MedicalExam) {
     openConfirmDialog(
       'Eliminar examen',
@@ -3357,6 +3436,13 @@ function App() {
                 profiles={medicalProfiles}
                 exams={medicalExams}
                 restrictions={medicalRestrictions}
+                surveillancePrograms={surveillancePrograms}
+                surveillanceRisks={risks.map((risk) => ({
+                  id: risk.id,
+                  title: risk.title,
+                  level: risk.level,
+                  position: risk.position,
+                }))}
                 canManage={canManageMedical}
                 companies={companies}
                 onNewProfile={openMedicalProfileForm}
@@ -3370,6 +3456,11 @@ function App() {
                 }}
                 onNewRestriction={openMedicalRestrictionForm}
                 onLiftRestriction={liftMedicalRestriction}
+                onDeriveRequirements={deriveMedicalRequirements}
+                onNewSurveillanceProgram={openSurveillanceProgramForm}
+                onDeriveCohort={deriveSurveillanceCohort}
+                onReviewCohort={reviewSurveillanceCohort}
+                onExportSurveillance={(format) => { void exportSurveillanceReport(format) }}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -3735,11 +3826,22 @@ function App() {
               open={medicalProfileDialog}
               values={medicalProfileForm}
               companies={companies}
+              risks={risks.map((risk) => ({ id: risk.id, title: risk.title, level: risk.level, position: risk.position }))}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               onChange={setMedicalProfileForm}
               onClose={() => setMedicalProfileDialog(false)}
               onSave={saveMedicalProfile}
+            />
+            <MedicalSurveillanceProgramDialog
+              open={surveillanceProgramDialog}
+              values={surveillanceProgramForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setSurveillanceProgramForm}
+              onClose={() => setSurveillanceProgramDialog(false)}
+              onSave={saveSurveillanceProgram}
             />
             <MedicalExamDialog
               open={medicalExamDialog.open}

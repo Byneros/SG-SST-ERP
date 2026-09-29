@@ -195,6 +195,9 @@ export const MedicalExamDialog = lazy(() =>
 export const MedicalRestrictionDialog = lazy(() =>
   dialogLoaders.medicalDialogs().then((module) => ({ default: module.MedicalRestrictionDialog })),
 )
+export const MedicalSurveillanceProgramDialog = lazy(() =>
+  dialogLoaders.medicalDialogs().then((module) => ({ default: module.MedicalSurveillanceProgramDialog })),
+)
 export const UserDialog = lazy(() =>
   dialogLoaders.user().then((module) => ({ default: module.UserDialog })),
 )

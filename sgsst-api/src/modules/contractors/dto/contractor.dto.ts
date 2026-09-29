@@ -8,6 +8,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export const CONTRACTOR_STATUSES = ['ACTIVE', 'SUSPENDED', 'BLOCKED'] as const;
 
@@ -183,12 +184,16 @@ export class UpdateContractorDocumentDto {
 }
 
 export class ContractorListQueryDto {
+  // Los query params llegan como string: se convierten a numero antes de
+  // validar (sin esto, GET paginado desde la UI responde 400).
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)

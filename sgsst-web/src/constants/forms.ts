@@ -12,6 +12,7 @@ import type {
   MedicalProfileFormValues,
   MedicalExamFormValues,
   MedicalRestrictionFormValues,
+  MedicalSurveillanceProgramFormValues,
   UnplannedInspectionFormValues,
   UnsafeReportFormValues,
   DocumentFormValues,
@@ -273,6 +274,13 @@ export const emptyMedicalRestriction: MedicalRestrictionFormValues = {
   employeeId: '',
   startDate: '',
   endDate: '',
+}
+
+export const emptyMedicalSurveillanceProgram: MedicalSurveillanceProgramFormValues = {
+  name: '',
+  riskType: 'BIOMECANICO',
+  objective: '',
+  companyId: '',
 }
 
 export const initialTableState: TableState = {

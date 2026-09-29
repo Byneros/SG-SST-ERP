@@ -2,7 +2,8 @@ import { Delete, Edit, Gavel } from '@mui/icons-material'
 import { Button, Chip, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { ActiveCompanyBanner, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
-import type { MedicalExam, MedicalProfile, MedicalRestriction } from '../../types'
+import type { MedicalExam, MedicalProfile, MedicalRestriction, MedicalSurveillanceProgram } from '../../types'
+import { MedicalDerivationPanel, MedicalSurveillancePanel } from './MedicalPanels'
 
 const conceptLabels: Record<string, { label: string; color: 'default' | 'success' | 'warning' | 'error' }> = {
   PENDIENTE: { label: 'Pendiente', color: 'default' },
@@ -19,6 +20,8 @@ export function MedicalPage(props: {
   profiles: MedicalProfile[]
   exams: MedicalExam[]
   restrictions: MedicalRestriction[]
+  surveillancePrograms: MedicalSurveillanceProgram[]
+  surveillanceRisks: Array<{ id: string; title: string; level: string; position?: string }>
   canManage: boolean
   companies?: unknown
   onNewProfile: () => void
@@ -27,6 +30,11 @@ export function MedicalPage(props: {
   onDeleteExam: (id: string) => void
   onNewRestriction: () => void
   onLiftRestriction: (id: string) => void
+  onDeriveRequirements: (profileId: string) => Promise<{ worstRiskLevel: string; created: { examType: string }[] } | null>
+  onNewSurveillanceProgram: () => void
+  onDeriveCohort: (programId: string, riskId: string) => Promise<{ workersCount: number; reviewed: boolean } | null>
+  onReviewCohort: (cohortId: string) => Promise<void>
+  onExportSurveillance: (format: 'pdf' | 'csv') => void
   activeCompanyName?: string
 }) {
   const [tab, setTab] = useState(0)
@@ -42,6 +50,8 @@ export function MedicalPage(props: {
           <Tab label="Profesiograma" />
           <Tab label="Examenes ocupacionales" />
           <Tab label="Restricciones" />
+          <Tab label="Derivacion de requisitos" />
+          <Tab label="Vigilancia epidemiologica" />
         </Tabs>
       </Stack>
       {tab === 0 && (
@@ -214,6 +224,20 @@ export function MedicalPage(props: {
             </Table>
           </TableContainer>
         </>
+      )}
+      {tab === 3 && (
+        <MedicalDerivationPanel profiles={props.profiles} canManage={props.canManage} onDerive={props.onDeriveRequirements} />
+      )}
+      {tab === 4 && (
+        <MedicalSurveillancePanel
+          programs={props.surveillancePrograms}
+          risks={props.surveillanceRisks}
+          canManage={props.canManage}
+          onNewProgram={props.onNewSurveillanceProgram}
+          onDeriveCohort={props.onDeriveCohort}
+          onReviewCohort={props.onReviewCohort}
+          onExport={props.onExportSurveillance}
+        />
       )}
     </Paper>
   )

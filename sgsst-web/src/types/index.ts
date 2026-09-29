@@ -271,6 +271,8 @@ export type Risk = {
   createdAt: string
   companyId: string
   siteId?: string
+  /** Cargo asociado (profesiograma, #25.2). */
+  position?: string
   company?: Pick<Company, 'id' | 'name' | 'nit'>
   site?: Pick<Site, 'id' | 'name' | 'code'>
 }
@@ -954,12 +956,39 @@ export type MedicalProfile = {
   isActive: boolean
   companyId: string
   company?: Pick<Company, 'id' | 'name'>
+  /** Riesgo del cargo en la matriz GTC-45 (#25.2). */
+  riskId?: string
+  risk?: { id: string; title: string; level: string }
   requirements: Array<{
     id: string
     examType: MedicalExamType
     periodicityMonths: number
     notes?: string
+    derivedFromRiskId?: string
   }>
+}
+
+export type MedicalSurveillanceCohort = {
+  id: string
+  programId: string
+  riskId?: string
+  risk?: { id: string; title: string; level: string; position?: string }
+  status: string
+  derivedAt?: string
+  lastReviewedAt?: string
+  workersCount?: number
+}
+
+export type MedicalSurveillanceProgram = {
+  id: string
+  name: string
+  riskType: string
+  objective?: string
+  status: string
+  ownerId?: string
+  owner?: { id: string; name: string; email: string } | null
+  companyId: string
+  cohorts: Array<MedicalSurveillanceCohort & { _count?: { workers: number } }>
 }
 
 export type MedicalExam = {
@@ -1089,6 +1118,14 @@ export type MedicalProfileFormValues = {
   position: string
   description: string
   examType: string
+  companyId: string
+  riskId?: string
+}
+
+export type MedicalSurveillanceProgramFormValues = {
+  name: string
+  riskType: string
+  objective: string
   companyId: string
 }
 

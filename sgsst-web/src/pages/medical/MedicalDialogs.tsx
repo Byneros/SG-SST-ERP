@@ -1,5 +1,11 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
-import type { Company, MedicalExamFormValues, MedicalProfileFormValues, MedicalRestrictionFormValues } from '../../types'
+import type {
+  Company,
+  MedicalExamFormValues,
+  MedicalProfileFormValues,
+  MedicalRestrictionFormValues,
+  MedicalSurveillanceProgramFormValues,
+} from '../../types'
 
 const examTypes = ['INGRESO', 'PERIODICO', 'RETIRO', 'POSTINCAPACIDAD', 'CAMBIO_CARGO']
 const concepts = ['PENDIENTE', 'APTO', 'APTO_RESTRICCION', 'NO_APTO']
@@ -8,6 +14,7 @@ export function MedicalProfileDialog(props: {
   open: boolean
   values: MedicalProfileFormValues
   companies: Company[]
+  risks?: Array<{ id: string; title: string; level: string; position?: string }>
   loading: boolean
   canPickCompany: boolean
   onChange: (values: MedicalProfileFormValues) => void
@@ -41,6 +48,20 @@ export function MedicalProfileDialog(props: {
           >
             {examTypes.map((type) => (
               <MenuItem key={type} value={type}>{type}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Riesgo del cargo (opcional)"
+            value={props.values.riskId ?? ''}
+            onChange={(event) => props.onChange({ ...props.values, riskId: event.target.value })}
+            helperText="Habilita la derivacion de requisitos desde la matriz GTC-45"
+          >
+            <MenuItem value="">Sin riesgo asociado</MenuItem>
+            {(props.risks ?? []).map((risk) => (
+              <MenuItem key={risk.id} value={risk.id}>
+                {risk.title} ({risk.level}){risk.position ? ` - ${risk.position}` : ''}
+              </MenuItem>
             ))}
           </TextField>
           <TextField
@@ -214,6 +235,74 @@ export function MedicalRestrictionDialog(props: {
       <DialogActions>
         <Button onClick={props.onClose}>Cancelar</Button>
         <Button variant="contained" disabled={props.loading || !props.values.description.trim() || !props.values.employeeId} onClick={props.onSave}>
+          Crear
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+const riskTypes = ['BIOMECANICO', 'FISICO', 'QUIMICO', 'PSICOSOCIAL', 'BIOLOGICO', 'MECANICO', 'ERGONOMICO']
+
+export function MedicalSurveillanceProgramDialog(props: {
+  open: boolean
+  values: MedicalSurveillanceProgramFormValues
+  companies: Company[]
+  loading: boolean
+  canPickCompany: boolean
+  onChange: (values: MedicalSurveillanceProgramFormValues) => void
+  onClose: () => void
+  onSave: () => void
+}) {
+  return (
+    <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Nuevo programa de vigilancia epidemiologica</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="Nombre del programa"
+            value={props.values.name}
+            onChange={(event) => props.onChange({ ...props.values, name: event.target.value })}
+            required
+          />
+          <TextField
+            select
+            label="Tipo de riesgo vigilado"
+            value={props.values.riskType}
+            onChange={(event) => props.onChange({ ...props.values, riskType: event.target.value })}
+          >
+            {riskTypes.map((type) => (
+              <MenuItem key={type} value={type}>{type}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Objetivo"
+            value={props.values.objective}
+            onChange={(event) => props.onChange({ ...props.values, objective: event.target.value })}
+            multiline
+            minRows={2}
+          />
+          <TextField
+            select
+            label="Empresa"
+            value={props.values.companyId}
+            disabled={!props.canPickCompany}
+            onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+            required
+          >
+            {props.companies.map((company) => (
+              <MenuItem key={company.id} value={company.id}>{company.name}</MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={props.onClose}>Cancelar</Button>
+        <Button
+          variant="contained"
+          disabled={props.loading || !props.values.name.trim() || !props.values.companyId}
+          onClick={props.onSave}
+        >
           Crear
         </Button>
       </DialogActions>
