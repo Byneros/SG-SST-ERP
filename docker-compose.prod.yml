@@ -211,10 +211,10 @@ services:
       api:
         condition: service_healthy
 
-  # Backup cifrado opcional (misma imagen base que el compose local). En produccion
-  # se recomienda construir/publishar docker/postgres-backup como imagen propia.
+  # Backup cifrado opcional: usa la imagen propia docker/postgres-backup cuando
+  # esté disponible (fijar BACKUP_IMAGE); el default mantiene la imagen base.
   postgres-backup:
-    image: postgres:16-alpine
+    image: ${BACKUP_IMAGE:-postgres:16-alpine}
     container_name: sgsst_prod_postgres_backup
     restart: unless-stopped
     profiles:
