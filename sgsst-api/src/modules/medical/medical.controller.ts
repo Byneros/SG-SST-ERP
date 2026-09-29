@@ -20,8 +20,13 @@ import {
   CreateMedicalExamDto,
   CreateMedicalProfileDto,
   CreateMedicalRestrictionDto,
+  CreateMedicalSurveillanceProgramDto,
+  DeriveMedicalRequirementsDto,
+  DeriveSurveillanceCohortDto,
   LiftMedicalRestrictionDto,
+  ReviewSurveillanceCohortDto,
   UpdateMedicalExamDto,
+  UpdateMedicalSurveillanceProgramDto,
 } from './dto/medical.dto';
 import { MedicalService } from './medical.service';
 
@@ -52,6 +57,75 @@ export class MedicalController {
     @Body() dto: CreateMedicalProfileDto,
   ) {
     return this.service.createProfile(user, dto);
+  }
+
+  /** #25.2: deriva requisitos medicos desde los riesgos del cargo. */
+  @Post('profiles/:id/derive-requirements')
+  @Roles('ADMIN', 'SST')
+  deriveRequirements(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeriveMedicalRequirementsDto,
+  ) {
+    return this.service.deriveRequirementsFromRisk(user, id, dto);
+  }
+
+  // --- Vigilancia epidemiologica (S10.4) -----------------------------------
+
+  @Get('surveillance-programs')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  findSurveillancePrograms(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.findSurveillancePrograms(user);
+  }
+
+  @Post('surveillance-programs')
+  @Roles('ADMIN', 'SST')
+  createSurveillanceProgram(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateMedicalSurveillanceProgramDto,
+  ) {
+    return this.service.createSurveillanceProgram(user, dto);
+  }
+
+  @Patch('surveillance-programs/:id')
+  @Roles('ADMIN', 'SST')
+  updateSurveillanceProgram(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMedicalSurveillanceProgramDto,
+  ) {
+    return this.service.updateSurveillanceProgram(user, id, dto);
+  }
+
+  @Delete('surveillance-programs/:id')
+  @Roles('ADMIN', 'SST')
+  removeSurveillanceProgram(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.removeSurveillanceProgram(user, id);
+  }
+
+  /** S10.4: cohorte de expuestos derivada del riesgo (upsert por programa+riesgo). */
+  @Post('surveillance-programs/:id/cohorts/derive')
+  @Roles('ADMIN', 'SST')
+  deriveSurveillanceCohort(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeriveSurveillanceCohortDto,
+  ) {
+    return this.service.deriveSurveillanceCohort(user, id, dto);
+  }
+
+  /** S10.4: revisar o cerrar una cohorte. */
+  @Patch('surveillance-cohorts/:id')
+  @Roles('ADMIN', 'SST')
+  reviewSurveillanceCohort(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewSurveillanceCohortDto,
+  ) {
+    return this.service.reviewSurveillanceCohort(user, id, dto);
   }
 
   // --- Examenes ocupacionales ----------------------------------------------

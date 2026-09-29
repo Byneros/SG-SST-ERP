@@ -36,10 +36,76 @@ export class CreateMedicalProfileDto {
   requirements?: {
     examType: string;
     periodicityMonths?: number;
+    /** Riesgo de origen del requisito (derivacion #25.2, opcional). */
+    derivedFromRiskId?: string | null;
   }[];
+
+  /** Riesgo del cargo en la matriz GTC-45 (#25.2). Habilita la derivacion
+   * automatica de requisitos por nivel de riesgo. */
+  @IsOptional()
+  @IsUUID()
+  riskId?: string | null;
 
   @IsUUID()
   companyId!: string;
+}
+
+export class DeriveMedicalRequirementsDto {
+  @IsUUID()
+  companyId!: string;
+}
+
+export class CreateMedicalSurveillanceProgramDto {
+  @IsString()
+  name!: string;
+
+  /** Tipo de riesgo vigilado (p. ej. MECANICO, BIOMECANICO, PSICOSOCIAL, FISICO, QUIMICO). */
+  @IsString()
+  riskType!: string;
+
+  @IsOptional()
+  @IsString()
+  objective?: string;
+
+  @IsOptional()
+  @IsUUID()
+  ownerId?: string | null;
+
+  @IsUUID()
+  companyId!: string;
+}
+
+export class UpdateMedicalSurveillanceProgramDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  objective?: string;
+
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE', 'CLOSED'])
+  status?: 'ACTIVE' | 'INACTIVE' | 'CLOSED';
+
+  @IsOptional()
+  @IsUUID()
+  ownerId?: string | null;
+}
+
+export class DeriveSurveillanceCohortDto {
+  /** Riesgo (con cargo o sede) del que se deriva la cohorte de expuestos. */
+  @IsUUID()
+  riskId!: string;
+
+  @IsUUID()
+  companyId!: string;
+}
+
+export class ReviewSurveillanceCohortDto {
+  @IsOptional()
+  @IsIn(['ACTIVE', 'CLOSED'])
+  status?: 'ACTIVE' | 'CLOSED';
 }
 
 export class CreateMedicalExamDto {

@@ -16,7 +16,12 @@ import { AuditService } from '../audit/audit.service';
 import { ReportExportsQueryDto } from './dto/report-exports-query.dto';
 
 export type ReportKind =
-  'employees' | 'expired-documents' | 'audits' | 'summary' | 'annual-plan';
+  | 'employees'
+  | 'expired-documents'
+  | 'audits'
+  | 'summary'
+  | 'annual-plan'
+  | 'surveillance';
 export type ReportFormat = 'csv' | 'pdf';
 type ExportWhereBuildOptions = {
   includeSearch?: boolean;
@@ -29,6 +34,7 @@ const reportKinds: ReportKind[] = [
   'audits',
   'summary',
   'annual-plan',
+  'surveillance',
 ];
 const reportFormats: ReportFormat[] = ['csv', 'pdf'];
 
@@ -861,6 +867,69 @@ export class ReportsService {
       return rowLists.flat();
     }
 
+    // S10.4 (Issue #28): indicadores de vigilancia epidemiologica por programa.
+    if (kind === 'surveillance') {
+      const programs = await this.prisma.medicalSurveillanceProgram.findMany({
+        where: { ...companyScope },
+        include: {
+          owner: { select: { name: true } },
+          cohorts: {
+            include: {
+              risk: {
+                select: { id: true, title: true, level: true, position: true },
+              },
+              workers: { select: { id: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (programs.length === 0) {
+        return [
+          {
+            empresa: '',
+            programa: 'Sin programas de vigilancia epidemiologica registrados',
+            tipoRiesgo: '',
+            estado: '',
+            responsable: '',
+            cohorteRiesgo: '',
+            nivelRiesgo: '',
+            expuestos: 0,
+            ultimaRevision: '',
+          },
+        ];
+      }
+      return programs.flatMap((program) => {
+        const base = {
+          empresa: '',
+          programa: program.name,
+          tipoRiesgo: program.riskType,
+          estado: program.status,
+          responsable: program.owner?.name ?? '',
+        };
+        if (program.cohorts.length === 0) {
+          return [
+            {
+              ...base,
+              cohorteRiesgo: '',
+              nivelRiesgo: '',
+              expuestos: 0,
+              ultimaRevision: '',
+            },
+          ];
+        }
+        return program.cohorts.map((cohort) => ({
+          ...base,
+          cohorteRiesgo: cohort.risk?.title ?? '',
+          nivelRiesgo: cohort.risk?.level ?? '',
+          expuestos: cohort.workers.length,
+          ultimaRevision: cohort.lastReviewedAt
+            ? cohort.lastReviewedAt.toISOString().slice(0, 10)
+            : '',
+        }));
+      });
+    }
+
     const [employees, criticalRisks, openIncidents, expiredDocuments, audits] =
       await this.prisma.$transaction([
         this.prisma.employee.count({
@@ -1139,6 +1208,7 @@ export class ReportsService {
       audits: 'Reporte de auditorias SG-SST',
       summary: 'Resumen ejecutivo SG-SST',
       'annual-plan': 'Reporte de Plan Anual de Trabajo SG-SST',
+      surveillance: 'Reporte de vigilancia epidemiologica (PVE)',
     };
     return titles[kind];
   }

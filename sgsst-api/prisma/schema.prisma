@@ -32,6 +32,7 @@ model User {
   reportExports                   ReportExport[]
   approvedAnnualWorkPlans         AnnualWorkPlan[]      @relation("AnnualWorkPlanApprover")
   ownedAnnualPlanActivities       AnnualPlanActivity[]  @relation("AnnualPlanActivityOwner")
+  medicalSurveillanceProgramsOwned MedicalSurveillanceProgram[] @relation("MedicalSurveillanceOwner")
   plannedInspectionsAsInspector   PlannedInspection[]   @relation("PlannedInspectionInspector")
   unplannedInspectionsAsInspector UnplannedInspection[] @relation("UnplannedInspectionInspector")
   unsafeReportsAsReporter         UnsafeReport[]        @relation("UnsafeReportReporter")
@@ -81,6 +82,8 @@ model Company {
   medicalExams                  MedicalExam[]
   medicalRestrictions           MedicalRestriction[]
   medicalProfiles               MedicalProfile[]
+  medicalSurveillancePrograms   MedicalSurveillanceProgram[]
+  medicalCohorts                MedicalSurveillanceCohort[]
   auditPrograms                 AuditProgram[]
   sgsstEvaluations              SgsstEvaluation[]
   reportMetricSnapshots         ReportExportMetricSnapshot[]
@@ -147,6 +150,7 @@ model Employee {
   ppeDeliveries       PpeDelivery[]
   medicalExams        MedicalExam[]
   medicalRestrictions MedicalRestriction[]
+  surveillanceCohorts MedicalSurveillanceCohort[]
 }
 
 model Risk {
@@ -160,6 +164,14 @@ model Risk {
   company            Company             @relation(fields: [companyId], references: [id])
   site               Site?               @relation(fields: [siteId], references: [id])
   inspectionFindings InspectionFinding[]
+  /// Cargo asociado (profesiograma S10.1): habilita la derivacion de
+  /// requisitos medicos desde los riesgos del cargo (#25).
+  position           String?
+  profilesForRisk    MedicalProfile[]            @relation("MedicalProfileCargoRisk")
+  cohortsForRisk     MedicalSurveillanceCohort[] @relation("MedicalSurveillanceCohortRisk")
+  requirementsDerived MedicalExamRequirement[]   @relation("MedicalRequirementOrigin")
+
+  @@index([companyId, position])
 }
 
 model Incident {
@@ -524,8 +536,12 @@ model MedicalProfile {
   companyId    String
   company      Company                  @relation(fields: [companyId], references: [id])
   requirements MedicalExamRequirement[]
+  /// Link al riesgo del cargo en la matriz GTC-45 (#25.2).
+  risk         Risk?                    @relation("MedicalProfileCargoRisk", fields: [riskId], references: [id], onDelete: SetNull)
+  riskId       String?
 
   @@unique([companyId, position])
+  @@index([companyId, riskId])
 }
 
 // Requisito medico del profesiograma: tipo de examen y periodicidad.
@@ -535,8 +551,50 @@ model MedicalExamRequirement {
   periodicityMonths Int            @default(12)
   profileId         String
   profile           MedicalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Origen de la derivacion (#25.2): riesgo que exige el examen. SetNull
+  /// para que borrar el riesgo no borre el requisito ya aprobado.
+  derivedFromRiskId String?
+  derivedFromRisk   Risk?          @relation("MedicalRequirementOrigin", fields: [derivedFromRiskId], references: [id], onDelete: SetNull)
 
   @@index([profileId])
+  @@index([derivedFromRiskId])
+}
+
+model MedicalSurveillanceProgram {
+  id          String   @id @default(uuid())
+  name        String
+  riskType    String
+  objective   String?
+  status      String   @default("ACTIVE")
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  owner       User?    @relation("MedicalSurveillanceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  cohorts     MedicalSurveillanceCohort[]
+
+  @@index([companyId, status])
+}
+
+model MedicalSurveillanceCohort {
+  id               String   @id @default(uuid())
+  programId        String
+  program          MedicalSurveillanceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  riskId           String?
+  risk             Risk?    @relation("MedicalSurveillanceCohortRisk", fields: [riskId], references: [id], onDelete: SetNull)
+  derivedAt        DateTime @default(now())
+  lastReviewedAt   DateTime?
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+  workers          Employee[]
+
+  @@unique([programId, riskId])
+  @@index([companyId, status])
+  @@index([riskId])
 }
 
 // Examen ocupacional de un trabajador: solo concepto operativo (APT0/RESTRICCION/

@@ -19,4 +19,10 @@ export class CreateRiskDto {
   @IsOptional()
   @IsUUID()
   siteId?: string;
+
+  /** Cargo asociado (profesiograma S10.1): habilita la derivacion de
+   * requisitos medicos y cohortes de vigilancia desde la matriz (#25/#28). */
+  @IsOptional()
+  @IsString()
+  position?: string;
 }

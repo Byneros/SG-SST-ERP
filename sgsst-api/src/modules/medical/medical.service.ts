@@ -11,9 +11,34 @@ import type {
   CreateMedicalExamDto,
   CreateMedicalProfileDto,
   CreateMedicalRestrictionDto,
+  CreateMedicalSurveillanceProgramDto,
+  DeriveMedicalRequirementsDto,
+  DeriveSurveillanceCohortDto,
   LiftMedicalRestrictionDto,
+  ReviewSurveillanceCohortDto,
   UpdateMedicalExamDto,
+  UpdateMedicalSurveillanceProgramDto,
 } from './dto/medical.dto';
+
+/**
+ * Regla de derivacion #25.2: el nivel de riesgo del cargo determina los
+ * examenes y su periodicidad (meses). Editar aqui para cambiar la politica.
+ */
+export const RISK_LEVEL_REQUIREMENTS: Record<
+  string,
+  { examType: string; periodicityMonths: number }[]
+> = {
+  CRITICAL: [
+    { examType: 'INGRESO', periodicityMonths: 0 },
+    { examType: 'PERIODICO', periodicityMonths: 6 },
+  ],
+  HIGH: [
+    { examType: 'INGRESO', periodicityMonths: 0 },
+    { examType: 'PERIODICO', periodicityMonths: 12 },
+  ],
+  MEDIUM: [{ examType: 'PERIODICO', periodicityMonths: 24 }],
+  LOW: [],
+};
 
 /**
  * Roles autorizados para datos de medicina laboral. EMPLOYEE queda excluido
@@ -78,21 +103,43 @@ export class MedicalService {
       );
     }
 
+    // #25.2: el riesgo del cargo debe existir y ser de la misma empresa.
+    // Se usa el FK escalar (no el nested connect) para mantener un solo tipo
+    // de input de Prisma; la pertenencia a la empresa ya se validó arriba.
+    if (dto.riskId) {
+      const risk = await this.prisma.risk.findFirst({
+        where: { id: dto.riskId, companyId },
+        select: { id: true },
+      });
+      if (!risk) {
+        throw new NotFoundException('Risk not found');
+      }
+    }
+
     const profile = await this.prisma.medicalProfile.create({
       data: {
         position: dto.position,
         description: dto.description,
         companyId,
+        riskId: dto.riskId ?? null,
         requirements: dto.requirements?.length
           ? {
               create: dto.requirements.map((requirement) => ({
                 examType: requirement.examType,
                 periodicityMonths: requirement.periodicityMonths ?? 12,
+                derivedFromRiskId: requirement.derivedFromRiskId ?? null,
               })),
             }
           : undefined,
       },
-      include: { requirements: true },
+      include: {
+        requirements: {
+          include: {
+            derivedFromRisk: { select: { id: true, title: true, level: true } },
+          },
+        },
+        risk: { select: { id: true, title: true, level: true } },
+      },
     });
 
     await this.auditService.log({
@@ -104,6 +151,101 @@ export class MedicalService {
     });
 
     return profile;
+  }
+
+  /**
+   * #25.2 (Issue #25): deriva los requisitos medicos del profesiograma desde
+   * los riesgos asociados al cargo. Idempotente: si el requisito ya existe
+   * (mismo examType y origen), no lo duplica.
+   */
+  async deriveRequirementsFromRisk(
+    user: AuthenticatedUser,
+    profileId: string,
+    dto: DeriveMedicalRequirementsDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user, dto.companyId);
+
+    const profile = await this.prisma.medicalProfile.findFirst({
+      where: { id: profileId, companyId },
+      include: { requirements: true },
+    });
+    if (!profile) {
+      throw new NotFoundException('Medical profile not found');
+    }
+
+    // Riesgos del cargo: por riskId del perfil o por position coincidente.
+    const risks = await this.prisma.risk.findMany({
+      where: {
+        companyId,
+        OR: [
+          ...(profile.riskId ? [{ id: profile.riskId }] : []),
+          { position: profile.position },
+        ],
+      },
+      orderBy: { level: 'asc' },
+    });
+
+    const worstLevel =
+      risks.find((r) => r.level === 'CRITICAL')?.level ??
+      risks.find((r) => r.level === 'HIGH')?.level ??
+      risks.find((r) => r.level === 'MEDIUM')?.level ??
+      risks.find((r) => r.level === 'LOW')?.level ??
+      null;
+    if (!worstLevel) {
+      throw new NotFoundException(
+        'No hay riesgos asociados al cargo del profesiograma',
+      );
+    }
+
+    const planned = RISK_LEVEL_REQUIREMENTS[worstLevel] ?? [];
+    const created: {
+      id: string;
+      examType: string;
+      periodicityMonths: number;
+    }[] = [];
+    for (const requirement of planned) {
+      const existing = profile.requirements.find(
+        (r) =>
+          r.examType === requirement.examType &&
+          r.derivedFromRiskId === risks[0]?.id,
+      );
+      if (existing) continue;
+      const requirementCreated =
+        await this.prisma.medicalExamRequirement.create({
+          data: {
+            examType: requirement.examType,
+            periodicityMonths: requirement.periodicityMonths,
+            profileId: profile.id,
+            derivedFromRiskId: risks[0]?.id ?? null,
+          },
+        });
+      created.push({
+        id: requirementCreated.id,
+        examType: requirementCreated.examType,
+        periodicityMonths: requirementCreated.periodicityMonths,
+      });
+    }
+
+    await this.auditService.log({
+      user,
+      action: 'CREATE',
+      entity: 'MedicalExamRequirement',
+      entityId: profile.id,
+      after: { profileId: profile.id, worstLevel, created },
+    });
+
+    return {
+      profileId: profile.id,
+      position: profile.position,
+      worstRiskLevel: worstLevel,
+      risksConsidered: risks.map((r) => ({
+        id: r.id,
+        title: r.title,
+        level: r.level,
+      })),
+      created,
+    };
   }
 
   // --- Examenes ocupacionales ----------------------------------------------
@@ -328,6 +470,253 @@ export class MedicalService {
       action: 'UPDATE',
       entity: 'MedicalRestriction',
       entityId: id,
+      before,
+      after: updated,
+    });
+
+    return updated;
+  }
+
+  // --- Vigilancia epidemiologica (S10.4, Issue #28) ------------------------
+
+  /** Programas PVE de la empresa con sus cohortes y conteo de expuestos. */
+  async findSurveillancePrograms(user: AuthenticatedUser) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    return this.prisma.medicalSurveillanceProgram.findMany({
+      where: { companyId },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        cohorts: {
+          include: {
+            risk: {
+              select: { id: true, title: true, level: true, position: true },
+            },
+            _count: { select: { workers: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createSurveillanceProgram(
+    user: AuthenticatedUser,
+    dto: CreateMedicalSurveillanceProgramDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user, dto.companyId);
+
+    const program = await this.prisma.medicalSurveillanceProgram.create({
+      data: {
+        name: dto.name,
+        riskType: dto.riskType,
+        objective: dto.objective,
+        ownerId: dto.ownerId ?? null,
+        companyId,
+      },
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'CREATE',
+      entity: 'MedicalSurveillanceProgram',
+      entityId: program.id,
+      after: program,
+    });
+
+    return program;
+  }
+
+  async updateSurveillanceProgram(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateMedicalSurveillanceProgramDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.medicalSurveillanceProgram.findFirst({
+      where: { id, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('Surveillance program not found');
+    }
+
+    const updated = await this.prisma.medicalSurveillanceProgram.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        objective: dto.objective,
+        status: dto.status,
+        ownerId: dto.ownerId === undefined ? undefined : dto.ownerId,
+      },
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'UPDATE',
+      entity: 'MedicalSurveillanceProgram',
+      entityId: id,
+      before,
+      after: updated,
+    });
+
+    return updated;
+  }
+
+  async removeSurveillanceProgram(user: AuthenticatedUser, id: string) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.medicalSurveillanceProgram.findFirst({
+      where: { id, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('Surveillance program not found');
+    }
+
+    await this.prisma.medicalSurveillanceProgram.delete({ where: { id } });
+
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'MedicalSurveillanceProgram',
+      entityId: id,
+      before,
+    });
+
+    return { id, deleted: true };
+  }
+
+  /**
+   * S10.4: deriva (o refresca) la cohorte de expuestos de un riesgo. La
+   * cohorte nace de la matriz de riesgos: trabajadores del mismo cargo que
+   * el riesgo (o de su sede si el riesgo no tiene cargo).
+   */
+  async deriveSurveillanceCohort(
+    user: AuthenticatedUser,
+    programId: string,
+    dto: DeriveSurveillanceCohortDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user, dto.companyId);
+
+    const program = await this.prisma.medicalSurveillanceProgram.findFirst({
+      where: { id: programId, companyId },
+      select: { id: true },
+    });
+    if (!program) {
+      throw new NotFoundException('Surveillance program not found');
+    }
+
+    const risk = await this.prisma.risk.findFirst({
+      where: { id: dto.riskId, companyId },
+      include: { site: { select: { id: true, name: true } } },
+    });
+    if (!risk) {
+      throw new NotFoundException('Risk not found');
+    }
+
+    // Poblacion expuesta: empleados del cargo del riesgo; si el riesgo no
+    // tiene cargo, los de la sede del riesgo (cohorte por localizacion).
+    const exposed = await this.prisma.employee.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+        ...(risk.position
+          ? { position: risk.position }
+          : risk.siteId
+            ? { siteId: risk.siteId }
+            : {}),
+      },
+      select: { id: true },
+    });
+
+    // Upsert por (programa, riesgo): refrescar la cohorte no la duplica.
+    const existing = await this.prisma.medicalSurveillanceCohort.findUnique({
+      where: { programId_riskId: { programId, riskId: risk.id } },
+      include: { workers: { select: { id: true } } },
+    });
+
+    const workerIds = exposed.map((worker) => ({ id: worker.id }));
+    const cohort = existing
+      ? await this.prisma.medicalSurveillanceCohort.update({
+          where: { id: existing.id },
+          data: {
+            workers: { set: workerIds },
+            lastReviewedAt: new Date(),
+          },
+          include: {
+            workers: { select: { id: true } },
+            risk: { select: { id: true, title: true, level: true } },
+          },
+        })
+      : await this.prisma.medicalSurveillanceCohort.create({
+          data: {
+            programId,
+            riskId: risk.id,
+            companyId,
+            workers: { connect: workerIds },
+          },
+          include: {
+            workers: { select: { id: true } },
+            risk: { select: { id: true, title: true, level: true } },
+          },
+        });
+
+    await this.auditService.log({
+      user,
+      action: existing ? 'UPDATE' : 'CREATE',
+      entity: 'MedicalSurveillanceCohort',
+      entityId: cohort.id,
+      after: {
+        programId,
+        riskId: risk.id,
+        workers: workerIds.length,
+      },
+    });
+
+    return {
+      cohortId: cohort.id,
+      programId,
+      risk: {
+        id: risk.id,
+        title: risk.title,
+        level: risk.level,
+        position: risk.position,
+      },
+      workersCount: workerIds.length,
+      reviewed: Boolean(existing),
+    };
+  }
+
+  /** Revisar o cerrar una cohorte (seguimiento S10.4). */
+  async reviewSurveillanceCohort(
+    user: AuthenticatedUser,
+    cohortId: string,
+    dto: ReviewSurveillanceCohortDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.medicalSurveillanceCohort.findFirst({
+      where: { id: cohortId, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('Surveillance cohort not found');
+    }
+
+    const updated = await this.prisma.medicalSurveillanceCohort.update({
+      where: { id: cohortId },
+      data: {
+        status: dto.status,
+        lastReviewedAt: new Date(),
+      },
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'UPDATE',
+      entity: 'MedicalSurveillanceCohort',
+      entityId: cohortId,
       before,
       after: updated,
     });

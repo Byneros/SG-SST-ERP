@@ -17,4 +17,9 @@ export class UpdateRiskDto {
   @IsOptional()
   @IsUUID()
   siteId?: string | null;
+
+  /** Cargo asociado; null lo desasigna del profesiograma. */
+  @IsOptional()
+  @IsString()
+  position?: string | null;
 }

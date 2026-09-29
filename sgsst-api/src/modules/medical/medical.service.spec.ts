@@ -128,7 +128,7 @@ describe('MedicalService', () => {
     )[0][0].data;
     expect(profileData.position).toBe('Soldador');
     expect(profileData.requirements.create).toEqual([
-      { examType: 'INGRESO', periodicityMonths: 24 },
+      { examType: 'INGRESO', periodicityMonths: 24, derivedFromRiskId: null },
     ]);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ entity: 'MedicalProfile', action: 'CREATE' }),

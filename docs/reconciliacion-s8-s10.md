@@ -158,6 +158,38 @@ evidencia del smoke S8–S10.
 La auditoría externa que agrupaba #25–#28 bajo "pruebas técnicas documentadas"
 sobreextendía la evidencia: los documentos del repo solo cubren #25–#27.
 
+## 3bis. Tercera pasada (2026-09-29): implementacion de #25.2 y S10.4
+
+Despues de la segunda pasada se implemento lo que faltaba:
+
+**#25.2 (Issue #25, criterio 2) — requisitos medicos derivados de los riesgos:**
+- `Risk.position` (cargo opcional) con indice por empresa+cargo.
+- `MedicalProfile.riskId` (link SetNull al riesgo del cargo) y
+  `MedicalExamRequirement.derivedFromRiskId` (trazabilidad del origen).
+- `POST /api/v1/medical/profiles/:id/derive-requirements`: toma el PEOR nivel
+  de riesgo del cargo y deriva segun la politica `RISK_LEVEL_REQUIREMENTS`
+  (CRITICAL -> INGRESO + PERIODICO 6m; HIGH -> INGRESO + PERIODICO 12m;
+  MEDIUM -> PERIODICO 24m; LOW -> nada). Idempotente: no duplica requisitos
+  ya derivados del mismo riesgo. Auditado.
+- Pruebas: 5 casos unitarios nuevos + caso E2E con PostgreSQL real.
+
+**#28 (Issue #28, S10.4) — vigilancia epidemiologica:**
+- Modelos `MedicalSurveillanceProgram` (nombre, tipo de riesgo, objetivo,
+  estado, responsable) y `MedicalSurveillanceCohort` (riesgo origen, estado,
+  ultima revision, trabajadores expuestos via tabla de union).
+- Endpoints `/api/v1/medical/surveillance-programs` (CRUD + derivar cohorte +
+  revisar/cerrar cohorte), todos con RBAC medico y scope de empresa.
+- La cohorte se deriva de la MATRIZ DE RIESGOS: trabajadores del mismo cargo
+  del riesgo (o de su sede si el riesgo no tiene cargo). Upsert por
+  (programa, riesgo): refrescar no duplica.
+- Reporte `surveillance` CSV/PDF (`/api/v1/reports/surveillance.*`): una fila
+  por cohorte con riesgo, nivel, numero de expuestos y ultima revision.
+- Pruebas: 8 casos unitarios + 9 casos E2E con PostgreSQL real
+  (`test/medical-surveillance.db-e2e-spec.ts`), incluyendo aislamiento
+  cross-tenant 404 y refresco de cohorte sin duplicar.
+- Migracion: `20260929150000_s10_surveillance_and_risk_position` (aplicada a
+  BD dev y verificada en el E2E efimero).
+
 ## 4. Resumen de estado por issue tras esta revisión
 
 **Actualización 2026-09-29 (segunda pasada)**: se ejecutó
@@ -171,8 +203,8 @@ suma 2 casos nuevos (13 en total en las suites de notificaciones).
 | Issue | Estado recomendado |
 |---|---|
 | #17, #18, #19, #20, #21, #22, #23, #24, #26, #27 | Marcar checkboxes con esta matriz + evidencia del 28/09 y del 29/09; cerrar |
-| #25 | Marcar el checkbox 1 (profesiograma visible). El checkbox 2 **no es marcable**: `MedicalExamRequirement` no tiene relación con `Risk` y la derivación de requisitos desde los riesgos del cargo no está implementada (verificado en schema y en `medical.service.ts`) |
-| #28 | Requiere desarrollo; sin criterios marcables hoy |
+| #25 | Tras la tercera pasada: **ambos criterios son marcables** (profesiograma visible + derivación de requisitos implementada y probada). Marcar y cerrar |
+| #28 | Tras la tercera pasada: cohortes derivadas de la matriz, programas PVE y reportes de vigilancia implementados y probados (E2E PostgreSQL real). Revisar los 2 criterios contra la evidencia de la sección 3bis y marcar/cerrar si el producto los aprueba |
 
 Evidencia concreta de la segunda pasada (18/18):
 

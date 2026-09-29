@@ -41,6 +41,7 @@ export class RisksRepository {
         description: dto.description,
         level: dto.level as never,
         siteId: dto.siteId === undefined ? undefined : dto.siteId,
+        position: dto.position === undefined ? undefined : dto.position,
       },
     });
     if (result.count === 0) {
@@ -67,6 +68,7 @@ export class RisksRepository {
         level: dto.level as never,
         companyId,
         siteId: dto.siteId,
+        position: dto.position,
       },
       include: siteInclude,
     });

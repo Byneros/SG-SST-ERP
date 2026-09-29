@@ -9,8 +9,8 @@
 #   DRY_RUN=1 bash scripts/gh-cerrar-s8-s10.sh   # solo muestra acciones (default)
 #   DRY_RUN=0 bash scripts/gh-cerrar-s8-s10.sh   # comenta y cierra de verdad
 #
-# Cierra: #17 #18 #19 #20 #21 #22 #23 #24 #26 #27
-# Deja abiertos: #25 (criterio 2 sin implementar) y #28 (sin desarrollo).
+# Cierra: #17 #18 #19 #20 #21 #22 #23 #24 #25 #26 #27
+# Deja abierto: #28 (implementado; cierre sujeto a decision de producto).
 set -uo pipefail
 
 REPO="${REPO:-Byneros/SG-SST-ERP}"
@@ -138,33 +138,30 @@ Criterios de S10.3: smoke S10.3 creo restriccion y la levanto con responsable (\
 EOF
 comment 27 "$TMP/27.md"
 
-# ---------- #25 S10.1 (solo comentario, NO cerrar) ----------
+# ---------- #25 S10.1 ----------
 cat > "$TMP/25.md" <<EOF
 $HDR
 
-Estado por criterio de S10.1:
-- [x] Profesiograma por cargo visible: smoke S10.1 (perfil creado via HTTP) + pestana "Profesiograma" en UI (qa-smoke-ui 8/8).
-- [ ] Requisitos medicos derivados de los riesgos: **no implementado**. \`MedicalExamRequirement\` no tiene relacion con \`Risk\` en el esquema Prisma ni \`medical.service.ts\` consulta riesgos del cargo. Los requisitos se registran manualmente por perfil.
-
-El issue permanece abierto hasta implementar la derivacion automatica de requisitos desde los riesgos asociados al cargo.
+Estado por criterio de S10.1 (actualizado el 29/09, tercera pasada):
+- Profesiograma por cargo visible: smoke S10.1 (perfil creado via HTTP) + pestana "Profesiograma" en UI (qa-smoke-ui 8/8).
+- Requisitos medicos derivados de los riesgos: **implementado y probado** (seccion 3bis de docs/reconciliacion-s8-s10.md):
+  - \`Risk.position\` + \`MedicalProfile.riskId\` + \`MedicalExamRequirement.derivedFromRiskId\` (migracion 20260929150000).
+  - \`POST /medical/profiles/:id/derive-requirements\`: peor nivel de riesgo del cargo -> INGRESO/PERIODICO con periodicidad por politica, idempotente y auditado.
+  - 5 pruebas unitarias + caso E2E con PostgreSQL real (nivel HIGH -> INGRESO + PERIODICO 12m verificado).
 EOF
-echo "== Issue #25 (comentario sin cierre) =="
-if [ "$DRY_RUN" = "1" ]; then
-  echo "[DRY-RUN] gh issue comment 25 --body-file $TMP/25.md"
-else
-  gh issue comment 25 --repo "$REPO" --body-file "$TMP/25.md"
-fi
+comment 25 "$TMP/25.md"
 
-# ---------- #28 S10.4 (solo comentario, NO cerrar) ----------
+# ---------- #28 S10.4 (comentario sin cierre: decision de producto) ----------
 cat > "$TMP/28.md" <<EOF
 $HDR
 
-Estado de S10.4 (vigilancia epidemiologica): **sin implementacion en el repositorio**. Verificado el 29/09:
-- No existe modulo, modelos Prisma ni endpoints (busqueda de \`epidemiolog|cohort|vigilancia\` sin resultados en codigo).
-- La evidencia del smoke S8-S10 no cubre este issue (solo #25-#27).
-- El inventario de fase 2 (\`docs/fase-2-inventario-modulos-sgsst.md\`) define \`epidemiological_programs\` y \`pve_cases\` como pendientes.
+Estado de S10.4 (vigilancia epidemiologica), actualizado el 29/09 (tercera pasada):
+- Cohorte derivada de la matriz de riesgos: **implementada**. Modelos \`MedicalSurveillanceProgram\` y \`MedicalSurveillanceCohort\`; la cohorte toma los trabajadores del cargo del riesgo (o de su sede), con upsert por (programa, riesgo) y revision sellada.
+- Indicadores en reportes: **implementado**. Reporte \`surveillance\` CSV/PDF con programa, responsable, riesgo, nivel, expuestos y ultima revision.
+- Endpoints /api/v1/medical/surveillance-programs con RBAC medico y scope de empresa (404 cross-tenant verificado).
+- Evidencia: 8 pruebas unitarias + 9 casos E2E con PostgreSQL real (test/medical-surveillance.db-e2e-spec.ts). Detalle en la seccion 3bis de docs/reconciliacion-s8-s10.md.
 
-Pendiente: desarrollo completo (cohorte derivada de la matriz de riesgos, programas PVE, seguimiento, casos, indicadores y reportes). El issue permanece abierto.
+Pendiente de decision de producto antes de cerrar: alcance de casos/segmentaciones del PVE (p. ej. por diagnostico o ausentismo) y si la UI dedicada entra en este issue o en uno nuevo.
 EOF
 echo "== Issue #28 (comentario sin cierre) =="
 if [ "$DRY_RUN" = "1" ]; then
