@@ -80,7 +80,11 @@ export class ContractorsService {
     return contractor;
   }
 
-  async update(currentUser: AuthenticatedUser, id: string, dto: UpdateContractorDto) {
+  async update(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateContractorDto,
+  ) {
     const companyId = this.resolveCompanyId(currentUser);
     const before = await this.repository.findByIdScoped(id, companyId);
     if (!before) {
@@ -196,7 +200,11 @@ export class ContractorsService {
       }
     }
 
-    const updated = await this.repository.updateWorkerScoped(id, companyId, dto);
+    const updated = await this.repository.updateWorkerScoped(
+      id,
+      companyId,
+      dto,
+    );
     if (!updated) {
       throw new NotFoundException('Contractor worker not found');
     }
@@ -347,7 +355,10 @@ export class ContractorsService {
    * contratista no activo. El agregado considera vencidos por fecha real,
    * ademas del estado almacenado.
    */
-  async getEntryAuthorization(currentUser: AuthenticatedUser, contractorId: string) {
+  async getEntryAuthorization(
+    currentUser: AuthenticatedUser,
+    contractorId: string,
+  ) {
     await this.findOne(currentUser, contractorId);
     const companyId = this.resolveCompanyId(currentUser);
 
@@ -355,12 +366,13 @@ export class ContractorsService {
       contractorId,
       companyId,
     );
-    const documents = await this.repository.findDocuments(contractorId, companyId);
+    const documents = await this.repository.findDocuments(
+      contractorId,
+      companyId,
+    );
     const workers = await this.repository.findWorkers(contractorId, companyId);
 
-    const expiredByDate = documents.filter((doc) =>
-      isExpired(doc.expiresAt),
-    );
+    const expiredByDate = documents.filter((doc) => isExpired(doc.expiresAt));
     const workersWithoutInduction = workers.filter(
       (worker) => worker.status === 'ACTIVE' && !worker.inductedAt,
     );
@@ -368,7 +380,10 @@ export class ContractorsService {
     const blockingReasons = [...compliance.blockingReasons];
     if (expiredByDate.length > 0) {
       const reason = `${expiredByDate.length} documento(s) vencido(s) por fecha`;
-      if (!blockingReasons.includes(reason) && !/vencid/.test(blockingReasons.join(' '))) {
+      if (
+        !blockingReasons.includes(reason) &&
+        !/vencid/.test(blockingReasons.join(' '))
+      ) {
         blockingReasons.push(reason);
       }
     }

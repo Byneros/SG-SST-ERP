@@ -12,7 +12,10 @@ import { ErrorEventsService } from './error-events.service';
  * El log/warn/debug no se tocan aparte de delegar: solo error y warn
  * interesan al buffer.
  */
-export class DeveloperLoggerService extends ConsoleLogger implements LoggerService {
+export class DeveloperLoggerService
+  extends ConsoleLogger
+  implements LoggerService
+{
   constructor(private readonly errorEvents: ErrorEventsService) {
     super();
   }

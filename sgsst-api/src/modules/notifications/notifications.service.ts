@@ -524,7 +524,7 @@ export class NotificationsService {
     const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const companyScope = { companyId };
 
-    const [documents, trainings, incidents, planActivities] =
+    const [documents, trainings, incidents, planActivities, medicalExams] =
       await this.prisma.$transaction([
         this.prisma.document.findMany({
           where: {
@@ -567,6 +567,26 @@ export class NotificationsService {
             evidenceId: true,
             companyId: true,
             plan: { select: { year: true } },
+          },
+        }),
+        // S10.2: examenes ocupacionales con proxima fecha vencida o
+        // proxima (30 dias). La alerta usa nextDueAt, no la fecha del examen.
+        this.prisma.medicalExam.findMany({
+          where: {
+            ...companyScope,
+            nextDueAt: { not: null },
+            OR: [
+              { nextDueAt: { lt: now } },
+              { nextDueAt: { gte: now, lte: next30Days } },
+            ],
+          },
+          select: {
+            id: true,
+            examType: true,
+            scheduledAt: true,
+            nextDueAt: true,
+            companyId: true,
+            employee: { select: { firstName: true, lastName: true } },
           },
         }),
       ]);
@@ -654,6 +674,34 @@ export class NotificationsService {
         });
         if (notification.createdAt.getTime() >= now.getTime()) created += 1;
       }
+
+      // S10.2: alertas de examenes ocupacionales (vencidos y proximos).
+      for (const exam of medicalExams.filter((item) =>
+        this.isVisibleForUser(targetUser, item.companyId),
+      )) {
+        const isOverdue = exam.nextDueAt !== null && exam.nextDueAt < now;
+        const dueLabel = exam.nextDueAt
+          ? exam.nextDueAt.toISOString().slice(0, 10)
+          : 'sin fecha';
+        const worker = `${exam.employee.firstName} ${exam.employee.lastName}`;
+        const notification = await this.create({
+          userId: targetUser.id,
+          companyId: exam.companyId,
+          title: isOverdue
+            ? 'Examen ocupacional vencido'
+            : 'Examen ocupacional proximo',
+          message: isOverdue
+            ? `El examen ${exam.examType} de ${worker} debia realizarse el ${dueLabel}`
+            : `El examen ${exam.examType} de ${worker} debe realizarse el ${dueLabel}`,
+          type: NotificationType.TASK,
+          priority: isOverdue
+            ? NotificationPriority.CRITICAL
+            : NotificationPriority.HIGH,
+          entity: 'MedicalExam',
+          entityId: exam.id,
+        });
+        if (notification.createdAt.getTime() >= now.getTime()) created += 1;
+      }
     }
 
     return {
@@ -664,6 +712,7 @@ export class NotificationsService {
         trainings: trainings.length,
         incidents: incidents.length,
         planActivities: planActivities.length,
+        medicalExams: medicalExams.length,
       },
     };
   }

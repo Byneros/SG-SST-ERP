@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import type { ErrorEventsService } from './modules/developer/error-events.service';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
@@ -76,6 +77,13 @@ import { UsersModule } from './modules/users/users.module';
   ],
 })
 export class AppModule implements NestModule {
+  /**
+   * Buffer de eventos tecnicos instalado en main.ts (el mismo que consume el
+   * DeveloperLoggerService). Lo declara AppModule para que la asignacion en
+   * el bootstrap sea tipada y no requiera casts.
+   */
+  developerErrorEvents?: ErrorEventsService;
+
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(

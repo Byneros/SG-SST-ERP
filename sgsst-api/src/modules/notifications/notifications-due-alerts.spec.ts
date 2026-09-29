@@ -4,7 +4,8 @@ import { NotificationsService } from './notifications.service';
 /**
  * S8.3: la generacion de alertas incluye actividades del plan anual
  * (proximas/vencidas/sin evidencia) ademas de documentos, capacitaciones
- * e incidentes. Prueba el escaneo y la creacion de notificaciones TASK.
+ * e incidentes. S10.2: tambien examenes ocupacionales por nextDueAt.
+ * Prueba el escaneo y la creacion de notificaciones TASK.
  */
 describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => {
   const notificationCreate = jest.fn();
@@ -30,6 +31,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     },
     user: { findMany: jest.fn() },
     annualPlanActivity: { findMany: jest.fn().mockResolvedValue([]) },
+    medicalExam: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const emailService = { send: jest.fn() };
   const whatsAppService = { sendText: jest.fn() };
@@ -69,12 +71,12 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           priority: input.data.priority ?? 'MEDIUM',
         }),
     );
-    // Documentos/trainings/incidentes vacios: solo plan anual en juego.
-    prisma.$transaction.mockResolvedValue([[], [], [], []]);
+    // Documentos/trainings/incidentes/plan/examenes vacios: escaneo base.
+    prisma.$transaction.mockResolvedValue([[], [], [], [], []]);
   });
 
-  it('escanea actividades del plan anual junto a documents/trainings/incidents', async () => {
-    prisma.$transaction.mockResolvedValue([[], [], [], []]);
+  it('escanea actividades del plan anual y examenes medicos junto a documents/trainings/incidents', async () => {
+    prisma.$transaction.mockResolvedValue([[], [], [], [], []]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
 
@@ -83,6 +85,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
       trainings: 0,
       incidents: 0,
       planActivities: 0,
+      medicalExams: 0,
     });
     // El where del escaneo excluye actividades DONE/CANCELLED y filtra por
     // vencidas/proximas/sin evidencia (OR sobre dueDate y evidenceId).
@@ -93,6 +96,14 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     )[0][0];
     expect(activityCall.where.status).toEqual({ notIn: ['DONE', 'CANCELLED'] });
     expect(activityCall.where.OR).toHaveLength(3);
+    // S10.2: examenes filtrados por nextDueAt vencida o dentro de 30 dias.
+    const examCall = (
+      prisma.medicalExam.findMany.mock.calls as Array<
+        [{ where: { nextDueAt: unknown; OR: unknown[] } }]
+      >
+    )[0][0];
+    expect(examCall.where.nextDueAt).toEqual({ not: null });
+    expect(examCall.where.OR).toHaveLength(2);
   });
 
   it('crea notificacion TASK critica para una actividad vencida con evidencia', async () => {
@@ -111,6 +122,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           plan: { year: 2026 },
         },
       ],
+      [], // medicalExams
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -151,6 +163,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           plan: { year: 2026 },
         },
       ],
+      [], // medicalExams
     ]);
 
     await service.generateDueAlertsForCompany('company-a');
@@ -165,5 +178,80 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     expect(data.priority).toBe(NotificationPriority.HIGH);
     expect(String(data.message)).toContain('no tiene evidencia');
     expect(String(data.message)).toContain('plan 2026');
+  });
+
+  it('S10.2: crea notificacion TASK critica para un examen ocupacional vencido', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          id: 'exam-overdue',
+          examType: 'PERIODICO',
+          scheduledAt: daysAgo(400),
+          nextDueAt: daysAgo(35),
+          companyId: 'company-a',
+          employee: { firstName: 'Ana', lastName: 'Perez' },
+        },
+      ],
+    ]);
+
+    const result = await service.generateDueAlertsForCompany('company-a');
+
+    expect(result.created).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      userId: 'sst-1',
+      companyId: 'company-a',
+      title: 'Examen ocupacional vencido',
+      type: NotificationType.TASK,
+      priority: NotificationPriority.CRITICAL,
+      entity: 'MedicalExam',
+      entityId: 'exam-overdue',
+    });
+    expect(String(createCall.data.message)).toContain('Ana Perez');
+    expect(String(createCall.data.message)).toContain('debia realizarse');
+  });
+
+  it('S10.2: crea notificacion de alta prioridad para un examen proximo', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          id: 'exam-upcoming',
+          examType: 'INGRESO',
+          scheduledAt: daysAhead(2),
+          nextDueAt: daysAhead(10),
+          companyId: 'company-a',
+          employee: { firstName: 'Luis', lastName: 'Gomez' },
+        },
+      ],
+    ]);
+
+    const result = await service.generateDueAlertsForCompany('company-a');
+
+    expect(result.created).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      title: 'Examen ocupacional proximo',
+      type: NotificationType.TASK,
+      priority: NotificationPriority.HIGH,
+      entity: 'MedicalExam',
+    });
+    expect(String(createCall.data.message)).toContain('Luis Gomez');
+    expect(String(createCall.data.message)).toContain('debe realizarse');
   });
 });

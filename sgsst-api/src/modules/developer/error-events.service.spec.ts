@@ -33,7 +33,11 @@ describe('ErrorEventsService (ring buffer)', () => {
   it('respeta el limite de 200 eventos (FIFO)', () => {
     const service = new ErrorEventsService();
     for (let i = 0; i < 250; i += 1) {
-      service.record({ level: 'error', context: 'ctx', message: `evento ${i}` });
+      service.record({
+        level: 'error',
+        context: 'ctx',
+        message: `evento ${i}`,
+      });
     }
     expect(service.count()).toBe(200);
     // latest() por defecto devuelve 100 (el mas reciente primero).

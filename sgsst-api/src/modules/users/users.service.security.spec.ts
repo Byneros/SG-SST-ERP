@@ -53,7 +53,7 @@ describe('UsersService - DEVELOPER role protection', () => {
           email: 'dev@company.test',
           password: 'Password123',
           // El DTO ya rechaza 'DEVELOPER'; se prueba la defensa del servicio.
-          role: 'DEVELOPER' as never,
+          role: 'DEVELOPER',
           companyId: 'company-a',
         },
         adminActor,
@@ -69,7 +69,7 @@ describe('UsersService - DEVELOPER role protection', () => {
           name: 'Sneaky Dev',
           email: 'dev2@platform.test',
           password: 'Password123',
-          role: 'DEVELOPER' as never,
+          role: 'DEVELOPER',
         },
         superAdminActor,
       ),
@@ -85,11 +85,7 @@ describe('UsersService - DEVELOPER role protection', () => {
     });
 
     await expect(
-      service.update(
-        'user-1',
-        { role: 'DEVELOPER' as never },
-        adminActor,
-      ),
+      service.update('user-1', { role: 'DEVELOPER' }, adminActor),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(usersRepository.updateScoped).not.toHaveBeenCalled();
   });
@@ -110,7 +106,7 @@ describe('UsersService - DEVELOPER role protection', () => {
     usersRepository.findByIdScoped.mockResolvedValue(null);
 
     await expect(
-      service.update('dev-1', { role: 'SUPER_ADMIN' as never }, developerActor),
+      service.update('dev-1', { role: 'SUPER_ADMIN' }, developerActor),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

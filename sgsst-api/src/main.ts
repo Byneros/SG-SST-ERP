@@ -14,7 +14,7 @@ async function bootstrap() {
   const errorEvents = new ErrorEventsService();
   app.useLogger(new DeveloperLoggerService(errorEvents));
   // El mismo buffer que consume el logger es el que expone DeveloperModule.
-  (app.get(AppModule) as unknown as { developerErrorEvents?: ErrorEventsService }).developerErrorEvents = errorEvents;
+  app.get(AppModule).developerErrorEvents = errorEvents;
 
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();

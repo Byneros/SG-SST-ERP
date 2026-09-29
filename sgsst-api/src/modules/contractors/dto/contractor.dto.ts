@@ -9,11 +9,7 @@ import {
   Min,
 } from 'class-validator';
 
-export const CONTRACTOR_STATUSES = [
-  'ACTIVE',
-  'SUSPENDED',
-  'BLOCKED',
-] as const;
+export const CONTRACTOR_STATUSES = ['ACTIVE', 'SUSPENDED', 'BLOCKED'] as const;
 
 export const CONTRACTOR_WORKER_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
 

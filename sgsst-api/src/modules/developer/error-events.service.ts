@@ -33,13 +33,20 @@ export class ErrorEventsService {
   private readonly events: TechnicalErrorEvent[] = [];
 
   /** Punto unico de captura: llamado por DeveloperLoggerService. */
-  record(event: Omit<TechnicalErrorEvent, 'timestamp'> & { timestamp?: string }) {
+  record(
+    event: Omit<TechnicalErrorEvent, 'timestamp'> & { timestamp?: string },
+  ) {
     const trimmed: TechnicalErrorEvent = {
       timestamp: event.timestamp ?? new Date().toISOString(),
       level: event.level,
       context: this.truncate(event.context || 'app', 200),
-      message: this.truncate(event.message || '(sin mensaje)', MAX_MESSAGE_LENGTH),
-      trace: event.trace ? this.truncate(event.trace, MAX_TRACE_LENGTH) : undefined,
+      message: this.truncate(
+        event.message || '(sin mensaje)',
+        MAX_MESSAGE_LENGTH,
+      ),
+      trace: event.trace
+        ? this.truncate(event.trace, MAX_TRACE_LENGTH)
+        : undefined,
       requestId: event.requestId,
     };
     this.events.push(trimmed);
@@ -61,8 +68,6 @@ export class ErrorEventsService {
   }
 
   private truncate(value: string, maxLength: number) {
-    return value.length > maxLength
-      ? `${value.slice(0, maxLength)}…`
-      : value;
+    return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
   }
 }
