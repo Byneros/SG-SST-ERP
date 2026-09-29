@@ -246,6 +246,9 @@ services:
       BACKUP_S3_FORCE_PATH_STYLE: ${BACKUP_S3_FORCE_PATH_STYLE:-true}
     volumes:
       - ./backups/postgres:/backups
+      # Clave privada age SOLO para el restore-check automatico (nunca se usa
+      # para cifrar; la publicacion la aporta BACKUP_ENCRYPTION_PUBLIC_KEY).
+      - ${BACKUP_ENCRYPTION_PRIVATE_KEY_FILE_HOST:-./secrets/age.key}:/keys/age.key:ro
     depends_on:
       postgres:
         condition: service_healthy
