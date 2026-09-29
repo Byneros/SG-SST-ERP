@@ -71,6 +71,32 @@ El entrypoint de la API reintenta `prisma migrate deploy` en bucle hasta que la 
 - Detener prod completo: `docker stop sgsst_prod_worker sgsst_prod_web sgsst_prod_api sgsst_prod_postgres sgsst_prod_redis`.
 - Nunca usar `docker compose down` en el directorio del compose de prod salvo intencion explicita: recrea contenedores de prod.
 
+### Variables separadas: `.env.prod` para el stack de prod
+
+El `.env` raiz es compartido y contiene valores de **dev** que rompen un recreate de prod si se filtran al compose de prod (ocurrio el 2026-09-29: `API_PORT=3002` hizo que `sgsst_prod_api` escuchara en 3002 mientras el compose publicaba 3001->3001, y una `POSTGRES_PASSWORD` desfasada dejo el API en loop de `P1000`).
+
+Solucion: overrides de prod en `.env.prod` (no versionado, cubierto por `**/.env.*`), fusionado sobre el `.env` base:
+
+```bash
+# Levantar/actualizar prod (los archivos se fusionan en orden; .env.prod gana):
+docker compose --env-file .env --env-file .env.prod -f docker-compose.prod.yml -p sgsst_smoke up -d
+
+# Validar la interpolacion sin levantar nada:
+docker compose --env-file .env --env-file .env.prod -f docker-compose.prod.yml config --quiet
+```
+
+Contenido esperado de `.env.prod` (solo lo propio de prod o lo que difiere de dev):
+
+- `GHCR_OWNER` y `IMAGE_TAG=sha-<commit>` (regla: siempre etiqueta inmutable, nunca `latest`).
+- `API_PORT=3001` (anula el 3002 de dev; el compose lo usa para `PORT` del contenedor y su healthcheck).
+- `WEB_BASE_URL` y `CORS_ORIGINS` de prod (`http://localhost:8080` en local; el `.env` base trae la lista de orígenes dev).
+
+Reglas:
+
+- `POSTGRES_PASSWORD` vive en el `.env` base y **debe coincidir** con la del volumen `postgres_data` de prod. Si se cambia en `.env`, alinear la BD primero (`ALTER USER postgres WITH PASSWORD '...'` desde `sgsst_prod_postgres`) o el API entrara en loop de `P1000` al recrear.
+- `AI_*`, `VITE_API_URL`, `POSTGRES_HOST_PORT` y `WEB_PORT` son exclusivos de dev: no van en `.env.prod` (el compose de prod ni los consume).
+- Tras cambiar `IMAGE_TAG` en `.env.prod`, API/worker/web deben rotar juntos (misma etiqueta; ver `docs/despliegue-por-ambientes.md`).
+
 ## Verificacion rapida de ambos stacks
 
 ```bash
