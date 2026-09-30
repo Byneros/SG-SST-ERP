@@ -138,6 +138,25 @@ function asAxiosHeaders(raw: unknown): AxiosHeaders {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // 429: el rate limiter del backend usa ventana fija por IP y rechaza antes
+    // de llegar al controlador, asi que reintentar una vez es seguro incluso
+    // para mutaciones (sin doble efecto). Evita que una rafaga momentanea deje
+    // los listados de loadData desactualizados. Se honora Retry-After si esta
+    // presente; si no, espera corta fija.
+    if (axios.isAxiosError(error) && error.response?.status === 429 && error.config) {
+      const originalRequest = error.config
+      const retried429 = (originalRequest as typeof originalRequest & { _retried429?: boolean })._retried429
+      if (!retried429) {
+        ;(originalRequest as typeof originalRequest & { _retried429?: boolean })._retried429 = true
+        const retryAfterSeconds = Number(error.response.headers?.['retry-after'] ?? 0)
+        const delayMs =
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? Math.min(retryAfterSeconds * 1000, 5000)
+            : 1500
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+        return api(originalRequest)
+      }
+    }
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const originalRequest = error.config
       const refreshToken = localStorage.getItem(refreshTokenKey)

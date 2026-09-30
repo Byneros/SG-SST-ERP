@@ -10,6 +10,7 @@ import {
   WarningAmber,
 } from '@mui/icons-material'
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CssBaseline, Stack, ThemeProvider, Typography } from '@mui/material'
+import axios from 'axios'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import {
   api,
@@ -808,39 +809,41 @@ function App() {
             params: { refresh: refreshDashboard || undefined },
           })
         : Promise.resolve({ data: emptySummary })
+      // allSettled: un request rate-limited (429) o caido no debe dejar los
+      // demas listados desactualizados; el que falla conserva su estado previo.
       const [
-        companyResponse,
-        contractorResponse,
-        siteResponse,
-        employeeResponse,
-        incidentsResponse,
-        risksResponse,
-        trainingsResponse,
-        documentResponse,
-        sgsstAuditResponse,
-        sgsstEvaluationResponse,
-        indicatorResponse,
-        annualWorkPlanResponse,
-        plannedInspectionResponse,
-        unplannedInspectionResponse,
-        unsafeReportResponse,
-        ppeItemsResponse,
-        ppeDeliveriesResponse,
-        medicalProfilesResponse,
-        medicalExamsResponse,
-        medicalRestrictionsResponse,
-        surveillanceProgramsResponse,
-        pveCasesResponse,
-        pveDiagnosesResponse,
-        reportExportsResponse,
-        reportMetricsResponse,
-        reportMetricHistoryResponse,
-        userResponse,
-        auditResponse,
-        externalDeliveryResponse,
-        notificationResponse,
-        summaryResponse,
-      ] = await Promise.all([
+        companySettled,
+        contractorSettled,
+        siteSettled,
+        employeeSettled,
+        incidentsSettled,
+        risksSettled,
+        trainingsSettled,
+        documentSettled,
+        sgsstAuditSettled,
+        sgsstEvaluationSettled,
+        indicatorSettled,
+        annualWorkPlanSettled,
+        plannedInspectionSettled,
+        unplannedInspectionSettled,
+        unsafeReportSettled,
+        ppeItemsSettled,
+        ppeDeliveriesSettled,
+        medicalProfilesSettled,
+        medicalExamsSettled,
+        medicalRestrictionsSettled,
+        surveillanceProgramsSettled,
+        pveCasesSettled,
+        pveDiagnosesSettled,
+        reportExportsSettled,
+        reportMetricsSettled,
+        reportMetricHistorySettled,
+        userSettled,
+        auditSettled,
+        externalDeliverySettled,
+        notificationSettled,
+        summarySettled,
+      ] = await Promise.allSettled([
         companyRequest,
         contractorRequest,
         siteRequest,
@@ -873,113 +876,218 @@ function App() {
         notificationRequest,
         summaryRequest,
       ])
+      // Helper: resuelve la respuesta del request exitoso; null si fallo (el
+      // listado correspondiente conserva su estado anterior).
+      function settledData<T>(settled: PromiseSettledResult<T>): T | null {
+        return settled.status === 'fulfilled' ? settled.value : null
+      }
+      const companyResponse = settledData(companySettled)
+      const contractorResponse = settledData(contractorSettled)
+      const siteResponse = settledData(siteSettled)
+      const employeeResponse = settledData(employeeSettled)
+      const incidentsResponse = settledData(incidentsSettled)
+      const risksResponse = settledData(risksSettled)
+      const trainingsResponse = settledData(trainingsSettled)
+      const documentResponse = settledData(documentSettled)
+      const sgsstAuditResponse = settledData(sgsstAuditSettled)
+      const sgsstEvaluationResponse = settledData(sgsstEvaluationSettled)
+      const indicatorResponse = settledData(indicatorSettled)
+      const annualWorkPlanResponse = settledData(annualWorkPlanSettled)
+      const plannedInspectionResponse = settledData(plannedInspectionSettled)
+      const unplannedInspectionResponse = settledData(unplannedInspectionSettled)
+      const unsafeReportResponse = settledData(unsafeReportSettled)
+      const ppeItemsResponse = settledData(ppeItemsSettled)
+      const ppeDeliveriesResponse = settledData(ppeDeliveriesSettled)
+      const medicalProfilesResponse = settledData(medicalProfilesSettled)
+      const medicalExamsResponse = settledData(medicalExamsSettled)
+      const medicalRestrictionsResponse = settledData(medicalRestrictionsSettled)
+      const surveillanceProgramsResponse = settledData(surveillanceProgramsSettled)
+      const pveCasesResponse = settledData(pveCasesSettled)
+      const pveDiagnosesResponse = settledData(pveDiagnosesSettled)
+      const reportExportsResponse = settledData(reportExportsSettled)
+      const reportMetricsResponse = settledData(reportMetricsSettled)
+      const reportMetricHistoryResponse = settledData(reportMetricHistorySettled)
+      const userResponse = settledData(userSettled)
+      const auditResponse = settledData(auditSettled)
+      const externalDeliveryResponse = settledData(externalDeliverySettled)
+      const notificationResponse = settledData(notificationSettled)
+      const summaryResponse = settledData(summarySettled)
 
-      if (isPaginated<Company>(companyResponse.data)) {
-        setCompanies(companyResponse.data.data)
-        setCompanyMeta(companyResponse.data.meta)
-      } else {
-        const data = Array.isArray(companyResponse.data) ? companyResponse.data : [companyResponse.data]
-        setCompanies(data)
-        setCompanyMeta({ ...emptyMeta, total: data.length, totalPages: 1 })
+      // Cada bloque aplica solo si su request respondio; si fallo (p. ej. 429
+      // tras el reintento), el listado conserva su estado anterior.
+      if (companyResponse) {
+        if (isPaginated<Company>(companyResponse.data)) {
+          setCompanies(companyResponse.data.data)
+          setCompanyMeta(companyResponse.data.meta)
+        } else {
+          const data = Array.isArray(companyResponse.data) ? companyResponse.data : [companyResponse.data]
+          setCompanies(data)
+          setCompanyMeta({ ...emptyMeta, total: data.length, totalPages: 1 })
+        }
       }
-      if (isPaginated<Contractor>(contractorResponse.data)) {
-        setContractors(contractorResponse.data.data)
-        setContractorMeta(contractorResponse.data.meta)
-      } else {
-        setContractors([])
-        setContractorMeta(emptyMeta)
+      if (contractorResponse) {
+        if (isPaginated<Contractor>(contractorResponse.data)) {
+          setContractors(contractorResponse.data.data)
+          setContractorMeta(contractorResponse.data.meta)
+        } else {
+          setContractors([])
+          setContractorMeta(emptyMeta)
+        }
       }
-      setSites(siteResponse.data.data)
-      setSiteMeta(siteResponse.data.meta)
-      setEmployees(employeeResponse.data.data)
-      setEmployeeMeta(employeeResponse.data.meta)
+      if (siteResponse) {
+        setSites(siteResponse.data.data)
+        setSiteMeta(siteResponse.data.meta)
+      }
+      if (employeeResponse) {
+        setEmployees(employeeResponse.data.data)
+        setEmployeeMeta(employeeResponse.data.meta)
+      }
       // incidents/risks/trainings devuelven arrays planos (sin paginacion).
-      const incidentRows = isPaginated<Incident>(incidentsResponse.data)
-        ? incidentsResponse.data.data
-        : Array.isArray(incidentsResponse.data)
-          ? incidentsResponse.data
-          : []
-      setIncidents(incidentRows)
-      setIncidentMeta(
-        isPaginated<Incident>(incidentsResponse.data)
-          ? incidentsResponse.data.meta
-          : { ...emptyMeta, total: incidentRows.length, totalPages: 1 },
-      )
-      const riskRows = isPaginated<Risk>(risksResponse.data)
-        ? risksResponse.data.data
-        : Array.isArray(risksResponse.data)
-          ? risksResponse.data
-          : []
-      setRisks(riskRows)
-      setRiskMeta(
-        isPaginated<Risk>(risksResponse.data)
-          ? risksResponse.data.meta
-          : { ...emptyMeta, total: riskRows.length, totalPages: 1 },
-      )
-      const trainingRows = isPaginated<Training>(trainingsResponse.data)
-        ? trainingsResponse.data.data
-        : Array.isArray(trainingsResponse.data)
-          ? trainingsResponse.data
-          : []
-      setTrainings(trainingRows)
-      setTrainingMeta(
-        isPaginated<Training>(trainingsResponse.data)
-          ? trainingsResponse.data.meta
-          : { ...emptyMeta, total: trainingRows.length, totalPages: 1 },
-      )
-      setDocuments(documentResponse.data.data)
-      setDocumentMeta(documentResponse.data.meta)
-      setSgsstAudits(sgsstAuditResponse.data.data)
-      setSgsstAuditMeta(sgsstAuditResponse.data.meta)
-      setSgsstEvaluations(sgsstEvaluationResponse.data.data)
-      setSgsstEvaluationMeta(sgsstEvaluationResponse.data.meta)
-      setIndicators(indicatorResponse.data.data)
-      setIndicatorMeta(indicatorResponse.data.meta)
+      if (incidentsResponse) {
+        const incidentRows = isPaginated<Incident>(incidentsResponse.data)
+          ? incidentsResponse.data.data
+          : Array.isArray(incidentsResponse.data)
+            ? incidentsResponse.data
+            : []
+        setIncidents(incidentRows)
+        setIncidentMeta(
+          isPaginated<Incident>(incidentsResponse.data)
+            ? incidentsResponse.data.meta
+            : { ...emptyMeta, total: incidentRows.length, totalPages: 1 },
+        )
+      }
+      if (risksResponse) {
+        const riskRows = isPaginated<Risk>(risksResponse.data)
+          ? risksResponse.data.data
+          : Array.isArray(risksResponse.data)
+            ? risksResponse.data
+            : []
+        setRisks(riskRows)
+        setRiskMeta(
+          isPaginated<Risk>(risksResponse.data)
+            ? risksResponse.data.meta
+            : { ...emptyMeta, total: riskRows.length, totalPages: 1 },
+        )
+      }
+      if (trainingsResponse) {
+        const trainingRows = isPaginated<Training>(trainingsResponse.data)
+          ? trainingsResponse.data.data
+          : Array.isArray(trainingsResponse.data)
+            ? trainingsResponse.data
+            : []
+        setTrainings(trainingRows)
+        setTrainingMeta(
+          isPaginated<Training>(trainingsResponse.data)
+            ? trainingsResponse.data.meta
+            : { ...emptyMeta, total: trainingRows.length, totalPages: 1 },
+        )
+      }
+      if (documentResponse) {
+        setDocuments(documentResponse.data.data)
+        setDocumentMeta(documentResponse.data.meta)
+      }
+      if (sgsstAuditResponse) {
+        setSgsstAudits(sgsstAuditResponse.data.data)
+        setSgsstAuditMeta(sgsstAuditResponse.data.meta)
+      }
+      if (sgsstEvaluationResponse) {
+        setSgsstEvaluations(sgsstEvaluationResponse.data.data)
+        setSgsstEvaluationMeta(sgsstEvaluationResponse.data.meta)
+      }
+      if (indicatorResponse) {
+        setIndicators(indicatorResponse.data.data)
+        setIndicatorMeta(indicatorResponse.data.meta)
+      }
       // El API de planes anuales devuelve array plano (sin paginacion).
-      const planRows = Array.isArray(annualWorkPlanResponse.data) ? annualWorkPlanResponse.data : []
-      setAnnualWorkPlans(planRows)
-      setAnnualWorkPlanMeta({ ...emptyMeta, total: planRows.length, totalPages: 1 })
+      if (annualWorkPlanResponse) {
+        const planRows = Array.isArray(annualWorkPlanResponse.data) ? annualWorkPlanResponse.data : []
+        setAnnualWorkPlans(planRows)
+        setAnnualWorkPlanMeta({ ...emptyMeta, total: planRows.length, totalPages: 1 })
+      }
       // Inspecciones: array plano, filtro de sede aplicado en el servidor.
-      const inspectionRows = Array.isArray(plannedInspectionResponse.data) ? plannedInspectionResponse.data : []
-      setPlannedInspections(inspectionRows)
-      setPlannedInspectionMeta({ ...emptyMeta, total: inspectionRows.length, totalPages: 1 })
-      const unplannedRows = Array.isArray(unplannedInspectionResponse.data) ? unplannedInspectionResponse.data : []
-      setUnplannedInspections(unplannedRows)
-      setUnplannedInspectionMeta({ ...emptyMeta, total: unplannedRows.length, totalPages: 1 })
-      const unsafeRows = Array.isArray(unsafeReportResponse.data) ? unsafeReportResponse.data : []
-      setUnsafeReports(unsafeRows)
-      setUnsafeReportMeta({ ...emptyMeta, total: unsafeRows.length, totalPages: 1 })
-      const ppeItemRows = Array.isArray(ppeItemsResponse.data) ? ppeItemsResponse.data : []
-      setPpeItems(ppeItemRows)
-      setPpeMeta({ ...emptyMeta, total: ppeItemRows.length, totalPages: 1 })
-      const ppeDeliveryRows = Array.isArray(ppeDeliveriesResponse.data) ? ppeDeliveriesResponse.data : []
-      setPpeDeliveries(ppeDeliveryRows)
-      const medicalProfileRows = Array.isArray(medicalProfilesResponse.data) ? medicalProfilesResponse.data : []
-      setMedicalProfiles(medicalProfileRows)
-      const medicalExamRows = Array.isArray(medicalExamsResponse.data) ? medicalExamsResponse.data : []
-      setMedicalExams(medicalExamRows)
-      const medicalRestrictionRows = Array.isArray(medicalRestrictionsResponse.data) ? medicalRestrictionsResponse.data : []
-      setMedicalRestrictions(medicalRestrictionRows)
-      setSurveillancePrograms(Array.isArray(surveillanceProgramsResponse.data) ? surveillanceProgramsResponse.data : [])
-      setPveCases(pveCasesResponse.data.data)
-      setPveDiagnoses(Array.isArray(pveDiagnosesResponse.data) ? pveDiagnosesResponse.data : [])
-      setReportExports(reportExportsResponse.data.data)
-      setReportExportMeta(reportExportsResponse.data.meta)
-      setReportMetrics(reportMetricsResponse.data)
-      setReportMetricHistory(reportMetricHistoryResponse.data)
-      setUsers(userResponse.data.data)
-      setUserMeta(userResponse.data.meta)
-      setAuditLogs(auditResponse.data.data)
-      if (isPaginated<ExternalDelivery>(externalDeliveryResponse.data)) {
+      if (plannedInspectionResponse) {
+        const inspectionRows = Array.isArray(plannedInspectionResponse.data) ? plannedInspectionResponse.data : []
+        setPlannedInspections(inspectionRows)
+        setPlannedInspectionMeta({ ...emptyMeta, total: inspectionRows.length, totalPages: 1 })
+      }
+      if (unplannedInspectionResponse) {
+        const unplannedRows = Array.isArray(unplannedInspectionResponse.data) ? unplannedInspectionResponse.data : []
+        setUnplannedInspections(unplannedRows)
+        setUnplannedInspectionMeta({ ...emptyMeta, total: unplannedRows.length, totalPages: 1 })
+      }
+      if (unsafeReportResponse) {
+        const unsafeRows = Array.isArray(unsafeReportResponse.data) ? unsafeReportResponse.data : []
+        setUnsafeReports(unsafeRows)
+        setUnsafeReportMeta({ ...emptyMeta, total: unsafeRows.length, totalPages: 1 })
+      }
+      if (ppeItemsResponse) {
+        const ppeItemRows = Array.isArray(ppeItemsResponse.data) ? ppeItemsResponse.data : []
+        setPpeItems(ppeItemRows)
+        setPpeMeta({ ...emptyMeta, total: ppeItemRows.length, totalPages: 1 })
+      }
+      if (ppeDeliveriesResponse) {
+        const ppeDeliveryRows = Array.isArray(ppeDeliveriesResponse.data) ? ppeDeliveriesResponse.data : []
+        setPpeDeliveries(ppeDeliveryRows)
+      }
+      if (medicalProfilesResponse) {
+        const medicalProfileRows = Array.isArray(medicalProfilesResponse.data) ? medicalProfilesResponse.data : []
+        setMedicalProfiles(medicalProfileRows)
+      }
+      if (medicalExamsResponse) {
+        const medicalExamRows = Array.isArray(medicalExamsResponse.data) ? medicalExamsResponse.data : []
+        setMedicalExams(medicalExamRows)
+      }
+      if (medicalRestrictionsResponse) {
+        const medicalRestrictionRows = Array.isArray(medicalRestrictionsResponse.data) ? medicalRestrictionsResponse.data : []
+        setMedicalRestrictions(medicalRestrictionRows)
+      }
+      if (surveillanceProgramsResponse) {
+        setSurveillancePrograms(Array.isArray(surveillanceProgramsResponse.data) ? surveillanceProgramsResponse.data : [])
+      }
+      if (pveCasesResponse) {
+        setPveCases(pveCasesResponse.data.data)
+      }
+      if (pveDiagnosesResponse) {
+        setPveDiagnoses(Array.isArray(pveDiagnosesResponse.data) ? pveDiagnosesResponse.data : [])
+      }
+      if (reportExportsResponse) {
+        setReportExports(reportExportsResponse.data.data)
+        setReportExportMeta(reportExportsResponse.data.meta)
+      }
+      if (reportMetricsResponse) {
+        setReportMetrics(reportMetricsResponse.data)
+      }
+      if (reportMetricHistoryResponse) {
+        setReportMetricHistory(reportMetricHistoryResponse.data)
+      }
+      if (userResponse) {
+        setUsers(userResponse.data.data)
+        setUserMeta(userResponse.data.meta)
+      }
+      if (auditResponse) {
+        setAuditLogs(auditResponse.data.data)
+        setAuditMeta(auditResponse.data.meta)
+      }
+      if (externalDeliveryResponse && isPaginated<ExternalDelivery>(externalDeliveryResponse.data)) {
         setExternalDeliveries(externalDeliveryResponse.data.data)
         setExternalDeliveryMeta(externalDeliveryResponse.data.meta)
       }
-      setAuditMeta(auditResponse.data.meta)
-      setNotifications(notificationResponse.data.data)
-      setNotificationUnread(notificationResponse.data.meta.unread ?? 0)
-      setDashboardSummary({ ...emptySummary, ...summaryResponse.data, siteKpis: summaryResponse.data.siteKpis ?? [] })
+      if (notificationResponse) {
+        setNotifications(notificationResponse.data.data)
+        setNotificationUnread(notificationResponse.data.meta.unread ?? 0)
+      }
+      if (summaryResponse) {
+        setDashboardSummary({ ...emptySummary, ...summaryResponse.data, siteKpis: summaryResponse.data.siteKpis ?? [] })
+      }
     } catch (currentError) {
-      setError(readApiError(currentError))
+      // Los 429 ya se reintentan en el interceptor (client.ts); si aun asi
+      // llega uno aqui es porque la ventana de rate limit sigue agotada.
+      const message = readApiError(currentError)
+      setError(
+        axios.isAxiosError(currentError) && currentError.response?.status === 429
+          ? 'Demasiadas solicitudes en poco tiempo. Espera unos segundos y vuelve a intentar.'
+          : message,
+      )
     } finally {
       setLoading(false)
     }
