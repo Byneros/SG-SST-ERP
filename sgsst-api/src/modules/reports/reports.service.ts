@@ -867,7 +867,8 @@ export class ReportsService {
       return rowLists.flat();
     }
 
-    // S10.4 (Issue #28): indicadores de vigilancia epidemiologica por programa.
+    // S10.4 (Issue #28) + #44: indicadores de vigilancia epidemiologica por
+    // programa, con casos por estado y ausentismo por cohorte.
     if (kind === 'surveillance') {
       const programs = await this.prisma.medicalSurveillanceProgram.findMany({
         where: { ...companyScope },
@@ -880,6 +881,9 @@ export class ReportsService {
               },
               workers: { select: { id: true } },
             },
+          },
+          cases: {
+            select: { cohortId: true, status: true, absenceDays: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -896,6 +900,11 @@ export class ReportsService {
             nivelRiesgo: '',
             expuestos: 0,
             ultimaRevision: '',
+            casosSospecha: 0,
+            casosConfirmados: 0,
+            casosCerrados: 0,
+            diasAusentismo: 0,
+            diasPorExpuesto: 0,
           },
         ];
       }
@@ -915,18 +924,45 @@ export class ReportsService {
               nivelRiesgo: '',
               expuestos: 0,
               ultimaRevision: '',
+              casosSospecha: 0,
+              casosConfirmados: 0,
+              casosCerrados: 0,
+              diasAusentismo: 0,
+              diasPorExpuesto: 0,
             },
           ];
         }
-        return program.cohorts.map((cohort) => ({
-          ...base,
-          cohorteRiesgo: cohort.risk?.title ?? '',
-          nivelRiesgo: cohort.risk?.level ?? '',
-          expuestos: cohort.workers.length,
-          ultimaRevision: cohort.lastReviewedAt
-            ? cohort.lastReviewedAt.toISOString().slice(0, 10)
-            : '',
-        }));
+        return program.cohorts.map((cohort) => {
+          // Casos #44 de la cohorte (los sin cohorte quedan en la fila del
+          // programa: se cuentan pero no duplican tasas por cohorte).
+          const cohortCases = program.cases.filter(
+            (c) => c.cohortId === cohort.id,
+          );
+          const exposed = cohort.workers.length;
+          const absenceDays = cohortCases.reduce(
+            (sum, c) => sum + c.absenceDays,
+            0,
+          );
+          return {
+            ...base,
+            cohorteRiesgo: cohort.risk?.title ?? '',
+            nivelRiesgo: cohort.risk?.level ?? '',
+            expuestos: exposed,
+            ultimaRevision: cohort.lastReviewedAt
+              ? cohort.lastReviewedAt.toISOString().slice(0, 10)
+              : '',
+            casosSospecha: cohortCases.filter((c) => c.status === 'SUSPECTED')
+              .length,
+            casosConfirmados: cohortCases.filter(
+              (c) => c.status === 'CONFIRMED',
+            ).length,
+            casosCerrados: cohortCases.filter((c) => c.status === 'CLOSED')
+              .length,
+            diasAusentismo: absenceDays,
+            diasPorExpuesto:
+              exposed > 0 ? Math.round((absenceDays / exposed) * 10) / 10 : 0,
+          };
+        });
       });
     }
 

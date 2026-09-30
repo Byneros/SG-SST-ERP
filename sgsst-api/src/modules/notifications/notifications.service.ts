@@ -524,72 +524,99 @@ export class NotificationsService {
     const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const companyScope = { companyId };
 
-    const [documents, trainings, incidents, planActivities, medicalExams] =
-      await this.prisma.$transaction([
-        this.prisma.document.findMany({
-          where: {
-            ...companyScope,
-            expiresAt: { gte: now, lte: next30Days },
-          },
-          select: { id: true, name: true, expiresAt: true, companyId: true },
-        }),
-        this.prisma.training.findMany({
-          where: { ...companyScope, date: { lt: now } },
-          select: { id: true, title: true, date: true, companyId: true },
-        }),
-        this.prisma.incident.findMany({
-          where: {
-            ...companyScope,
-            status: { not: IncidentStatus.RESOLVED },
-          },
-          select: { id: true, title: true, status: true, companyId: true },
-        }),
-        // S8.3: actividades del plan anual proximas (30 dias), vencidas o
-        // sin evidencia cerca del vencimiento. Se excluyen cerradas/canceladas.
-        this.prisma.annualPlanActivity.findMany({
-          where: {
-            ...companyScope,
-            status: { notIn: ['DONE', 'CANCELLED'] },
-            OR: [
-              // Vencidas: fecha compromiso pasada.
-              { dueDate: { lt: now } },
-              // Proximas: vencen dentro de los proximos 30 dias.
-              { dueDate: { gte: now, lte: next30Days } },
-              // Sin evidencia y a punto de vencer (30 dias) o ya vencidas.
-              { evidenceId: null, dueDate: { lte: next30Days } },
-            ],
-          },
-          select: {
-            id: true,
-            name: true,
-            dueDate: true,
-            status: true,
-            evidenceId: true,
-            companyId: true,
-            plan: { select: { year: true } },
-          },
-        }),
-        // S10.2: examenes ocupacionales con proxima fecha vencida o
-        // proxima (30 dias). La alerta usa nextDueAt, no la fecha del examen.
-        this.prisma.medicalExam.findMany({
-          where: {
-            ...companyScope,
-            nextDueAt: { not: null },
-            OR: [
-              { nextDueAt: { lt: now } },
-              { nextDueAt: { gte: now, lte: next30Days } },
-            ],
-          },
-          select: {
-            id: true,
-            examType: true,
-            scheduledAt: true,
-            nextDueAt: true,
-            companyId: true,
-            employee: { select: { firstName: true, lastName: true } },
-          },
-        }),
-      ]);
+    const [
+      documents,
+      trainings,
+      incidents,
+      planActivities,
+      medicalExams,
+      pveCases,
+    ] = await this.prisma.$transaction([
+      this.prisma.document.findMany({
+        where: {
+          ...companyScope,
+          expiresAt: { gte: now, lte: next30Days },
+        },
+        select: { id: true, name: true, expiresAt: true, companyId: true },
+      }),
+      this.prisma.training.findMany({
+        where: { ...companyScope, date: { lt: now } },
+        select: { id: true, title: true, date: true, companyId: true },
+      }),
+      this.prisma.incident.findMany({
+        where: {
+          ...companyScope,
+          status: { not: IncidentStatus.RESOLVED },
+        },
+        select: { id: true, title: true, status: true, companyId: true },
+      }),
+      // S8.3: actividades del plan anual proximas (30 dias), vencidas o
+      // sin evidencia cerca del vencimiento. Se excluyen cerradas/canceladas.
+      this.prisma.annualPlanActivity.findMany({
+        where: {
+          ...companyScope,
+          status: { notIn: ['DONE', 'CANCELLED'] },
+          OR: [
+            // Vencidas: fecha compromiso pasada.
+            { dueDate: { lt: now } },
+            // Proximas: vencen dentro de los proximos 30 dias.
+            { dueDate: { gte: now, lte: next30Days } },
+            // Sin evidencia y a punto de vencer (30 dias) o ya vencidas.
+            { evidenceId: null, dueDate: { lte: next30Days } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          dueDate: true,
+          status: true,
+          evidenceId: true,
+          companyId: true,
+          plan: { select: { year: true } },
+        },
+      }),
+      // S10.2: examenes ocupacionales con proxima fecha vencida o
+      // proxima (30 dias). La alerta usa nextDueAt, no la fecha del examen.
+      this.prisma.medicalExam.findMany({
+        where: {
+          ...companyScope,
+          nextDueAt: { not: null },
+          OR: [
+            { nextDueAt: { lt: now } },
+            { nextDueAt: { gte: now, lte: next30Days } },
+          ],
+        },
+        select: {
+          id: true,
+          examType: true,
+          scheduledAt: true,
+          nextDueAt: true,
+          companyId: true,
+          employee: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      // #44: casos PVE abiertos con control de seguimiento vencido o
+      // proximo (30 dias). Los cerrados no generan alertas.
+      this.prisma.pveCase.findMany({
+        where: {
+          ...companyScope,
+          status: { not: 'CLOSED' },
+          nextFollowUpAt: { not: null },
+          OR: [
+            { nextFollowUpAt: { lt: now } },
+            { nextFollowUpAt: { gte: now, lte: next30Days } },
+          ],
+        },
+        select: {
+          id: true,
+          status: true,
+          nextFollowUpAt: true,
+          companyId: true,
+          employee: { select: { firstName: true, lastName: true } },
+          diagnosis: { select: { code: true, name: true } },
+        },
+      }),
+    ]);
 
     let created = 0;
     for (const targetUser of targetUsers) {
@@ -702,6 +729,35 @@ export class NotificationsService {
         });
         if (notification.createdAt.getTime() >= now.getTime()) created += 1;
       }
+
+      // #44: alertas de seguimiento de casos PVE (control vencido/proximo).
+      for (const pveCase of pveCases.filter((item) =>
+        this.isVisibleForUser(targetUser, item.companyId),
+      )) {
+        const isOverdue =
+          pveCase.nextFollowUpAt !== null && pveCase.nextFollowUpAt < now;
+        const dueLabel = pveCase.nextFollowUpAt
+          ? pveCase.nextFollowUpAt.toISOString().slice(0, 10)
+          : 'sin fecha';
+        const worker = `${pveCase.employee.firstName} ${pveCase.employee.lastName}`;
+        const notification = await this.create({
+          userId: targetUser.id,
+          companyId: pveCase.companyId,
+          title: isOverdue
+            ? 'Control de caso PVE vencido'
+            : 'Control de caso PVE proximo',
+          message: isOverdue
+            ? `El caso ${pveCase.diagnosis.code} de ${worker} debia revisarse el ${dueLabel}`
+            : `El caso ${pveCase.diagnosis.code} de ${worker} debe revisarse el ${dueLabel}`,
+          type: NotificationType.TASK,
+          priority: isOverdue
+            ? NotificationPriority.CRITICAL
+            : NotificationPriority.HIGH,
+          entity: 'PveCase',
+          entityId: pveCase.id,
+        });
+        if (notification.createdAt.getTime() >= now.getTime()) created += 1;
+      }
     }
 
     return {
@@ -713,6 +769,7 @@ export class NotificationsService {
         incidents: incidents.length,
         planActivities: planActivities.length,
         medicalExams: medicalExams.length,
+        pveCases: pveCases.length,
       },
     };
   }

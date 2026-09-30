@@ -32,6 +32,8 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     user: { findMany: jest.fn() },
     annualPlanActivity: { findMany: jest.fn().mockResolvedValue([]) },
     medicalExam: { findMany: jest.fn().mockResolvedValue([]) },
+    // #44: casos PVE escaneados por nextFollowUpAt.
+    pveCase: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const emailService = { send: jest.fn() };
   const whatsAppService = { sendText: jest.fn() };
@@ -72,11 +74,11 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
         }),
     );
     // Documentos/trainings/incidentes/plan/examenes vacios: escaneo base.
-    prisma.$transaction.mockResolvedValue([[], [], [], [], []]);
+    prisma.$transaction.mockResolvedValue([[], [], [], [], [], []]);
   });
 
   it('escanea actividades del plan anual y examenes medicos junto a documents/trainings/incidents', async () => {
-    prisma.$transaction.mockResolvedValue([[], [], [], [], []]);
+    prisma.$transaction.mockResolvedValue([[], [], [], [], [], []]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
 
@@ -86,6 +88,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
       incidents: 0,
       planActivities: 0,
       medicalExams: 0,
+      pveCases: 0,
     });
     // El where del escaneo excluye actividades DONE/CANCELLED y filtra por
     // vencidas/proximas/sin evidencia (OR sobre dueDate y evidenceId).
@@ -123,6 +126,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
         },
       ],
       [], // medicalExams
+      [], // pveCases (#44)
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -164,6 +168,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
         },
       ],
       [], // medicalExams
+      [], // pveCases (#44)
     ]);
 
     await service.generateDueAlertsForCompany('company-a');
@@ -196,6 +201,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           employee: { firstName: 'Ana', lastName: 'Perez' },
         },
       ],
+      [], // pveCases
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -235,6 +241,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           employee: { firstName: 'Luis', lastName: 'Gomez' },
         },
       ],
+      [], // pveCases
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -253,5 +260,81 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     });
     expect(String(createCall.data.message)).toContain('Luis Gomez');
     expect(String(createCall.data.message)).toContain('debe realizarse');
+  });
+
+  it('#44: crea notificacion TASK critica para un control de caso PVE vencido', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          id: 'pve-overdue',
+          status: 'CONFIRMED',
+          nextFollowUpAt: daysAgo(10),
+          companyId: 'company-a',
+          employee: { firstName: 'Maria', lastName: 'Rojas' },
+          diagnosis: { code: 'M54.5', name: 'Lumbago' },
+        },
+      ],
+    ]);
+
+    const result = await service.generateDueAlertsForCompany('company-a');
+
+    expect(result.created).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      title: 'Control de caso PVE vencido',
+      type: NotificationType.TASK,
+      priority: NotificationPriority.CRITICAL,
+      entity: 'PveCase',
+      entityId: 'pve-overdue',
+    });
+    expect(String(createCall.data.message)).toContain('M54.5');
+    expect(String(createCall.data.message)).toContain('Maria Rojas');
+    expect(String(createCall.data.message)).toContain('debia revisarse');
+  });
+
+  it('#44: crea notificacion de alta prioridad para un control de caso PVE proximo', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          id: 'pve-upcoming',
+          status: 'SUSPECTED',
+          nextFollowUpAt: daysAhead(20),
+          companyId: 'company-a',
+          employee: { firstName: 'Jose', lastName: 'Vega' },
+          diagnosis: { code: 'H52.4', name: 'Presbicia' },
+        },
+      ],
+    ]);
+
+    const result = await service.generateDueAlertsForCompany('company-a');
+
+    expect(result.created).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      title: 'Control de caso PVE proximo',
+      type: NotificationType.TASK,
+      priority: NotificationPriority.HIGH,
+      entity: 'PveCase',
+    });
+    expect(String(createCall.data.message)).toContain('H52.4');
+    expect(String(createCall.data.message)).toContain('debe revisarse');
   });
 });
