@@ -1,5 +1,12 @@
 # Evidencia smoke test S8-S10 (cierre formal, pendientes 1 y 2)
 
+**Re-ejecución 2026-09-30 (cierre definitivo S8-S10):** smoke HTTP 24/24 PASS
+contra el mismo stack dev, tras el fix del 400 en `GET /contractors` (commit
+a6d9133) y con la pestaña "Vigilancia epidemiologica" verificada en navegador
+(qa-smoke-ui 9/9, 0 errores de consola, 0 requests fallidos). Issues #17-#28
+cerrados con evidencia ese mismo día; alcance ampliado del PVE quedó en #44.
+Suites: 284/284 unitarias, 65/65 e2e servicio, 35/35 e2e PostgreSQL real.
+
 Fecha: 2026-09-28. Entorno: stack dev del compose (`sgsst_*`) con PostgreSQL
 16 real (`sgsst_postgres`), API en `http://localhost:3002/api/v1`
 (`API_PORT=3002`), migraciones al dia (41 registros en `_prisma_migrations`,
