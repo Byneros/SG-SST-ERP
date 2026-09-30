@@ -19,7 +19,6 @@ set -uo pipefail
 
 REPO="${REPO:-Byneros/SG-SST-ERP}"
 DRY_RUN="${DRY_RUN:-1}"
-BASE="$PWD"
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "ERROR: gh no esta autenticado. Ejecuta: gh auth login" >&2
@@ -42,6 +41,7 @@ comment() { # $1 = numero de issue, $2 = archivo de cuerpo
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# shellcheck disable=SC2016  # comillas simples intencionales: el HDR lleva backticks literales para el markdown
 HDR='Evidencia verificada localmente el 2026-09-29 (commit 18a26f8, build OK, lint 0 errores, 265/265 unitarias, 65/65 e2e servicio, 26/26 e2e PostgreSQL real). Matriz completa: `docs/reconciliacion-s8-s10.md`.'
 
 # ---------- #17 S8.1 ----------

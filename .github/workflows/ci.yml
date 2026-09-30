@@ -15,6 +15,14 @@ jobs:
     defaults:
       run:
         working-directory: sgsst-api
+    # Redis real para readiness: getReadiness() exige database y redis en ok
+    # (sin esto, /developer/overview reporta database: 'error' en CI y el
+    # e2e developer.db-e2e-spec falla).
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sgsst
