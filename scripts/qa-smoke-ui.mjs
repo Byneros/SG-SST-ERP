@@ -81,6 +81,22 @@ export default async function run(page, ui) {
   await gotoView('S9 unsafeReports', ['Actos y condiciones', 'Condiciones inseguras'], 'insegur');
   await gotoView('S9 ppe', ['EPP'], 'EPP');
   await gotoView('S10 medical', ['Medicina laboral'], 'Profesiograma|Examen|Medicina');
+
+  // --- S10.4: pestana Vigilancia epidemiologica (panel de programas PVE) ---
+  {
+    const snap3 = await ui.snapshot();
+    const tabRef = snap3.match(/@(e\d+) tab "Vigilancia epidemiologica"/)?.[1];
+    if (tabRef) {
+      await ui.click(tabRef);
+      await page.waitForTimeout(1200);
+      const text = await page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+      const marker = /Programas PVE/.test(text);
+      out.steps.push({ step: 'S10.4 surveillance', ok: marker, markerFound: marker });
+    } else {
+      out.steps.push({ step: 'S10.4 surveillance', ok: false, detail: 'tab Vigilancia no encontrada' });
+    }
+  }
+
   await gotoView('16.2 aiAssistant', ['Asistente IA'], 'Asistente');
 
   out.ok = out.steps.every((s) => s.ok) && out.consoleErrors.length === 0;

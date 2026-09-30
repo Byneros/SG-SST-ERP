@@ -598,14 +598,10 @@ function App() {
           : hasCompanyScope
             ? api.get<Company>(`/companies/${activeCompanyId}`)
             : Promise.resolve({ data: [] as Company[] })
-      // S11 Contratistas: paginado y scoped por empresa activa.
+      // S11 Contratistas: paginado; la empresa la resuelve el backend desde el
+      // JWT (resolveCompanyScope) y el DTO no acepta companyId en el query.
       const contractorRequest = canViewContractors && hasCompanyScope
-        ? api.get<Paginated<Contractor>>('/contractors', {
-            params: {
-              ...tableParams(contractorTable),
-              ...(isPlatformAdmin ? {} : { companyId: activeCompanyId }),
-            },
-          })
+        ? api.get<Paginated<Contractor>>('/contractors', { params: tableParams(contractorTable) })
         : Promise.resolve({ data: { data: [] as Contractor[], meta: emptyMeta } })
       const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
