@@ -2,8 +2,9 @@ import { Delete, Edit, Gavel } from '@mui/icons-material'
 import { Button, Chip, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { ActiveCompanyBanner, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
-import type { MedicalExam, MedicalProfile, MedicalRestriction, MedicalSurveillanceProgram } from '../../types'
-import { MedicalDerivationPanel, MedicalSurveillancePanel } from './MedicalPanels'
+import type { MedicalExam, MedicalProfile, MedicalRestriction, MedicalSurveillanceProgram, PveCase, PveDiagnosis } from '../../types'
+import type { TableState } from '../../types'
+import { MedicalDerivationPanel, MedicalSurveillancePanel, PveCasesSection } from './MedicalPanels'
 
 const conceptLabels: Record<string, { label: string; color: 'default' | 'success' | 'warning' | 'error' }> = {
   PENDIENTE: { label: 'Pendiente', color: 'default' },
@@ -35,6 +36,16 @@ export function MedicalPage(props: {
   onDeriveCohort: (programId: string, riskId: string) => Promise<{ workersCount: number; reviewed: boolean } | null>
   onReviewCohort: (cohortId: string) => Promise<void>
   onExportSurveillance: (format: 'pdf' | 'csv') => void
+  // #44: casos PVE y catalogo CIE-10.
+  pveCases: PveCase[]
+  pveDiagnoses: PveDiagnosis[]
+  pveTableState: TableState
+  onPveTableChange: (state: TableState) => void
+  onNewPveCase: () => void
+  onEditPveCase: (item: PveCase) => void
+  onDeletePveCase: (id: string) => void
+  onAdvancePveCaseStatus: (item: PveCase) => void
+  onManagePveDiagnoses: () => void
   activeCompanyName?: string
 }) {
   const [tab, setTab] = useState(0)
@@ -237,7 +248,19 @@ export function MedicalPage(props: {
           onDeriveCohort={props.onDeriveCohort}
           onReviewCohort={props.onReviewCohort}
           onExport={props.onExportSurveillance}
-        />
+        >
+          <PveCasesSection
+            cases={props.pveCases}
+            diagnoses={props.pveDiagnoses}
+            employees={[]}
+            canManage={props.canManage}
+            onNewCase={props.onNewPveCase}
+            onEditCase={props.onEditPveCase}
+            onDeleteCase={props.onDeletePveCase}
+            onAdvanceStatus={props.onAdvancePveCaseStatus}
+            onManageDiagnoses={props.onManagePveDiagnoses}
+          />
+        </MedicalSurveillancePanel>
       )}
     </Paper>
   )

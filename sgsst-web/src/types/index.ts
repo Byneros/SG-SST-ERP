@@ -991,6 +991,54 @@ export type MedicalSurveillanceProgram = {
   cohorts: Array<MedicalSurveillanceCohort & { _count?: { workers: number } }>
 }
 
+/** Catalogo CIE-10 por empresa (#44). */
+export type PveDiagnosis = {
+  id: string
+  code: string
+  name: string
+  category?: string
+  active: boolean
+  companyId: string
+  _count?: { cases: number }
+}
+
+export type PveCaseStatus = 'SUSPECTED' | 'CONFIRMED' | 'CLOSED'
+
+export type PveCase = {
+  id: string
+  status: PveCaseStatus
+  reportedAt: string
+  nextFollowUpAt?: string
+  closedAt?: string
+  absenceDays: number
+  notes?: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'document' | 'position'>
+  program?: { id: string; name: string; riskType: string }
+  cohort?: { id: string; status: string; lastReviewedAt?: string } | null
+  diagnosis?: { id: string; code: string; name: string; category?: string }
+  companyId: string
+}
+
+export type PveCaseFormValues = {
+  employeeId: string
+  programId: string
+  cohortId: string
+  diagnosisId: string
+  status: string
+  reportedAt: string
+  nextFollowUpAt: string
+  absenceDays: number
+  notes: string
+  companyId: string
+}
+
+export type PveDiagnosisFormValues = {
+  code: string
+  name: string
+  category: string
+  companyId: string
+}
+
 export type MedicalExam = {
   id: string
   examType: MedicalExamType

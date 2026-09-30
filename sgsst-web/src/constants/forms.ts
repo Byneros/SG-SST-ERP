@@ -13,6 +13,8 @@ import type {
   MedicalExamFormValues,
   MedicalRestrictionFormValues,
   MedicalSurveillanceProgramFormValues,
+  PveCaseFormValues,
+  PveDiagnosisFormValues,
   UnplannedInspectionFormValues,
   UnsafeReportFormValues,
   DocumentFormValues,
@@ -280,6 +282,26 @@ export const emptyMedicalSurveillanceProgram: MedicalSurveillanceProgramFormValu
   name: '',
   riskType: 'BIOMECANICO',
   objective: '',
+  companyId: '',
+}
+
+export const emptyPveCase: PveCaseFormValues = {
+  employeeId: '',
+  programId: '',
+  cohortId: '',
+  diagnosisId: '',
+  status: 'SUSPECTED',
+  reportedAt: '',
+  nextFollowUpAt: '',
+  absenceDays: 0,
+  notes: '',
+  companyId: '',
+}
+
+export const emptyPveDiagnosis: PveDiagnosisFormValues = {
+  code: '',
+  name: '',
+  category: '',
   companyId: '',
 }
 

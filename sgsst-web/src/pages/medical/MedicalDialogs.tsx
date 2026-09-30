@@ -5,6 +5,8 @@ import type {
   MedicalProfileFormValues,
   MedicalRestrictionFormValues,
   MedicalSurveillanceProgramFormValues,
+  PveCaseFormValues,
+  PveDiagnosisFormValues,
 } from '../../types'
 
 const examTypes = ['INGRESO', 'PERIODICO', 'RETIRO', 'POSTINCAPACIDAD', 'CAMBIO_CARGO']
@@ -304,6 +306,220 @@ export function MedicalSurveillanceProgramDialog(props: {
           onClick={props.onSave}
         >
           Crear
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+const pveStatuses = ['SUSPECTED', 'CONFIRMED', 'CLOSED']
+const pveStatusLabels: Record<string, string> = {
+  SUSPECTED: 'Sospecha',
+  CONFIRMED: 'Confirmado',
+  CLOSED: 'Cerrado',
+}
+
+/** Dialogo de caso PVE (#44): crea o edita; el estado se avanza desde la tabla. */
+export function PveCaseDialog(props: {
+  open: boolean
+  values: PveCaseFormValues
+  companies: Company[]
+  employees: Array<{ id: string; firstName: string; lastName: string }>
+  programs: Array<{ id: string; name: string }>
+  cohorts: Array<{ id: string; label: string; programId: string }>
+  diagnoses: Array<{ id: string; code: string; name: string; active: boolean }>
+  loading: boolean
+  canPickCompany: boolean
+  onChange: (values: PveCaseFormValues) => void
+  onClose: () => void
+  onSave: () => void
+}) {
+  const programCohorts = props.cohorts.filter((cohort) => cohort.programId === props.values.programId)
+  return (
+    <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Caso de vigilancia epidemiologica (PVE)</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            select
+            label="Trabajador"
+            value={props.values.employeeId}
+            onChange={(event) => props.onChange({ ...props.values, employeeId: event.target.value })}
+            required
+          >
+            {props.employees.map((employee) => (
+              <MenuItem key={employee.id} value={employee.id}>
+                {employee.firstName} {employee.lastName}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Programa de vigilancia"
+            value={props.values.programId}
+            onChange={(event) => props.onChange({ ...props.values, programId: event.target.value, cohortId: '' })}
+            required
+          >
+            {props.programs.map((program) => (
+              <MenuItem key={program.id} value={program.id}>{program.name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Cohorte de origen (opcional)"
+            value={props.values.cohortId}
+            onChange={(event) => props.onChange({ ...props.values, cohortId: event.target.value })}
+            disabled={!props.values.programId}
+          >
+            <MenuItem value="">Sin cohorte</MenuItem>
+            {programCohorts.map((cohort) => (
+              <MenuItem key={cohort.id} value={cohort.id}>{cohort.label}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Diagnostico CIE-10"
+            value={props.values.diagnosisId}
+            onChange={(event) => props.onChange({ ...props.values, diagnosisId: event.target.value })}
+            required
+            helperText="Catalogo de la empresa; solo codigos activos."
+          >
+            {props.diagnoses.filter((diagnosis) => diagnosis.active || diagnosis.id === props.values.diagnosisId).map((diagnosis) => (
+              <MenuItem key={diagnosis.id} value={diagnosis.id}>
+                {diagnosis.code} - {diagnosis.name}
+              </MenuItem>
+            ))
+            }
+          </TextField>
+          <TextField
+            select
+            label="Estado"
+            value={props.values.status}
+            onChange={(event) => props.onChange({ ...props.values, status: event.target.value })}
+          >
+            {pveStatuses.map((status) => (
+              <MenuItem key={status} value={status}>{pveStatusLabels[status] ?? status}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Fecha de reporte"
+            type="date"
+            value={props.values.reportedAt}
+            onChange={(event) => props.onChange({ ...props.values, reportedAt: event.target.value })}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="Proximo control"
+            type="date"
+            value={props.values.nextFollowUpAt}
+            onChange={(event) => props.onChange({ ...props.values, nextFollowUpAt: event.target.value })}
+            helperText="Vacia = sin seguimiento programado."
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="Dias de ausentismo"
+            type="number"
+            value={props.values.absenceDays}
+            onChange={(event) => props.onChange({ ...props.values, absenceDays: Math.max(0, Number(event.target.value) || 0) })}
+            inputProps={{ min: 0 }}
+          />
+          <TextField
+            label="Notas"
+            value={props.values.notes}
+            onChange={(event) => props.onChange({ ...props.values, notes: event.target.value })}
+            multiline
+            minRows={2}
+          />
+          <TextField
+            select
+            label="Empresa"
+            value={props.values.companyId}
+            disabled={!props.canPickCompany}
+            onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+            required
+          >
+            {props.companies.map((company) => (
+              <MenuItem key={company.id} value={company.id}>{company.name}</MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={props.onClose}>Cancelar</Button>
+        <Button
+          variant="contained"
+          disabled={
+            props.loading ||
+            !props.values.employeeId ||
+            !props.values.programId ||
+            !props.values.diagnosisId ||
+            !props.values.companyId
+          }
+          onClick={props.onSave}
+        >
+          Guardar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+/** Dialogo de administracion del catalogo CIE-10 por empresa (#44). */
+export function PveDiagnosisDialog(props: {
+  open: boolean
+  values: PveDiagnosisFormValues
+  companies: Company[]
+  loading: boolean
+  canPickCompany: boolean
+  onChange: (values: PveDiagnosisFormValues) => void
+  onClose: () => void
+  onSave: () => void
+}) {
+  return (
+    <Dialog open={props.open} onClose={props.onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Diagnostico CIE-10 del catalogo</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="Codigo CIE-10"
+            value={props.values.code}
+            onChange={(event) => props.onChange({ ...props.values, code: event.target.value.toUpperCase() })}
+            required
+            helperText="Formato letra + digitos, p. ej. M54.5"
+          />
+          <TextField
+            label="Nombre"
+            value={props.values.name}
+            onChange={(event) => props.onChange({ ...props.values, name: event.target.value })}
+            required
+          />
+          <TextField
+            label="Categoria (opcional)"
+            value={props.values.category}
+            onChange={(event) => props.onChange({ ...props.values, category: event.target.value })}
+          />
+          <TextField
+            select
+            label="Empresa"
+            value={props.values.companyId}
+            disabled={!props.canPickCompany}
+            onChange={(event) => props.onChange({ ...props.values, companyId: event.target.value })}
+            required
+          >
+            {props.companies.map((company) => (
+              <MenuItem key={company.id} value={company.id}>{company.name}</MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={props.onClose}>Cancelar</Button>
+        <Button
+          variant="contained"
+          disabled={props.loading || !props.values.code.trim() || !props.values.name.trim() || !props.values.companyId}
+          onClick={props.onSave}
+        >
+          Guardar
         </Button>
       </DialogActions>
     </Dialog>

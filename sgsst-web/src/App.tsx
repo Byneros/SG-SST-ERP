@@ -44,6 +44,8 @@ import {
   emptyMedicalExam,
   emptyMedicalRestriction,
   emptyMedicalSurveillanceProgram,
+  emptyPveCase,
+  emptyPveDiagnosis,
   emptyUnsafeReport,
   emptyUnplannedInspection,
   emptyEmployee,
@@ -85,6 +87,8 @@ import {
   MedicalExamDialog,
   MedicalRestrictionDialog,
   MedicalSurveillanceProgramDialog,
+  PveCaseDialog,
+  PveDiagnosisDialog,
   MedicalPage,
   ExternalDeliveriesPage,
   CompaniesPage,
@@ -162,6 +166,11 @@ import type {
   MedicalExamFormValues,
   MedicalRestrictionFormValues,
   MedicalSurveillanceProgramFormValues,
+  PveCase,
+  PveCaseFormValues,
+  PveCaseStatus,
+  PveDiagnosis,
+  PveDiagnosisFormValues,
   ExternalDelivery,
   ExternalDeliveryFilters,
   AuthUser,
@@ -437,6 +446,14 @@ function App() {
   const [surveillancePrograms, setSurveillancePrograms] = useState<MedicalSurveillanceProgram[]>([])
   const [surveillanceProgramDialog, setSurveillanceProgramDialog] = useState(false)
   const [surveillanceProgramForm, setSurveillanceProgramForm] = useState<MedicalSurveillanceProgramFormValues>(emptyMedicalSurveillanceProgram)
+  // #44: casos PVE y catalogo CIE-10 de la pestana Vigilancia.
+  const [pveCases, setPveCases] = useState<PveCase[]>([])
+  const [pveDiagnoses, setPveDiagnoses] = useState<PveDiagnosis[]>([])
+  const [pveCaseDialog, setPveCaseDialog] = useState<{ open: boolean; editing: PveCase | null }>({ open: false, editing: null })
+  const [pveCaseForm, setPveCaseForm] = useState<PveCaseFormValues>(emptyPveCase)
+  const [pveDiagnosisDialog, setPveDiagnosisDialog] = useState(false)
+  const [pveDiagnosisForm, setPveDiagnosisForm] = useState<PveDiagnosisFormValues>(emptyPveDiagnosis)
+  const [pveTable, setPveTable] = useState(initialTableState)
   const [medicalProfileForm, setMedicalProfileForm] = useState<MedicalProfileFormValues>(emptyMedicalProfile)
   const [medicalExamForm, setMedicalExamForm] = useState<MedicalExamFormValues>(emptyMedicalExam)
   const [medicalRestrictionForm, setMedicalRestrictionForm] = useState<MedicalRestrictionFormValues>(emptyMedicalRestriction)
@@ -558,7 +575,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters])
+  }, [token, companyTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -757,6 +774,15 @@ function App() {
             params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
           })
         : Promise.resolve({ data: [] as MedicalSurveillanceProgram[] })
+      // #44: casos PVE (paginado, sin params fuera del DTO) y catalogo CIE-10.
+      const pveCasesRequest = canViewMedical && hasCompanyScope
+        ? api.get<Paginated<PveCase>>('/medical/pve-cases', { params: tableParams(pveTable) })
+        : Promise.resolve({ data: { data: [] as PveCase[], meta: emptyMeta } })
+      const pveDiagnosesRequest = canViewMedical && hasCompanyScope
+        ? api.get<PveDiagnosis[]>('/medical/pve-diagnoses', {
+            params: isPlatformAdmin ? {} : { companyId: activeCompanyId },
+          })
+        : Promise.resolve({ data: [] as PveDiagnosis[] })
       const reportExportsRequest = canViewReports && hasCompanyScope
         ? api.get<Paginated<ReportExport>>('/reports/exports', {
             params: reportExportParams(reportExportTable, reportExportFilters),
@@ -804,6 +830,8 @@ function App() {
         medicalExamsResponse,
         medicalRestrictionsResponse,
         surveillanceProgramsResponse,
+        pveCasesResponse,
+        pveDiagnosesResponse,
         reportExportsResponse,
         reportMetricsResponse,
         reportMetricHistoryResponse,
@@ -834,6 +862,8 @@ function App() {
         medicalExamsRequest,
         medicalRestrictionsRequest,
         surveillanceProgramsRequest,
+        pveCasesRequest,
+        pveDiagnosesRequest,
         reportExportsRequest,
         reportMetricsRequest,
         reportMetricHistoryRequest,
@@ -931,6 +961,8 @@ function App() {
       const medicalRestrictionRows = Array.isArray(medicalRestrictionsResponse.data) ? medicalRestrictionsResponse.data : []
       setMedicalRestrictions(medicalRestrictionRows)
       setSurveillancePrograms(Array.isArray(surveillanceProgramsResponse.data) ? surveillanceProgramsResponse.data : [])
+      setPveCases(pveCasesResponse.data.data)
+      setPveDiagnoses(Array.isArray(pveDiagnosesResponse.data) ? pveDiagnosesResponse.data : [])
       setReportExports(reportExportsResponse.data.data)
       setReportExportMeta(reportExportsResponse.data.meta)
       setReportMetrics(reportMetricsResponse.data)
@@ -2625,6 +2657,95 @@ function App() {
     await downloadReport('surveillance', format, isPlatformAdmin ? undefined : activeCompanyId)
   }
 
+  // --- #44: casos PVE y catalogo CIE-10 -------------------------------------
+
+  function openPveCaseForm(existing?: PveCase) {
+    if (existing) {
+      setPveCaseForm({
+        employeeId: existing.employee?.id ?? '',
+        programId: existing.program?.id ?? '',
+        cohortId: existing.cohort?.id ?? '',
+        diagnosisId: existing.diagnosis?.id ?? '',
+        status: existing.status,
+        reportedAt: existing.reportedAt ? existing.reportedAt.slice(0, 10) : '',
+        nextFollowUpAt: existing.nextFollowUpAt ? existing.nextFollowUpAt.slice(0, 10) : '',
+        absenceDays: existing.absenceDays ?? 0,
+        notes: existing.notes ?? '',
+        companyId: existing.companyId,
+      })
+      setPveCaseDialog({ open: true, editing: existing })
+      return
+    }
+    setPveCaseForm({
+      ...emptyPveCase,
+      companyId: isPlatformAdmin ? '' : (activeCompanyId ?? ''),
+    })
+    setPveCaseDialog({ open: true, editing: null })
+  }
+
+  async function savePveCase() {
+    const editing = pveCaseDialog.editing
+    await saveRecord(async () => {
+      const payload = {
+        employeeId: pveCaseForm.employeeId,
+        programId: pveCaseForm.programId,
+        cohortId: pveCaseForm.cohortId || undefined,
+        diagnosisId: pveCaseForm.diagnosisId,
+        status: pveCaseForm.status || undefined,
+        reportedAt: pveCaseForm.reportedAt || undefined,
+        nextFollowUpAt: pveCaseForm.nextFollowUpAt || undefined,
+        absenceDays: pveCaseForm.absenceDays,
+        notes: pveCaseForm.notes || undefined,
+        companyId: pveCaseForm.companyId,
+      }
+      if (editing) {
+        // En edicion solo se actualizan campos administrativos; el estado se
+        // avanza con la accion dedicada de la tabla.
+        await api.patch(`/medical/pve-cases/${editing.id}`, {
+          cohortId: payload.cohortId ?? null,
+          nextFollowUpAt: payload.nextFollowUpAt ?? null,
+          absenceDays: payload.absenceDays,
+          notes: payload.notes ?? null,
+        })
+      } else {
+        await api.post('/medical/pve-cases', payload)
+      }
+      setPveCaseDialog({ open: false, editing: null })
+    })
+  }
+
+  async function removePveCase(id: string) {
+    await saveRecord(() => api.delete(`/medical/pve-cases/${id}`).then())
+  }
+
+  /** Avanza el estado del caso (sospecha -> confirmado -> cerrado). */
+  async function advancePveCaseStatus(item: PveCase) {
+    const next: PveCaseStatus | null =
+      item.status === 'SUSPECTED' ? 'CONFIRMED' : item.status === 'CONFIRMED' ? 'CLOSED' : null
+    if (!next) return
+    await saveRecord(() => api.patch(`/medical/pve-cases/${item.id}/status`, { status: next }))
+  }
+
+  function openPveDiagnosisForm() {
+    setPveDiagnosisForm({
+      ...emptyPveDiagnosis,
+      companyId: isPlatformAdmin ? '' : (activeCompanyId ?? ''),
+    })
+    setPveDiagnosisDialog(true)
+  }
+
+  async function savePveDiagnosis() {
+    await saveRecord(async () => {
+      await api.post('/medical/pve-diagnoses', {
+        code: pveDiagnosisForm.code,
+        name: pveDiagnosisForm.name,
+        category: pveDiagnosisForm.category || undefined,
+        companyId: pveDiagnosisForm.companyId,
+      })
+      setPveDiagnosisDialog(false)
+    })
+  }
+
   function confirmDeleteMedicalExam(exam: MedicalExam) {
     openConfirmDialog(
       'Eliminar examen',
@@ -3457,6 +3578,15 @@ function App() {
                 onDeriveCohort={deriveSurveillanceCohort}
                 onReviewCohort={reviewSurveillanceCohort}
                 onExportSurveillance={(format) => { void exportSurveillanceReport(format) }}
+                pveCases={pveCases}
+                pveDiagnoses={pveDiagnoses}
+                pveTableState={pveTable}
+                onPveTableChange={setPveTable}
+                onNewPveCase={() => openPveCaseForm()}
+                onEditPveCase={(item) => openPveCaseForm(item)}
+                onDeletePveCase={(id) => { void removePveCase(id) }}
+                onAdvancePveCaseStatus={(item) => { void advancePveCaseStatus(item) }}
+                onManagePveDiagnoses={openPveDiagnosisForm}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -3838,6 +3968,45 @@ function App() {
               onChange={setSurveillanceProgramForm}
               onClose={() => setSurveillanceProgramDialog(false)}
               onSave={saveSurveillanceProgram}
+            />
+            <PveCaseDialog
+              open={pveCaseDialog.open}
+              values={pveCaseForm}
+              companies={companies}
+              employees={employees.map((employee) => ({
+                id: employee.id,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+              }))}
+              programs={surveillancePrograms.map((program) => ({ id: program.id, name: program.name }))}
+              cohorts={surveillancePrograms.flatMap((program) =>
+                program.cohorts.map((cohort) => ({
+                  id: cohort.id,
+                  programId: program.id,
+                  label: `${cohort.risk?.title ?? 'Sin riesgo'} (${cohort._count?.workers ?? cohort.workersCount ?? 0} expuestos)`,
+                })),
+              )}
+              diagnoses={pveDiagnoses.map((diagnosis) => ({
+                id: diagnosis.id,
+                code: diagnosis.code,
+                name: diagnosis.name,
+                active: diagnosis.active,
+              }))}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setPveCaseForm}
+              onClose={() => setPveCaseDialog({ open: false, editing: null })}
+              onSave={savePveCase}
+            />
+            <PveDiagnosisDialog
+              open={pveDiagnosisDialog}
+              values={pveDiagnosisForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setPveDiagnosisForm}
+              onClose={() => setPveDiagnosisDialog(false)}
+              onSave={savePveDiagnosis}
             />
             <MedicalExamDialog
               open={medicalExamDialog.open}

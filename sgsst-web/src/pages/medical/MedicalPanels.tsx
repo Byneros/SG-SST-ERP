@@ -1,4 +1,4 @@
-import { AutoFixHigh, ContentPaste, Refresh, TaskAlt } from '@mui/icons-material'
+import { AutoFixHigh, ContentPaste, Delete, Edit, Refresh, TaskAlt } from '@mui/icons-material'
 import {
   Alert,
   Box,
@@ -8,6 +8,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   MenuItem,
   Paper,
   Stack,
@@ -20,9 +21,15 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { TableHeader } from '../../components/TablePieces'
-import type { MedicalProfile, MedicalSurveillanceProgram } from '../../types'
+import type {
+  MedicalProfile,
+  MedicalSurveillanceProgram,
+  PveCase,
+  PveCaseStatus,
+  PveDiagnosis,
+} from '../../types'
 
 const levelColors: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
   LOW: 'success',
@@ -156,6 +163,7 @@ export function MedicalSurveillancePanel(props: {
   onDeriveCohort: (programId: string, riskId: string) => Promise<{ workersCount: number; reviewed: boolean } | null>
   onReviewCohort: (cohortId: string) => Promise<void>
   onExport: (format: 'pdf' | 'csv') => void
+  children?: ReactNode
 }) {
   const [deriveDialog, setDeriveDialog] = useState<{ programId: string; riskId: string } | null>(null)
   const [result, setResult] = useState<{ workersCount: number; reviewed: boolean } | null>(null)
@@ -301,6 +309,131 @@ export function MedicalSurveillancePanel(props: {
           </Button>
         </DialogActions>
       </Dialog>
+      {props.children}
+    </>
+  )
+}
+
+const pveCaseStatusLabels: Record<PveCaseStatus, { label: string; color: 'warning' | 'error' | 'default' }> = {
+  SUSPECTED: { label: 'Sospecha', color: 'warning' },
+  CONFIRMED: { label: 'Confirmado', color: 'error' },
+  CLOSED: { label: 'Cerrado', color: 'default' },
+}
+
+/**
+ * Seccion #44 de la pestana Vigilancia: casos PVE por diagnostico CIE-10 con
+ * ausentismo y proximo control. Los datos los carga App (paginado) y aqui solo
+ * se renderizan; las acciones delegan en props.
+ */
+export function PveCasesSection(props: {
+  cases: PveCase[]
+  diagnoses: PveDiagnosis[]
+  employees: Array<{ id: string; firstName: string; lastName: string }>
+  canManage: boolean
+  onNewCase: () => void
+  onEditCase: (item: PveCase) => void
+  onDeleteCase: (id: string) => void
+  onAdvanceStatus: (item: PveCase) => void
+  onManageDiagnoses: () => void
+}) {
+  const [statusFilter, setStatusFilter] = useState<'all' | PveCaseStatus>('all')
+  const visible = statusFilter === 'all' ? props.cases : props.cases.filter((item) => item.status === statusFilter)
+
+  function nextStatusOf(status: PveCaseStatus): PveCaseStatus | null {
+    if (status === 'SUSPECTED') return 'CONFIRMED'
+    if (status === 'CONFIRMED') return 'CLOSED'
+    return null
+  }
+
+  return (
+    <>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2, mb: 1 }} flexWrap="wrap" useFlexGap>
+        <Typography variant="subtitle2" fontWeight={700}>
+          Casos PVE (CIE-10)
+        </Typography>
+        {(['all', 'SUSPECTED', 'CONFIRMED', 'CLOSED'] as const).map((status) => (
+          <Chip
+            key={status}
+            size="small"
+            label={status === 'all' ? 'Todos' : pveCaseStatusLabels[status].label}
+            color={statusFilter === status ? 'primary' : 'default'}
+            variant={statusFilter === status ? 'filled' : 'outlined'}
+            onClick={() => setStatusFilter(status)}
+          />
+        ))}
+        <Button size="small" variant="outlined" onClick={props.onManageDiagnoses} sx={{ ml: 'auto' }}>
+          Catalogo CIE-10
+        </Button>
+        <Button variant="contained" size="small" disabled={!props.canManage} onClick={props.onNewCase}>
+          Nuevo caso
+        </Button>
+      </Stack>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Trabajador</TableCell>
+            <TableCell>Programa</TableCell>
+            <TableCell>Diagnostico</TableCell>
+            <TableCell>Estado</TableCell>
+            <TableCell>Ausentismo (d)</TableCell>
+            <TableCell>Proximo control</TableCell>
+            <TableCell align="right">Acciones</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {visible.map((item) => {
+            const next = nextStatusOf(item.status)
+            return (
+              <TableRow key={item.id} hover>
+                <TableCell>
+                  {item.employee ? `${item.employee.firstName} ${item.employee.lastName}` : '-'}
+                </TableCell>
+                <TableCell>{item.program?.name ?? '-'}</TableCell>
+                <TableCell>
+                  {item.diagnosis ? `${item.diagnosis.code} - ${item.diagnosis.name}` : '-'}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    color={pveCaseStatusLabels[item.status]?.color ?? 'default'}
+                    label={pveCaseStatusLabels[item.status]?.label ?? item.status}
+                  />
+                </TableCell>
+                <TableCell>{item.absenceDays}</TableCell>
+                <TableCell>{formatDate(item.nextFollowUpAt)}</TableCell>
+                <TableCell align="right">
+                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    {next && props.canManage && (
+                      <Button size="small" startIcon={<TaskAlt />} onClick={() => props.onAdvanceStatus(item)}>
+                        {pveCaseStatusLabels[next].label}
+                      </Button>
+                    )}
+                    {props.canManage && (
+                      <>
+                        <IconButton size="small" onClick={() => props.onEditCase(item)}>
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => props.onDeleteCase(item.id)}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </>
+                    )}
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+          {visible.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7}>
+                <Typography variant="body2" color="text.secondary">
+                  Sin casos registrados para el filtro actual.
+                </Typography>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </>
   )
 }
