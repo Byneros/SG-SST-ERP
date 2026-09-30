@@ -9,8 +9,12 @@
 #   DRY_RUN=1 bash scripts/gh-cerrar-s8-s10.sh   # solo muestra acciones (default)
 #   DRY_RUN=0 bash scripts/gh-cerrar-s8-s10.sh   # comenta y cierra de verdad
 #
-# Cierra: #17 #18 #19 #20 #21 #22 #23 #24 #25 #26 #27
-# Deja abierto: #28 (implementado; cierre sujeto a decision de producto).
+# Cierra: #17 #18 #19 #20 #21 #22 #23 #24 #25 #26 #27.
+#   - #25 cierra en la tercera pasada: la derivacion de requisitos medicos
+#     desde riesgos del cargo quedo implementada y probada (seccion 3bis de
+#     docs/reconciliacion-s8-s10.md).
+# Deja abierto: #28 (implementado con UI dedicada en c723529; el cierre queda
+#   sujeto a la decision de producto sobre el alcance del PVE).
 set -uo pipefail
 
 REPO="${REPO:-Byneros/SG-SST-ERP}"
@@ -152,6 +156,9 @@ EOF
 comment 25 "$TMP/25.md"
 
 # ---------- #28 S10.4 (comentario sin cierre: decision de producto) ----------
+# UI dedicada incluida en commit c723529: pestana Vigilancia en el modulo
+# medico (MedicalSurveillancePanel), creacion de programas y exportacion del
+# reporte surveillance CSV/PDF desde la interfaz.
 cat > "$TMP/28.md" <<EOF
 $HDR
 
@@ -159,9 +166,10 @@ Estado de S10.4 (vigilancia epidemiologica), actualizado el 29/09 (tercera pasad
 - Cohorte derivada de la matriz de riesgos: **implementada**. Modelos \`MedicalSurveillanceProgram\` y \`MedicalSurveillanceCohort\`; la cohorte toma los trabajadores del cargo del riesgo (o de su sede), con upsert por (programa, riesgo) y revision sellada.
 - Indicadores en reportes: **implementado**. Reporte \`surveillance\` CSV/PDF con programa, responsable, riesgo, nivel, expuestos y ultima revision.
 - Endpoints /api/v1/medical/surveillance-programs con RBAC medico y scope de empresa (404 cross-tenant verificado).
+- UI dedicada: **implementada** (commit c723529). Pestana "Vigilancia" en el modulo medico con listado de programas y cohortes, creacion de programas y exportacion del reporte surveillance CSV/PDF.
 - Evidencia: 8 pruebas unitarias + 9 casos E2E con PostgreSQL real (test/medical-surveillance.db-e2e-spec.ts). Detalle en la seccion 3bis de docs/reconciliacion-s8-s10.md.
 
-Pendiente de decision de producto antes de cerrar: alcance de casos/segmentaciones del PVE (p. ej. por diagnostico o ausentismo) y si la UI dedicada entra en este issue o en uno nuevo.
+Pendiente de decision de producto antes de cerrar: alcance de casos/segmentaciones del PVE (p. ej. por diagnostico o ausentismo).
 EOF
 echo "== Issue #28 (comentario sin cierre) =="
 if [ "$DRY_RUN" = "1" ]; then
@@ -174,5 +182,5 @@ echo
 if [ "$DRY_RUN" = "1" ]; then
   echo "DRY-RUN completo. Ejecuta con DRY_RUN=0 para aplicar."
 else
-  echo "Comentarios y cierres aplicados: #17-#24, #26, #27 cerrados; #25 y #28 comentados y abiertos."
+  echo "Comentarios y cierres aplicados: #17-#27 cerrados; #28 comentado y abierto (decision de producto)."
 fi

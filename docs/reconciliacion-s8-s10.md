@@ -204,6 +204,7 @@ suma 2 casos nuevos (13 en total en las suites de notificaciones).
 |---|---|
 | #17, #18, #19, #20, #21, #22, #23, #24, #26, #27 | Marcar checkboxes con esta matriz + evidencia del 28/09 y del 29/09; cerrar |
 | #25 | Tras la tercera pasada: **ambos criterios son marcables** (profesiograma visible + derivación de requisitos implementada y probada). Marcar y cerrar |
+| #28 | Con la UI dedicada de vigilancia (commit c723529: pestaña "Vigilancia" en el módulo médico, creación de programas y exportación CSV/PDF) **todos los entregables están implementados**; el cierre queda sujeto a decisión de producto sobre el alcance del PVE (casos/segmentaciones por diagnóstico o ausentismo) |
 | #28 | Tras la tercera pasada: cohortes derivadas de la matriz, programas PVE y reportes de vigilancia implementados y probados (E2E PostgreSQL real). Revisar los 2 criterios contra la evidencia de la sección 3bis y marcar/cerrar si el producto los aprueba |
 
 Evidencia concreta de la segunda pasada (18/18):
