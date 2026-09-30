@@ -34,6 +34,9 @@ services:
   api:
     build:
       context: ./sgsst-api
+    # Tags explicitos: la CI construye con buildx+cache GHA y los asigna a
+    # estos nombres para que `up` no reconstruya (ver .github/workflows/ci.yml).
+    image: sg-sst-erp-api:local
     container_name: sgsst_api
     restart: unless-stopped
     environment:
@@ -120,6 +123,7 @@ services:
   worker:
     build:
       context: ./sgsst-api
+    image: sg-sst-erp-api:local
     container_name: sgsst_worker
     restart: unless-stopped
     command: ["node", "dist/src/worker.js"]
@@ -192,6 +196,7 @@ services:
       context: ./sgsst-web
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api/v1}
+    image: sg-sst-erp-web:local
     container_name: sgsst_web
     restart: unless-stopped
     ports:

@@ -117,8 +117,46 @@ jobs:
           sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
           sed -i "s/^METRICS_TOKEN=.*/METRICS_TOKEN=${METRICS_TOKEN}/" .env
 
-      - name: Build images
-        run: docker compose build
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Resuelve los tags que espera compose (prefijo de proyecto incluido) y
+      # el build arg de la web desde el .env, para que `up` use las imagenes
+      # ya construidas sin reconstruir.
+      - name: Resolve compose image tags
+        id: imgs
+        run: |
+          compose_json=$(docker compose config --format json)
+          echo "api=$(echo "$compose_json" | jq -r '.services.api.image')" >> "$GITHUB_OUTPUT"
+          echo "worker=$(echo "$compose_json" | jq -r '.services.worker.image')" >> "$GITHUB_OUTPUT"
+          echo "web=$(echo "$compose_json" | jq -r '.services.web.image')" >> "$GITHUB_OUTPUT"
+          echo "vite_api_url=$(echo "$compose_json" | jq -r '.services.web.build.args.VITE_API_URL')" >> "$GITHUB_OUTPUT"
+
+      # Cache de capas GHA: los runners efimeros no conservan la cache local de
+      # buildkit; con type=gha el rebuild cae a segundos cuando los contextos
+      # (sgsst-api/sgsst-web) no cambian entre runs. mode=max cachea todas las
+      # capas, no solo la final.
+      - name: Build api/worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./sgsst-api
+          tags: |
+            ${{ steps.imgs.outputs.api }}
+            ${{ steps.imgs.outputs.worker }}
+          load: true
+          cache-from: type=gha,scope=sgsst-api
+          cache-to: type=gha,mode=max,scope=sgsst-api
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./sgsst-web
+          tags: ${{ steps.imgs.outputs.web }}
+          build-args: |
+            VITE_API_URL=${{ steps.imgs.outputs.vite_api_url }}
+          load: true
+          cache-from: type=gha,scope=sgsst-web
+          cache-to: type=gha,mode=max,scope=sgsst-web
 
       - name: Start stack and wait for health
         run: docker compose up -d --wait --wait-timeout 420
