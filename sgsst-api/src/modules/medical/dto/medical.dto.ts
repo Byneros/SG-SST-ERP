@@ -1,10 +1,14 @@
 import {
   IsDateString,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export const EXAM_TYPES = [
   'INGRESO',
@@ -191,4 +195,154 @@ export class CreateMedicalRestrictionDto {
 export class LiftMedicalRestrictionDto {
   @IsString()
   liftedBy!: string;
+}
+
+// --- #44: catalogo CIE-10 y casos PVE -------------------------------------
+
+/** Estado clinico del caso PVE: sospecha -> confirmado -> cerrado. */
+export const PVE_CASE_STATUSES = ['SUSPECTED', 'CONFIRMED', 'CLOSED'] as const;
+
+/** Transiciones validas (solo hacia adelante); el cierre sella closedAt. */
+export const PVE_CASE_STATUS_TRANSITIONS: Record<
+  (typeof PVE_CASE_STATUSES)[number],
+  (typeof PVE_CASE_STATUSES)[number][]
+> = {
+  SUSPECTED: ['CONFIRMED', 'CLOSED'],
+  CONFIRMED: ['CLOSED'],
+  CLOSED: [],
+};
+
+export class CreatePveDiagnosisDto {
+  /** Codigo CIE-10 (p. ej. M54.5). Unico por empresa. */
+  @IsString()
+  code!: string;
+
+  @IsString()
+  name!: string;
+
+  /** Categoria del catalogo (p. ej. trastornos musculoesqueleticos). */
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @IsUUID()
+  companyId!: string;
+}
+
+export class UpdatePveDiagnosisDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string | null;
+
+  /** Inactivo: el codigo deja de ofrecerse para casos nuevos (los existentes no cambian). */
+  @IsOptional()
+  active?: boolean;
+}
+
+export class CreatePveCaseDto {
+  @IsUUID()
+  employeeId!: string;
+
+  @IsUUID()
+  programId!: string;
+
+  /** Cohorte de origen (opcional); debe pertenecer al programa indicado. */
+  @IsOptional()
+  @IsUUID()
+  cohortId?: string | null;
+
+  @IsUUID()
+  diagnosisId!: string;
+
+  @IsOptional()
+  @IsIn(PVE_CASE_STATUSES)
+  status?: (typeof PVE_CASE_STATUSES)[number];
+
+  @IsOptional()
+  @IsDateString()
+  reportedAt?: string;
+
+  /** Proximo control: alimenta las alertas de seguimiento del caso. */
+  @IsOptional()
+  @IsDateString()
+  nextFollowUpAt?: string | null;
+
+  /** Dias de ausentismo reportados para la tasa sobre expuestos. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  absenceDays?: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
+
+  @IsUUID()
+  companyId!: string;
+}
+
+export class UpdatePveCaseDto {
+  @IsOptional()
+  @IsUUID()
+  cohortId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  diagnosisId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  nextFollowUpAt?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  absenceDays?: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
+}
+
+export class UpdatePveCaseStatusDto {
+  @IsIn(PVE_CASE_STATUSES)
+  status!: (typeof PVE_CASE_STATUSES)[number];
+
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
+}
+
+/** Paginado del listado de casos (query params: mismos limites que contractors). */
+export class ListPveCasesQueryDto {
+  // Los query params llegan como string: se convierten a numero antes de
+  // validar (con forbidNonWhitelisted, un tipo mal convertido responde 400).
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+
+  @IsOptional()
+  @IsIn(PVE_CASE_STATUSES)
+  status?: (typeof PVE_CASE_STATUSES)[number];
+
+  @IsOptional()
+  @IsUUID()
+  programId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  diagnosisId?: string;
 }

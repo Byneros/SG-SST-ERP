@@ -43,10 +43,11 @@ describe('ContractorListQueryDto - validacion con ValidationPipe global', () => 
         companyId: '1472d34f-ba55-4fb9-8491-473b11f7e59d',
       }),
     ).rejects.toMatchObject({
+      // Cast necesario: la forma del HttpExceptionResponse no es generica.
       response: {
         message: expect.arrayContaining([
           'property companyId should not exist',
-        ]),
+        ]) as unknown,
       },
     });
   });

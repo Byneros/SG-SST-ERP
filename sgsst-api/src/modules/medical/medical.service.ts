@@ -18,6 +18,16 @@ import type {
   ReviewSurveillanceCohortDto,
   UpdateMedicalExamDto,
   UpdateMedicalSurveillanceProgramDto,
+  UpdatePveCaseDto,
+  UpdatePveCaseStatusDto,
+  UpdatePveDiagnosisDto,
+  CreatePveCaseDto,
+  CreatePveDiagnosisDto,
+  ListPveCasesQueryDto,
+} from './dto/medical.dto';
+import {
+  PVE_CASE_STATUSES,
+  PVE_CASE_STATUS_TRANSITIONS,
 } from './dto/medical.dto';
 
 /**
@@ -722,5 +732,384 @@ export class MedicalService {
     });
 
     return updated;
+  }
+
+  // --- Casos PVE (#44) ------------------------------------------------------
+
+  /** Include canonico del caso: trabajador, programa, cohorte y diagnostico. */
+  private readonly pveCaseInclude = {
+    employee: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        document: true,
+        position: true,
+      },
+    },
+    program: { select: { id: true, name: true, riskType: true } },
+    cohort: { select: { id: true, status: true, lastReviewedAt: true } },
+    diagnosis: { select: { id: true, code: true, name: true, category: true } },
+  } as const;
+
+  // --- Catalogo CIE-10 -------------------------------------------------------
+
+  async findPveDiagnoses(user: AuthenticatedUser) {
+    assertMedicalRole(user);
+    return this.prisma.pveDiagnosis.findMany({
+      where: { companyId: this.resolveCompanyId(user) },
+      include: { _count: { select: { cases: true } } },
+      orderBy: [{ active: 'desc' }, { code: 'asc' }],
+    });
+  }
+
+  async createPveDiagnosis(
+    user: AuthenticatedUser,
+    dto: CreatePveDiagnosisDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user, dto.companyId);
+
+    const duplicated = await this.prisma.pveDiagnosis.findFirst({
+      where: { companyId, code: dto.code },
+      select: { id: true },
+    });
+    if (duplicated) {
+      throw new ConflictException('Ya existe ese codigo CIE-10 en el catalogo');
+    }
+
+    const diagnosis = await this.prisma.pveDiagnosis.create({
+      data: {
+        code: dto.code,
+        name: dto.name,
+        category: dto.category,
+        companyId,
+      },
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'CREATE',
+      entity: 'PveDiagnosis',
+      entityId: diagnosis.id,
+      after: diagnosis,
+    });
+
+    return diagnosis;
+  }
+
+  async updatePveDiagnosis(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdatePveDiagnosisDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.pveDiagnosis.findFirst({
+      where: { id, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('PVE diagnosis not found');
+    }
+
+    const updated = await this.prisma.pveDiagnosis.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        category: dto.category === undefined ? undefined : dto.category,
+        active: dto.active,
+      },
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'UPDATE',
+      entity: 'PveDiagnosis',
+      entityId: id,
+      before,
+      after: updated,
+    });
+
+    return updated;
+  }
+
+  async removePveDiagnosis(user: AuthenticatedUser, id: string) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.pveDiagnosis.findFirst({
+      where: { id, companyId },
+      include: { _count: { select: { cases: true } } },
+    });
+    if (!before) {
+      throw new NotFoundException('PVE diagnosis not found');
+    }
+    if (before._count.cases > 0) {
+      // 409 en lugar de 500 por la FK Restrict: conservar el historico.
+      throw new ConflictException(
+        'El diagnostico tiene casos asociados: desactivalo en lugar de borrarlo',
+      );
+    }
+
+    await this.prisma.pveDiagnosis.delete({ where: { id } });
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'PveDiagnosis',
+      entityId: id,
+      before,
+    });
+
+    return { id, deleted: true };
+  }
+
+  // --- Casos -----------------------------------------------------------------
+
+  async findPveCases(user: AuthenticatedUser, query: ListPveCasesQueryDto) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    const where = {
+      companyId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.programId ? { programId: query.programId } : {}),
+      ...(query.diagnosisId ? { diagnosisId: query.diagnosisId } : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.pveCase.findMany({
+        where,
+        include: this.pveCaseInclude,
+        orderBy: [{ reportedAt: 'desc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.pveCase.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize) || 1,
+      },
+    };
+  }
+
+  async createPveCase(user: AuthenticatedUser, dto: CreatePveCaseDto) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user, dto.companyId);
+
+    // Todo dentro del scope de la empresa: 404 si el recurso es ajeno.
+    await this.assertEmployeeInScope(dto.employeeId, companyId);
+    const program = await this.prisma.medicalSurveillanceProgram.findFirst({
+      where: { id: dto.programId, companyId },
+      select: { id: true },
+    });
+    if (!program) {
+      throw new NotFoundException('Surveillance program not found');
+    }
+    const diagnosis = await this.prisma.pveDiagnosis.findFirst({
+      where: { id: dto.diagnosisId, companyId },
+      select: { id: true, active: true },
+    });
+    if (!diagnosis) {
+      throw new NotFoundException('PVE diagnosis not found');
+    }
+    if (!diagnosis.active) {
+      throw new ConflictException(
+        'El diagnostico esta inactivo en el catalogo',
+      );
+    }
+    if (dto.cohortId) {
+      const cohort = await this.prisma.medicalSurveillanceCohort.findFirst({
+        where: { id: dto.cohortId, programId: dto.programId, companyId },
+        select: { id: true },
+      });
+      if (!cohort) {
+        throw new NotFoundException('Surveillance cohort not found');
+      }
+    }
+
+    // Un solo caso abierto por empleado+programa+diagnostico.
+    const openDuplicate = await this.prisma.pveCase.findFirst({
+      where: {
+        companyId,
+        employeeId: dto.employeeId,
+        programId: dto.programId,
+        diagnosisId: dto.diagnosisId,
+        status: { not: 'CLOSED' },
+      },
+      select: { id: true },
+    });
+    if (openDuplicate) {
+      throw new ConflictException(
+        'Ya existe un caso abierto para ese trabajador, programa y diagnostico',
+      );
+    }
+
+    const created = await this.prisma.pveCase.create({
+      data: {
+        employeeId: dto.employeeId,
+        programId: dto.programId,
+        cohortId: dto.cohortId ?? null,
+        diagnosisId: dto.diagnosisId,
+        status: dto.status ?? 'SUSPECTED',
+        reportedAt: dto.reportedAt ? new Date(dto.reportedAt) : undefined,
+        nextFollowUpAt: dto.nextFollowUpAt
+          ? new Date(dto.nextFollowUpAt)
+          : null,
+        absenceDays: dto.absenceDays ?? 0,
+        notes: dto.notes ?? null,
+        companyId,
+      },
+      include: this.pveCaseInclude,
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'CREATE',
+      entity: 'PveCase',
+      entityId: created.id,
+      after: created,
+    });
+
+    return created;
+  }
+
+  async updatePveCase(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdatePveCaseDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.pveCase.findFirst({
+      where: { id, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('PVE case not found');
+    }
+    if (dto.diagnosisId) {
+      const diagnosis = await this.prisma.pveDiagnosis.findFirst({
+        where: { id: dto.diagnosisId, companyId },
+        select: { id: true, active: true },
+      });
+      if (!diagnosis) {
+        throw new NotFoundException('PVE diagnosis not found');
+      }
+      if (!diagnosis.active) {
+        throw new ConflictException(
+          'El diagnostico esta inactivo en el catalogo',
+        );
+      }
+    }
+    if (dto.cohortId) {
+      const cohort = await this.prisma.medicalSurveillanceCohort.findFirst({
+        where: { id: dto.cohortId, programId: before.programId, companyId },
+        select: { id: true },
+      });
+      if (!cohort) {
+        throw new NotFoundException('Surveillance cohort not found');
+      }
+    }
+
+    const updated = await this.prisma.pveCase.update({
+      where: { id },
+      data: {
+        cohortId: dto.cohortId === undefined ? undefined : dto.cohortId,
+        diagnosisId: dto.diagnosisId,
+        nextFollowUpAt:
+          dto.nextFollowUpAt === undefined
+            ? undefined
+            : dto.nextFollowUpAt
+              ? new Date(dto.nextFollowUpAt)
+              : null,
+        absenceDays: dto.absenceDays,
+        notes: dto.notes === undefined ? undefined : dto.notes,
+      },
+      include: this.pveCaseInclude,
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'UPDATE',
+      entity: 'PveCase',
+      entityId: id,
+      before,
+      after: updated,
+    });
+
+    return updated;
+  }
+
+  /** Transicion de estado (solo hacia adelante); el cierre sella closedAt. */
+  async updatePveCaseStatus(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdatePveCaseStatusDto,
+  ) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.pveCase.findFirst({
+      where: { id, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('PVE case not found');
+    }
+    const allowed =
+      PVE_CASE_STATUS_TRANSITIONS[
+        before.status as (typeof PVE_CASE_STATUSES)[number]
+      ] ?? [];
+    if (!allowed.includes(dto.status)) {
+      throw new ConflictException(
+        `Transicion invalida: ${before.status} -> ${dto.status}`,
+      );
+    }
+
+    const updated = await this.prisma.pveCase.update({
+      where: { id },
+      data: {
+        status: dto.status,
+        closedAt: dto.status === 'CLOSED' ? new Date() : undefined,
+        notes: dto.notes === undefined ? undefined : dto.notes,
+      },
+      include: this.pveCaseInclude,
+    });
+
+    await this.auditService.log({
+      user,
+      action: 'UPDATE',
+      entity: 'PveCase',
+      entityId: id,
+      before,
+      after: updated,
+    });
+
+    return updated;
+  }
+
+  async removePveCase(user: AuthenticatedUser, id: string) {
+    assertMedicalRole(user);
+    const companyId = this.resolveCompanyId(user);
+    const before = await this.prisma.pveCase.findFirst({
+      where: { id, companyId },
+    });
+    if (!before) {
+      throw new NotFoundException('PVE case not found');
+    }
+
+    await this.prisma.pveCase.delete({ where: { id } });
+    await this.auditService.log({
+      user,
+      action: 'DELETE',
+      entity: 'PveCase',
+      entityId: id,
+      before,
+    });
+
+    return { id, deleted: true };
   }
 }

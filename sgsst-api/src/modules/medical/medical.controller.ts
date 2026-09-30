@@ -27,6 +27,12 @@ import {
   ReviewSurveillanceCohortDto,
   UpdateMedicalExamDto,
   UpdateMedicalSurveillanceProgramDto,
+  CreatePveCaseDto,
+  CreatePveDiagnosisDto,
+  ListPveCasesQueryDto,
+  UpdatePveCaseDto,
+  UpdatePveCaseStatusDto,
+  UpdatePveDiagnosisDto,
 } from './dto/medical.dto';
 import { MedicalService } from './medical.service';
 
@@ -199,5 +205,91 @@ export class MedicalController {
     @Body() dto: LiftMedicalRestrictionDto,
   ) {
     return this.service.liftRestriction(user, id, dto);
+  }
+
+  // --- Casos PVE (#44): catalogo CIE-10 -------------------------------------
+
+  @Get('pve-diagnoses')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  findPveDiagnoses(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.findPveDiagnoses(user);
+  }
+
+  @Post('pve-diagnoses')
+  @Roles('ADMIN', 'SST')
+  createPveDiagnosis(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreatePveDiagnosisDto,
+  ) {
+    return this.service.createPveDiagnosis(user, dto);
+  }
+
+  @Patch('pve-diagnoses/:id')
+  @Roles('ADMIN', 'SST')
+  updatePveDiagnosis(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePveDiagnosisDto,
+  ) {
+    return this.service.updatePveDiagnosis(user, id, dto);
+  }
+
+  @Delete('pve-diagnoses/:id')
+  @Roles('ADMIN', 'SST')
+  removePveDiagnosis(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.removePveDiagnosis(user, id);
+  }
+
+  // --- Casos PVE (#44) -------------------------------------------------------
+
+  @Get('pve-cases')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  findPveCases(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListPveCasesQueryDto,
+  ) {
+    return this.service.findPveCases(user, query);
+  }
+
+  @Post('pve-cases')
+  @Roles('ADMIN', 'SST')
+  createPveCase(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreatePveCaseDto,
+  ) {
+    return this.service.createPveCase(user, dto);
+  }
+
+  @Patch('pve-cases/:id')
+  @Roles('ADMIN', 'SST')
+  updatePveCase(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePveCaseDto,
+  ) {
+    return this.service.updatePveCase(user, id, dto);
+  }
+
+  /** Transicion de estado del caso (sospecha -> confirmado -> cerrado). */
+  @Patch('pve-cases/:id/status')
+  @Roles('ADMIN', 'SST')
+  updatePveCaseStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePveCaseStatusDto,
+  ) {
+    return this.service.updatePveCaseStatus(user, id, dto);
+  }
+
+  @Delete('pve-cases/:id')
+  @Roles('ADMIN', 'SST')
+  removePveCase(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.removePveCase(user, id);
   }
 }
