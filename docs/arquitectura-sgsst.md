@@ -85,9 +85,48 @@ Módulos de producción a incorporar:
 
 - `notifications`: correos, recordatorios, tareas y alertas.
 - `audits`: auditorías SG-SST funcionales, hallazgos y planes.
+- `medical`: medicina laboral (S10): profesiograma, exámenes ocupacionales, restricciones y vigilancia epidemiológica con casos PVE por diagnóstico CIE-10 (detalle en la sección 4.1).
 - `corrective-actions`: acciones, responsables, fechas y cierres.
 - `integrations`: ARL, firmas digitales, IoT y webhooks.
 - `reports`: PDF, exportaciones CSV y tableros regulatorios.
+
+### 4.1 Vigilancia epidemiológica con casos PVE (#44)
+
+La vigilancia combina dos niveles complementarios:
+
+- **Cohortes por exposición (S10.4):** derivadas de la matriz de riesgos (GTC-45) hacia los programas PVE; agrupan por cargo/sede del riesgo.
+- **Casos individuales (#44):** registro clínico por trabajador dentro de un programa, con clasificación CIE-10 del catálogo de la empresa.
+
+Modelo de dominio:
+
+```text
+PveDiagnosis (catálogo CIE-10 por empresa; código único, active para baja lógica)
+  1 --- n PveCase
+            |- employee   (trabajador afectado)
+            |- program    (MedicalSurveillanceProgram)
+            |- cohort     (origen opcional, debe pertenecer al programa)
+            |- status: SUSPECTED -> CONFIRMED -> CLOSED (transiciones solo hacia
+                      adelante; CLOSED sella closedAt; reabrir responde 409)
+            |- absenceDays, reportedAt, nextFollowUpAt (alimenta alertas)
+```
+
+Reglas de negocio clave:
+
+- Un solo caso abierto por trabajador + programa + diagnóstico (duplicado → 409).
+- El código CIE-10 es único por empresa; los diagnósticos con casos no se borran (FK Restrict → 409): se desactivan.
+- Crear un caso exige diagnóstico activo en el catálogo de la empresa.
+
+Seguridad (patrón del módulo `medical`):
+
+- Doble barrera RBAC: `@Roles('ADMIN','SST','AUDITOR')` para lectura y `('ADMIN','SST')` para escritura, más `assertMedicalRole` en el servicio (responde 404 para no revelar recursos a roles sin permiso; EMPLOYEE queda fuera).
+- Scope multi-tenant: todo acceso valida `companyId` resuelto del JWT (`resolveCompanyId`); los recursos de otra empresa responden 404.
+- Toda mutación registra `AuditLog`.
+
+Consumo y reporte:
+
+- `GET /medical/pve-cases` paginado (`{ data, meta }`) con filtros `status`, `programId`, `diagnosisId`; las respuestas incluyen las relaciones que consume la tabla (trabajador, programa, cohorte, diagnóstico).
+- El reporte `surveillance` (CSV/PDF) incluye los casos y días de ausentismo por programa; las alertas de seguimiento (control vencido, caso sin cierre) salen de `generateDueAlertsForCompany()`.
+- UI: pestaña "Vigilancia epidemiológica" de Medicina laboral, sección "Casos PVE (CIE-10)" con filtros por estado y avance de estado desde la tabla.
 
 ## 5. Modelo de roles
 
