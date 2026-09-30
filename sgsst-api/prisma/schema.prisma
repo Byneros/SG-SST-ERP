@@ -27,16 +27,16 @@ model User {
   lastLoginAt            DateTime?
   ssoSubject             String?   @unique
 
-  auditLogs                       AuditLog[]
-  notifications                   Notification[]
-  reportExports                   ReportExport[]
-  approvedAnnualWorkPlans         AnnualWorkPlan[]      @relation("AnnualWorkPlanApprover")
-  ownedAnnualPlanActivities       AnnualPlanActivity[]  @relation("AnnualPlanActivityOwner")
+  auditLogs                        AuditLog[]
+  notifications                    Notification[]
+  reportExports                    ReportExport[]
+  approvedAnnualWorkPlans          AnnualWorkPlan[]             @relation("AnnualWorkPlanApprover")
+  ownedAnnualPlanActivities        AnnualPlanActivity[]         @relation("AnnualPlanActivityOwner")
   medicalSurveillanceProgramsOwned MedicalSurveillanceProgram[] @relation("MedicalSurveillanceOwner")
-  plannedInspectionsAsInspector   PlannedInspection[]   @relation("PlannedInspectionInspector")
-  unplannedInspectionsAsInspector UnplannedInspection[] @relation("UnplannedInspectionInspector")
-  unsafeReportsAsReporter         UnsafeReport[]        @relation("UnsafeReportReporter")
-  company                         Company?              @relation(fields: [companyId], references: [id])
+  plannedInspectionsAsInspector    PlannedInspection[]          @relation("PlannedInspectionInspector")
+  unplannedInspectionsAsInspector  UnplannedInspection[]        @relation("UnplannedInspectionInspector")
+  unsafeReportsAsReporter          UnsafeReport[]               @relation("UnsafeReportReporter")
+  company                          Company?                     @relation(fields: [companyId], references: [id])
 
   @@index([lockedUntil])
 }
@@ -84,6 +84,8 @@ model Company {
   medicalProfiles               MedicalProfile[]
   medicalSurveillancePrograms   MedicalSurveillanceProgram[]
   medicalCohorts                MedicalSurveillanceCohort[]
+  pveDiagnoses                  PveDiagnosis[]
+  pveCases                      PveCase[]
   auditPrograms                 AuditProgram[]
   sgsstEvaluations              SgsstEvaluation[]
   reportMetricSnapshots         ReportExportMetricSnapshot[]
@@ -127,49 +129,50 @@ model Site {
 }
 
 model Employee {
-  id                  String               @id @default(uuid())
+  id                  String                      @id @default(uuid())
   firstName           String
   lastName            String
-  document            String               @unique
+  document            String                      @unique
   position            String
   email               String?
   phone               String?
-  createdAt           DateTime             @default(now())
+  createdAt           DateTime                    @default(now())
   companyId           String
-  isActive            Boolean              @default(true)
+  isActive            Boolean                     @default(true)
   deletedAt           DateTime?
-  updatedAt           DateTime             @updatedAt
-  documentType        DocumentType         @default(CC)
+  updatedAt           DateTime                    @updatedAt
+  documentType        DocumentType                @default(CC)
   workCenter          String?
-  contractType        ContractType         @default(INDEFINITE)
-  employmentStatus    EmploymentStatus     @default(ACTIVE)
+  contractType        ContractType                @default(INDEFINITE)
+  employmentStatus    EmploymentStatus            @default(ACTIVE)
   hireDate            DateTime?
   siteId              String?
-  company             Company              @relation(fields: [companyId], references: [id])
-  site                Site?                @relation(fields: [siteId], references: [id])
+  company             Company                     @relation(fields: [companyId], references: [id])
+  site                Site?                       @relation(fields: [siteId], references: [id])
   ppeDeliveries       PpeDelivery[]
   medicalExams        MedicalExam[]
   medicalRestrictions MedicalRestriction[]
   surveillanceCohorts MedicalSurveillanceCohort[]
+  pveCases            PveCase[]
 }
 
 model Risk {
-  id                 String              @id @default(uuid())
-  title              String
-  description        String?
-  level              RiskLevel
-  createdAt          DateTime            @default(now())
-  companyId          String
-  siteId             String?
-  company            Company             @relation(fields: [companyId], references: [id])
-  site               Site?               @relation(fields: [siteId], references: [id])
-  inspectionFindings InspectionFinding[]
+  id                  String                      @id @default(uuid())
+  title               String
+  description         String?
+  level               RiskLevel
+  createdAt           DateTime                    @default(now())
+  companyId           String
+  siteId              String?
+  company             Company                     @relation(fields: [companyId], references: [id])
+  site                Site?                       @relation(fields: [siteId], references: [id])
+  inspectionFindings  InspectionFinding[]
   /// Cargo asociado (profesiograma S10.1): habilita la derivacion de
   /// requisitos medicos desde los riesgos del cargo (#25).
-  position           String?
-  profilesForRisk    MedicalProfile[]            @relation("MedicalProfileCargoRisk")
-  cohortsForRisk     MedicalSurveillanceCohort[] @relation("MedicalSurveillanceCohortRisk")
-  requirementsDerived MedicalExamRequirement[]   @relation("MedicalRequirementOrigin")
+  position            String?
+  profilesForRisk     MedicalProfile[]            @relation("MedicalProfileCargoRisk")
+  cohortsForRisk      MedicalSurveillanceCohort[] @relation("MedicalSurveillanceCohortRisk")
+  requirementsDerived MedicalExamRequirement[]    @relation("MedicalRequirementOrigin")
 
   @@index([companyId, position])
 }
@@ -561,40 +564,92 @@ model MedicalExamRequirement {
 }
 
 model MedicalSurveillanceProgram {
-  id          String   @id @default(uuid())
-  name        String
-  riskType    String
-  objective   String?
-  status      String   @default("ACTIVE")
-  ownerId     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  owner       User?    @relation("MedicalSurveillanceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  cohorts     MedicalSurveillanceCohort[]
+  id        String                      @id @default(uuid())
+  name      String
+  riskType  String
+  objective String?
+  status    String                      @default("ACTIVE")
+  ownerId   String?
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+  companyId String
+  company   Company                     @relation(fields: [companyId], references: [id])
+  owner     User?                       @relation("MedicalSurveillanceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  cohorts   MedicalSurveillanceCohort[]
+  cases     PveCase[]
 
   @@index([companyId, status])
 }
 
 model MedicalSurveillanceCohort {
-  id               String   @id @default(uuid())
-  programId        String
-  program          MedicalSurveillanceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
-  riskId           String?
-  risk             Risk?    @relation("MedicalSurveillanceCohortRisk", fields: [riskId], references: [id], onDelete: SetNull)
-  derivedAt        DateTime @default(now())
-  lastReviewedAt   DateTime?
-  status           String   @default("ACTIVE")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  companyId        String
-  company          Company  @relation(fields: [companyId], references: [id])
-  workers          Employee[]
+  id             String                     @id @default(uuid())
+  programId      String
+  program        MedicalSurveillanceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  riskId         String?
+  risk           Risk?                      @relation("MedicalSurveillanceCohortRisk", fields: [riskId], references: [id], onDelete: SetNull)
+  derivedAt      DateTime                   @default(now())
+  lastReviewedAt DateTime?
+  status         String                     @default("ACTIVE")
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  companyId      String
+  company        Company                    @relation(fields: [companyId], references: [id])
+  workers        Employee[]
+  cases          PveCase[]
 
   @@unique([programId, riskId])
   @@index([companyId, status])
   @@index([riskId])
+}
+
+// Catalogo CIE-10 configurable por empresa (#44): los casos PVE referencian
+// siempre un diagnostico del catalogo (sin codigos libres), para que el
+// reporte y las tasas agrupen sobre datos normalizados.
+model PveDiagnosis {
+  id        String    @id @default(uuid())
+  code      String
+  name      String
+  category  String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id])
+  cases     PveCase[]
+
+  @@unique([companyId, code])
+  @@index([companyId, active])
+}
+
+// Caso PVE por trabajador: diagnostico del catalogo, estado clínico
+// (SUSPECTED/CONFIRMED/CLOSED), proximo control para alertas y dias de
+// ausentismo reportados para la tasa sobre expuestos (#44).
+model PveCase {
+  id             String                     @id @default(uuid())
+  status         String                     @default("SUSPECTED")
+  reportedAt     DateTime                   @default(now())
+  nextFollowUpAt DateTime?
+  closedAt       DateTime?
+  absenceDays    Int                        @default(0)
+  notes          String?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  employeeId     String
+  employee       Employee                   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  programId      String
+  program        MedicalSurveillanceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  cohortId       String?
+  cohort         MedicalSurveillanceCohort? @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  diagnosisId    String
+  diagnosis      PveDiagnosis               @relation(fields: [diagnosisId], references: [id], onDelete: Restrict)
+  companyId      String
+  company        Company                    @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([employeeId])
+  @@index([programId])
+  @@index([diagnosisId])
+  @@index([nextFollowUpAt])
 }
 
 // Examen ocupacional de un trabajador: solo concepto operativo (APT0/RESTRICCION/
