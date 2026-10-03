@@ -63,6 +63,8 @@ async function main() {
     update: {
       name: 'Administrador SG-SST',
       role: Role.ADMIN,
+      // Re-ejecutar el seed rota la contrasena con SEED_ADMIN_PASSWORD (H-4).
+      password,
       // Sin empresa el scope multi-tenant rechaza todo acceso (403).
       companyId: company.id,
     },
@@ -80,6 +82,7 @@ async function main() {
     update: {
       name: 'Coordinador SST',
       role: Role.SST,
+      password,
       companyId: company.id,
     },
     create: {
@@ -97,6 +100,7 @@ async function main() {
     update: {
       name: 'Empleado QA',
       role: Role.EMPLOYEE,
+      password,
       companyId: company.id,
     },
     create: {

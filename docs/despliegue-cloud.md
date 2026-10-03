@@ -85,6 +85,9 @@ POSTGRES_DB=sgsst
 # --- Seguridad (obligatorias) ---
 JWT_SECRET=<secreto-largo-min-32>
 METRICS_TOKEN=<secreto-largo-min-32>
+# Contrasena del seed (H-4): obligatoria; la API no arranca en produccion
+# con la contrasena publica historica (ver docs/informe-seguridad-s7.md §7.3).
+SEED_ADMIN_PASSWORD=<secreto-unico-no-publico>
 
 # --- URLs (obligatorias) ---
 CORS_ORIGINS=https://app.example.com
