@@ -942,7 +942,7 @@ function App() {
         setEmployees(employeeResponse.data.data)
         setEmployeeMeta(employeeResponse.data.meta)
       }
-      // incidents/risks/trainings devuelven arrays planos (sin paginacion).
+      // incidents ya es paginado ({ data, meta }); risks/trainings siguen planos.
       if (incidentsResponse) {
         const incidentRows = isPaginated<Incident>(incidentsResponse.data)
           ? incidentsResponse.data.data

@@ -212,10 +212,14 @@ describe('AiAssistantTools (scope multi-tenant)', () => {
   });
 
   it('incidents_summary agrega por estado y pasa un usuario de contexto sin identidad real', async () => {
-    incidentsRepository.findAll.mockResolvedValue([
-      { title: 'I1', status: 'OPEN', date: '2026-09-01' },
-      { title: 'I2', status: 'CLOSED', date: '2026-09-02' },
-    ]);
+    // El repositorio real devuelve { data, meta }; el summary consume data.
+    incidentsRepository.findAll.mockResolvedValue({
+      data: [
+        { title: 'I1', status: 'OPEN', date: '2026-09-01' },
+        { title: 'I2', status: 'CLOSED', date: '2026-09-02' },
+      ],
+      meta: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
+    });
 
     const result = await tools.run('incidents_summary', adminA);
 

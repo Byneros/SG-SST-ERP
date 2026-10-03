@@ -1086,18 +1086,21 @@ class MemoryRisksRepository {
 class MemoryIncidentsRepository {
   constructor(private readonly store: MemoryStore) {}
 
+  /** Listado paginado ({ data, meta }), mismo contrato que el repositorio real. */
   findAll(user: unknown, companyId: string, query: unknown, siteId?: string) {
-    return Promise.resolve(
-      this.store.incidents
-        .filter((i) => i.companyId === companyId)
-        .filter((i) =>
-          siteId === undefined
-            ? true
-            : siteId === 'none'
-              ? i.siteId === null
-              : i.siteId === siteId,
-        ),
-    );
+    const data = this.store.incidents
+      .filter((i) => i.companyId === companyId)
+      .filter((i) =>
+        siteId === undefined
+          ? true
+          : siteId === 'none'
+            ? i.siteId === null
+            : i.siteId === siteId,
+      );
+    return Promise.resolve({
+      data,
+      meta: { page: 1, pageSize: data.length, total: data.length, totalPages: 1 },
+    });
   }
 
   findById(id: string) {
@@ -2177,9 +2180,9 @@ describe('multi-tenant isolation (e2e)', () => {
       ),
     ).toBe(true);
     expect(
-      (filteredIncidents.body as Array<{ id: string }>).some(
-        (i) => i.id === companyA.incidentId,
-      ),
+      (
+        (filteredIncidents.body as { data: Array<{ id: string }> }).data ?? []
+      ).some((i) => i.id === companyA.incidentId),
     ).toBe(true);
     // Ningun registro de la empresa B se filtra.
     expect(
@@ -2543,9 +2546,11 @@ describe('multi-tenant isolation (e2e)', () => {
         .set('Authorization', token)
         .expect(200)
         .then((response) => {
-          const companyIds = (
-            response.body as Array<{ companyId: string }>
-          ).map((row) => row.companyId);
+          // incidents ya es paginado ({data}); risks/trainings siguen planos.
+          const rows = Array.isArray(response.body)
+            ? (response.body as Array<{ companyId: string }>)
+            : ((response.body as { data?: Array<{ companyId: string }> }).data ?? []);
+          const companyIds = rows.map((row) => row.companyId);
           expect(companyIds.length).toBeGreaterThan(0);
           for (const companyId of companyIds) {
             expect(companyId).toBe(companyA.companyId);

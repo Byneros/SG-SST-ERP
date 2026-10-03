@@ -11,20 +11,47 @@ const siteInclude = { site: { select: { id: true, name: true, code: true } } };
 export class IncidentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(
+  /** Listado paginado ({ data, meta }), mismo contrato que employees/sites. */
+  async findAll(
     user: AuthenticatedUser,
     companyId: string,
     query: ListQueryDto,
     siteId?: string,
   ) {
-    return this.prisma.incident.findMany({
-      where: {
-        companyId,
-        ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
-      },
-      include: siteInclude,
-      orderBy: { date: 'desc' },
-    });
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    const search = query.search?.trim();
+    const where = {
+      companyId,
+      ...(siteId ? (siteId === 'none' ? { siteId: null } : { siteId }) : {}),
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' as const } },
+              {
+                description: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.incident.findMany({
+        where,
+        include: siteInclude,
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.incident.count({ where }),
+    ]);
+    return {
+      data,
+      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+    };
   }
 
   findById(id: string) {

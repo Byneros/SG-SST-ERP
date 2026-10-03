@@ -19,10 +19,10 @@ export class IncidentsService {
 
   async findAll(
     currentUser: AuthenticatedUser,
-    companyId?: string,
+    query: ListQueryDto,
     siteId?: string,
   ) {
-    const scopedCompanyId = this.resolveCompanyId(currentUser, companyId);
+    const scopedCompanyId = this.resolveCompanyId(currentUser, query.companyId);
     // Filtro por sede: una sede ajena no existe para el actor (404).
     if (siteId && siteId !== 'none') {
       await this.assertSiteInScope(siteId, scopedCompanyId);
@@ -30,7 +30,7 @@ export class IncidentsService {
     return this.incidentsRepository.findAll(
       currentUser,
       scopedCompanyId,
-      new ListQueryDto(),
+      query,
       siteId,
     );
   }

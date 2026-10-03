@@ -136,7 +136,7 @@ export class AiAssistantTools {
   }
 
   private async incidentsSummary(companyId: string) {
-    const incidents = await this.incidentsRepository.findAll(
+    const { data: incidents } = await this.incidentsRepository.findAll(
       // El repositorio solo usa el usuario para logging contextual; el scope
       // ya viene resuelto por resolveCompanyScope en run().
       { sub: '', email: '', role: '', companyId },

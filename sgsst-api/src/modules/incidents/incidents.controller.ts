@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { CreateIncidentDto } from './dto/create-incident.dto';
+import { IncidentListQueryDto } from './dto/incident-list-query.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { IncidentsService } from './incidents.service';
 
@@ -28,10 +29,9 @@ export class IncidentsController {
   @Roles('ADMIN', 'SST', 'AUDITOR', 'EMPLOYEE')
   findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('companyId') companyId?: string,
-    @Query('siteId') siteId?: string,
+    @Query() query: IncidentListQueryDto,
   ) {
-    return this.incidentsService.findAll(user, companyId, siteId);
+    return this.incidentsService.findAll(user, query, query.siteId);
   }
 
   @Get(':id')
