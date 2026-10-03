@@ -111,6 +111,8 @@ class MemoryStore {
     role: string;
     companyId: string | null;
     refreshTokenHash: string | null;
+    failedLoginAttempts: number;
+    lockedUntil: Date | null;
     isActive: boolean;
     deletedAt: Date | null;
     createdAt: Date;
@@ -328,6 +330,8 @@ class MemoryUsersRepository {
       role: dto.role,
       companyId: dto.companyId ?? null,
       refreshTokenHash: null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
       isActive: true,
       deletedAt: null,
       createdAt: now,
@@ -396,6 +400,58 @@ class MemoryUsersRepository {
     if (!user) return { count: 0 };
     await this.update(id, { isActive: false });
     return { count: 1 };
+  }
+
+  registerFailedLogin(id: string, maxAttempts: number, lockMinutes: number) {
+    const user = this.store.users.find((u) => u.id === id);
+    if (!user) return Promise.resolve({ locked: false, attempts: 0 });
+    const previousLockExpired =
+      !!user.lockedUntil && user.lockedUntil.getTime() <= Date.now();
+    const attempts = (previousLockExpired ? 0 : user.failedLoginAttempts) + 1;
+    const locked = attempts >= maxAttempts;
+    user.failedLoginAttempts = attempts;
+    if (locked) {
+      user.lockedUntil = new Date(Date.now() + lockMinutes * 60_000);
+    }
+    return Promise.resolve({ locked, attempts });
+  }
+
+  resetLoginLockout(id: string) {
+    const user = this.store.users.find((u) => u.id === id);
+    if (user) {
+      user.failedLoginAttempts = 0;
+      user.lockedUntil = null;
+    }
+    return Promise.resolve(user ? this.safeUser(user) : null);
+  }
+
+  findLockState(id: string) {
+    const user = this.store.users.find((u) => u.id === id);
+    return Promise.resolve(
+      user
+        ? {
+            id: user.id,
+            failedLoginAttempts: user.failedLoginAttempts,
+            lockedUntil: user.lockedUntil,
+          }
+        : null,
+    );
+  }
+
+  unlockLogin(id: string, companyId?: string) {
+    const user = this.store.users.find(
+      (u) => u.id === id && (companyId ? u.companyId === companyId : true),
+    );
+    if (
+      !user ||
+      !user.lockedUntil ||
+      user.lockedUntil.getTime() <= Date.now()
+    ) {
+      return Promise.resolve({ count: 0 });
+    }
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    return Promise.resolve({ count: 1 });
   }
 
   updateRefreshTokenHash(id: string, refreshTokenHash: string | null) {
@@ -1519,6 +1575,8 @@ describe('multi-tenant isolation (e2e)', () => {
         role: 'ADMIN',
         companyId: company.id,
         refreshTokenHash: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
         isActive: true,
         deletedAt: null,
         createdAt: new Date(),
@@ -1658,6 +1716,8 @@ describe('multi-tenant isolation (e2e)', () => {
       role: 'EMPLOYEE',
       companyId: companyARecord.id,
       refreshTokenHash: null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
       isActive: true,
       deletedAt: null,
       createdAt: new Date(),
@@ -2667,5 +2727,79 @@ describe('multi-tenant isolation (e2e)', () => {
       .get('/api/v1/employees')
       .set('Authorization', `Bearer ${noCompanyToken}`)
       .expect(403);
+  });
+
+  it('unlocks a locked account (lockout -> PATCH /users/:id/unlock -> login)', async () => {
+    // Usuario SST de la empresa A: el ADMIN de A lo crea y luego lo bloquea.
+    const createResponse = await request(app.getHttpServer())
+      .post('/api/v1/users')
+      .set('Authorization', tokenFor(companyA))
+      .send({
+        name: 'SST Bloqueable',
+        email: 'lockable-a@test.com',
+        password,
+        role: 'SST',
+        companyId: companyA.companyId,
+      })
+      .expect(201);
+    const target = body<{ id: string }>(createResponse);
+    expect(target.id).toBeTruthy();
+
+    // Lockout: 5 intentos fallidos (LOGIN_LOCKOUT_MAX_ATTEMPTS) bloquean.
+    for (let i = 0; i < 5; i += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: 'lockable-a@test.com', password: 'WrongPassword1' })
+        .expect(401);
+    }
+    // Con la cuenta bloqueada, incluso la contrasena correcta se rechaza con el
+    // mensaje generico (igual que una contrasena erronea: evita enumeracion de
+    // cuentas, segun docs/informe-seguridad-s7.md).
+    const lockedLogin = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'lockable-a@test.com', password })
+      .expect(401);
+    expect(body<{ message: string }>(lockedLogin).message).toBe(
+      'Invalid credentials',
+    );
+
+    // RBAC: un EMPLOYEE no puede desbloquear (403 antes de llegar al scope).
+    await request(app.getHttpServer())
+      .patch(`/api/v1/users/${target.id}/unlock`)
+      .set('Authorization', `Bearer ${companyA.employeeToken}`)
+      .expect(403);
+
+    // Desbloqueo por el ADMIN de la misma empresa.
+    const unlockResponse = await request(app.getHttpServer())
+      .patch(`/api/v1/users/${target.id}/unlock`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(200);
+    expect(body<{ unlocked: boolean }>(unlockResponse).unlocked).toBe(true);
+
+    // Auditoria del desbloqueo.
+    expect(
+      store.auditLogs.some(
+        (l) => l.action === 'UNLOCK' && l.entityId === target.id,
+      ),
+    ).toBe(true);
+
+    // Idempotencia hacia atras: un segundo desbloqueo responde 409.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/users/${target.id}/unlock`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(409);
+
+    // La cuenta vuelve a autenticar con su contrasena correcta.
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'lockable-a@test.com', password })
+      .expect(201);
+  });
+
+  it('treats the unlock of a user of another company as nonexistent (404)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/v1/users/${companyB.adminId}/unlock`)
+      .set('Authorization', tokenFor(companyA))
+      .expect(404);
   });
 });
