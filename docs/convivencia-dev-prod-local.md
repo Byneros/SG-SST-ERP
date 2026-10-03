@@ -71,6 +71,22 @@ El entrypoint de la API reintenta `prisma migrate deploy` en bucle hasta que la 
 - Detener prod completo: `docker stop sgsst_prod_worker sgsst_prod_web sgsst_prod_api sgsst_prod_postgres sgsst_prod_redis`.
 - Nunca usar `docker compose down` en el directorio del compose de prod salvo intencion explicita: recrea contenedores de prod.
 
+### Quien corre la API dev en 3002: una sola dueña a la vez
+
+El puerto lo fija `API_PORT` en `.env` (3002) y solo puede haber un proceso escuchando. Dos formas validas, nunca simultaneas:
+
+- **Contenedor** (`sgsst_api`): `docker start sgsst_api` / `docker compose up -d api`. Sin usar.
+- **Host** (dev con recarga): `npm run start:dev` (watch) o `npm start` dentro de `sgsst-api/`.
+
+Sintoma de doble dueño: `Error: listen EADDRINUSE :::3002` al arrancar. Diagnostico y liberacion:
+
+```bash
+netstat -ano | grep ":3002" | grep LISTENING   # ultima columna = PID
+taskkill //PID <pid> //F //T                   # mata el proceso y sus hijos
+```
+
+Convencion de trabajo con el agente (Codebuff): **si el usuario corre la API en su terminal, el agente no arranca ni mata el proceso**; solo lo consume via HTTP para pruebas. Si el agente la levanta (watch o start) para verificar, avisa y la deja identificable, y la baja al terminar si el usuario va a arrancar la suya. El contenedor `sgsst_api` queda en estado `Created` mientras la API del host use el puerto.
+
 ### Variables separadas: `.env.prod` para el stack de prod
 
 El `.env` raiz es compartido y contiene valores de **dev** que rompen un recreate de prod si se filtran al compose de prod (ocurrio el 2026-09-29: `API_PORT=3002` hizo que `sgsst_prod_api` escuchara en 3002 mientras el compose publicaba 3001->3001, y una `POSTGRES_PASSWORD` desfasada dejo el API en loop de `P1000`).
