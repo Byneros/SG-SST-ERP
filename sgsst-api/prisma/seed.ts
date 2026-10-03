@@ -13,13 +13,23 @@ import {
   Role,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { PUBLIC_SEED_PASSWORD } from '../src/config/env';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL ?? '' }),
 });
 
 async function main() {
-  const password = await bcrypt.hash('Admin12345', 12);
+  // H-4: la contrasena del seed es configurable via SEED_ADMIN_PASSWORD. El
+  // default solo es aceptable en desarrollo; en produccion assertProductionEnv
+  // rechaza el arranque si queda la contrasena publica (ver src/config/env.ts).
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD?.trim() || PUBLIC_SEED_PASSWORD;
+  if (!process.env.SEED_ADMIN_PASSWORD?.trim()) {
+    console.warn(
+      'SEED_ADMIN_PASSWORD no definida: usando la contrasena por defecto de desarrollo.',
+    );
+  }
+  const password = await bcrypt.hash(seedPassword, 12);
 
   const company = await prisma.company.upsert({
     where: { nit: '900123456-7' },
@@ -266,7 +276,9 @@ async function main() {
   }
 
   console.log(
-    'Seed listo: admin@sgsst.com, sst@sgsst.com y empleado@sgsst.com / Admin12345',
+    process.env.SEED_ADMIN_PASSWORD?.trim()
+      ? 'Seed listo: admin@sgsst.com, sst@sgsst.com y empleado@sgsst.com / contrasena de SEED_ADMIN_PASSWORD'
+      : 'Seed listo: admin@sgsst.com, sst@sgsst.com y empleado@sgsst.com / contrasena por defecto de desarrollo',
   );
 
   // --- Usuario DEVELOPER (rol tecnico de plataforma) -------------------------

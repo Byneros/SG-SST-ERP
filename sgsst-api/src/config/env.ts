@@ -105,6 +105,12 @@ export const env = {
     .filter(Boolean),
 };
 
+// H-4 (docs/informe-seguridad-s7.md): contrasena publica del seed historico.
+// Unica fuente de verdad: `prisma/seed.ts` la usa como default en desarrollo y
+// `assertProductionEnv` rechaza el arranque en produccion si el seed queda con
+// esa contrasena conocida.
+export const PUBLIC_SEED_PASSWORD = 'Admin12345';
+
 export function assertProductionEnv() {
   if (env.nodeEnv !== 'production') {
     return;
@@ -160,6 +166,19 @@ export function assertProductionEnv() {
   if (env.aiEnabled && (!env.aiApiKey.trim() || !env.aiBaseUrl.trim())) {
     throw new Error(
       'AI_ENABLED=true requires AI_API_KEY and AI_BASE_URL in production',
+    );
+  }
+  const seedAdminPassword = (
+    process.env.SEED_ADMIN_PASSWORD ?? PUBLIC_SEED_PASSWORD
+  ).trim();
+  if (!seedAdminPassword) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD must be a unique value if the seed runs in production',
+    );
+  }
+  if (seedAdminPassword === PUBLIC_SEED_PASSWORD) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD must be rotated before deploying: the default seed password is public (H-4)',
     );
   }
 }

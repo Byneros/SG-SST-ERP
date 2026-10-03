@@ -108,7 +108,10 @@ workflow de release).
 8. [ ] Puertas pre-release de seguridad: `npm audit` con 0 vulnerabilidades
       high/critical en `sgsst-api` y `sgsst-web` (última corrida 2026-10-03:
       0/0, detalle en `docs/informe-seguridad-s7.md` §7.2) y rotación de las
-      credenciales del seed (H-4 del mismo informe; bloqueante para producción).
+      credenciales del seed: definir `SEED_ADMIN_PASSWORD` en el entorno antes
+      de `npm run seed` (H-4; `assertProductionEnv` rechaza el arranque en
+      producción con la contraseña pública histórica, ver
+      `docs/informe-seguridad-s7.md` §7.3).
 
 ## Riesgos abiertos
 

@@ -77,7 +77,7 @@ hallazgos con severidad y plan.
 | H-1 | **Alta** (build) | `sgsst-api/src/main.ts` tenía un cambio sin commitear que rompía `nest build` (TS2339 en `developerErrorEvents`). Los pipelines que filtran salida por `tail` enmascaran el código de salida. No es explotable en runtime, pero impedía compilar y validar seguridad | **Corregido** el 29/09: se declaró `developerErrorEvents?: ErrorEventsService` en `AppModule` y la asignación de `main.ts` quedó tipada sin casts (build exit 0, lint 0 errores) |
 | H-2 | Baja (consistencia) | `docs/evidencia-implementacion-s10.md` afirma que EMPLOYEE recibe 404 en el módulo médico; en HTTP real el RolesGuard responde **403** (el 404 del servicio aplica a llamadas directas). El efecto de seguridad es el mismo (acceso denegado), pero la documentación debe reflejar el 403 del guard | Documentado aquí y en `docs/reconciliacion-s8-s10.md` |
 | H-3 | Media (cobertura funcional con impacto en alertas) | El escaneo de alertas no incluía exámenes ocupacionales: un examen vencido no generaba notificación. Se implementó el escaneo `MedicalExam.nextDueAt` (vencido → CRITICAL, próximo ≤30d → HIGH) con 2 pruebas nuevas | **Corregido** el 29/09 |
-| H-4 | Informativa | Cuenta `admin@sgsst.com` del seed usa contraseña pública `Admin12345` (documentada en runbooks). Aceptable en dev; **bloqueante para producción**: rotar credenciales seed y verificar `assertProductionEnv` antes del despliegue | Pendiente (operación) |
+| H-4 | Informativa | Cuenta `admin@sgsst.com` del seed usa contraseña pública `Admin12345` (documentada en runbooks). Aceptable en dev; **bloqueante para producción**: rotar credenciales seed y verificar `assertProductionEnv` antes del despliegue | **Implementado** el 2026-10-03: `SEED_ADMIN_PASSWORD` configurable en el seed y gate en `assertProductionEnv` (ver §7.3) |
 | H-5 | Informativa | El desbloqueo de lockout requiere acceso a BD (no hay endpoint admin para desbloquear). En producción, un usuario bloqueado depende de soporte técnico | **Implementado** el 2026-10-03: `PATCH /api/v1/users/:id/unlock` (rol ADMIN; scope por `resolveCompanyScope`; 404 cross-tenant, 409 si no está bloqueado) con auditoría `UNLOCK` / `UNLOCK_REJECTED_NOT_LOCKED` y 4 pruebas unitarias. Ver sección 7 |
 
 ## 4. Cobertura NO alcanzada (transparencia)
@@ -95,9 +95,10 @@ hallazgos con severidad y plan.
 **Los 5 criterios del issue #16 quedan verificados con evidencia reproducible.**
 Cero accesos cross-tenant y cero bypass de permisos en todas las pruebas;
 lockout operativo; rutas protegidas correctas. H-1 corregido, H-3 corregido con
-pruebas, H-2 documentado. Antes de producción: rotar credenciales del seed
-(H-4), correr análisis de dependencias (ejecutado el 2026-10-03, ver sección 6)
-y ~~decidir endpoint de desbloqueo~~ H-5 implementado (ver sección 7).
+pruebas, H-2 documentado. Antes de producción: ~~rotar credenciales del seed~~
+H-4 implementado (ver §7.3), correr análisis de dependencias (ejecutado el
+2026-10-03, ver sección 6) y ~~decidir endpoint de desbloqueo~~ H-5 implementado
+(ver sección 7).
 
 ## 7. Cierre posterior (2026-10-03)
 
@@ -134,6 +135,26 @@ y ~~decidir endpoint de desbloqueo~~ H-5 implementado (ver sección 7).
 Verificación completa tras la remediación: 292/292 unitarias, `tsc --noEmit`,
 `lint:check` 0 errores y builds API/web OK. `npm audit` queda añadido al
 checklist pre-release de `docs/despliegue-preparacion.md` como paso recurrente.
+
+### 7.3 H-4 — Rotación de la contraseña del seed (2026-10-03)
+
+- `prisma/seed.ts` ya no tiene la contraseña fija: toma `SEED_ADMIN_PASSWORD`
+  (aplica a `admin@sgsst.com`, `sst@sgsst.com` y `empleado@sgsst.com`). Sin la
+  variable usa el default de desarrollo con un warning visible y el mensaje
+  final del seed ya no imprime la contraseña.
+- Gate de arranque: `assertProductionEnv()` (`src/config/env.ts`) rechaza
+  levantar la API en producción si `SEED_ADMIN_PASSWORD` está vacía o sigue
+  siendo la contraseña pública histórica (`PUBLIC_SEED_PASSWORD = 'Admin12345'`,
+  constante exportada como única fuente de verdad y también usada como default
+  del seed). Mensaje: `SEED_ADMIN_PASSWORD must be rotated before deploying...`.
+- Efecto operativo: rotar la contraseña de las cuentas seed se hace asignando
+  `SEED_ADMIN_PASSWORD` en el entorno antes de correr `npm run seed` (el upsert
+  actualiza el hash); en el servidor es parte del checklist de
+  `docs/despliegue-preparacion.md`. Las QA scripts siguen aceptando la
+  contraseña por argumento (`node scripts/qa-*.mjs <base> <email>
+  <password>`).
+- Pruebas: 2 casos nuevos en `src/config/env.spec.ts` (rechazo del default
+  público y aceptación de una contraseña rotada).
 
 ## 8. Cómo reproducir
 
