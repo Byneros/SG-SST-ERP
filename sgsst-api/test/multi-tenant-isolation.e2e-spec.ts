@@ -1099,7 +1099,12 @@ class MemoryIncidentsRepository {
       );
     return Promise.resolve({
       data,
-      meta: { page: 1, pageSize: data.length, total: data.length, totalPages: 1 },
+      meta: {
+        page: 1,
+        pageSize: data.length,
+        total: data.length,
+        totalPages: 1,
+      },
     });
   }
 
@@ -2549,7 +2554,8 @@ describe('multi-tenant isolation (e2e)', () => {
           // incidents ya es paginado ({data}); risks/trainings siguen planos.
           const rows = Array.isArray(response.body)
             ? (response.body as Array<{ companyId: string }>)
-            : ((response.body as { data?: Array<{ companyId: string }> }).data ?? []);
+            : ((response.body as { data?: Array<{ companyId: string }> })
+                .data ?? []);
           const companyIds = rows.map((row) => row.companyId);
           expect(companyIds.length).toBeGreaterThan(0);
           for (const companyId of companyIds) {
