@@ -74,6 +74,15 @@ export class UsersController {
     return this.usersService.remove(id, user);
   }
 
+  @Patch(':id/unlock')
+  @Roles('ADMIN')
+  unlock(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.unlock(id, user);
+  }
+
   private requireCompany(user: AuthenticatedUser) {
     const companyId = user.activeCompanyId ?? user.companyId;
     if (!companyId) {

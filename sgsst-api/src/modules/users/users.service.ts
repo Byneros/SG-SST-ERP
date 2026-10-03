@@ -8,7 +8,10 @@ import {
 import * as bcrypt from 'bcrypt';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
-import { assertCompanyScope } from '../../common/pipes/company-scope';
+import {
+  assertCompanyScope,
+  resolveCompanyScope,
+} from '../../common/pipes/company-scope';
 import { AuditService } from '../audit/audit.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -122,6 +125,75 @@ export class UsersService {
       after: updated,
     });
     return updated;
+  }
+
+  /**
+   * Desbloqueo administrativo del lockout de login (H-5): permite a un ADMIN de
+   * la empresa (o SUPER_ADMIN/DEVELOPER) reactivar una cuenta bloqueada por
+   * intentos fallidos sin esperar a la expiracion ni recurrir a la BD.
+   *
+   * Seguridad:
+   * - Scope: misma fuente de verdad que `findOne` (`resolveCompanyScope`). El
+   *   usuario normal queda confinado a su empresa; SUPER_ADMIN/DEVELOPER opera
+   *   sobre su empresa activa (403 sin empresa seleccionada, igual que el resto
+   *   del ERP); el usuario objetivo de otra empresa responde 404 sin revelarlo.
+   * - Idempotente hacia atras: si la cuenta no esta bloqueada responde 409 (no
+   *   re-limpia contadores de un ciclo activo de intentos fallidos).
+   * - Toda operacion (exito o 409) registra AuditLog con el estado del lock.
+   */
+  async unlock(id: string, actor?: AuthenticatedUser) {
+    const scopedCompanyId = actor ? resolveCompanyScope(actor) : undefined;
+    const target = scopedCompanyId
+      ? await this.usersRepository.findByIdScoped(id, scopedCompanyId)
+      : await this.usersRepository.findById(id);
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    const lockState = await this.usersRepository.findLockState(id);
+    const locked =
+      !!lockState?.lockedUntil && lockState.lockedUntil.getTime() > Date.now();
+    if (!locked) {
+      await this.auditService.log({
+        user: actor,
+        action: 'UNLOCK_REJECTED_NOT_LOCKED',
+        entity: 'User',
+        entityId: id,
+        before: lockState,
+      });
+      throw new ConflictException('User is not locked');
+    }
+
+    const result = await this.usersRepository.unlockLogin(id, scopedCompanyId);
+    if (result.count === 0) {
+      // Carrera: el lock expiro entre la lectura y la escritura condicional.
+      throw new ConflictException('User is not locked');
+    }
+
+    // Relectura con el mismo scoping del inicio (no via findOne: para roles de
+    // plataforma con empresa activa, findOne resuelve por companyId de cuenta).
+    const after = scopedCompanyId
+      ? await this.usersRepository.findByIdScoped(id, scopedCompanyId)
+      : await this.usersRepository.findById(id);
+    await this.auditService.log({
+      user: actor,
+      action: 'UNLOCK',
+      entity: 'User',
+      entityId: id,
+      before: { ...lockState, locked: true },
+      after: {
+        id,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+    return {
+      id,
+      unlocked: true,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      user: after,
+    };
   }
 
   private ensureSingleCompanyAssignment(

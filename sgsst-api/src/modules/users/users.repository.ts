@@ -209,6 +209,30 @@ export class UsersRepository {
     });
   }
 
+  /** Estado de bloqueo de la cuenta para el desbloqueo administrativo (H-5). */
+  findLockState(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, failedLoginAttempts: true, lockedUntil: true },
+    });
+  }
+
+  /**
+   * Desbloqueo administrativo (H-5): limpia el lockout condicionalmente (solo si
+   * el bloqueo sigue vigente) sin sellar `lastLoginAt` (eso ocurre al loguearse).
+   * Con `companyId`, la mutacion queda ademas confinada a la empresa del actor.
+   */
+  unlockLogin(id: string, companyId?: string) {
+    return this.prisma.user.updateMany({
+      where: {
+        id,
+        ...(companyId ? { companyId } : {}),
+        lockedUntil: { gt: new Date() },
+      },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  }
+
   /** Login exitoso o password reset: limpia el bloqueo (y sella el ultimo login). */
   resetLoginLockout(id: string) {
     return this.prisma.user.update({

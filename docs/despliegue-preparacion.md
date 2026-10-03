@@ -105,6 +105,10 @@ workflow de release).
       corre antes de tener la base configurada).
 7. [ ] En el servidor: `docker compose -f docker-compose.prod.yml pull && up -d`
       y verificar `/health`, `/ready` y el smoke test de GitHub.
+8. [ ] Puertas pre-release de seguridad: `npm audit` con 0 vulnerabilidades
+      high/critical en `sgsst-api` y `sgsst-web` (última corrida 2026-10-03:
+      0/0, detalle en `docs/informe-seguridad-s7.md` §7.2) y rotación de las
+      credenciales del seed (H-4 del mismo informe; bloqueante para producción).
 
 ## Riesgos abiertos
 

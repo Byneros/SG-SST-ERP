@@ -78,7 +78,7 @@ hallazgos con severidad y plan.
 | H-2 | Baja (consistencia) | `docs/evidencia-implementacion-s10.md` afirma que EMPLOYEE recibe 404 en el módulo médico; en HTTP real el RolesGuard responde **403** (el 404 del servicio aplica a llamadas directas). El efecto de seguridad es el mismo (acceso denegado), pero la documentación debe reflejar el 403 del guard | Documentado aquí y en `docs/reconciliacion-s8-s10.md` |
 | H-3 | Media (cobertura funcional con impacto en alertas) | El escaneo de alertas no incluía exámenes ocupacionales: un examen vencido no generaba notificación. Se implementó el escaneo `MedicalExam.nextDueAt` (vencido → CRITICAL, próximo ≤30d → HIGH) con 2 pruebas nuevas | **Corregido** el 29/09 |
 | H-4 | Informativa | Cuenta `admin@sgsst.com` del seed usa contraseña pública `Admin12345` (documentada en runbooks). Aceptable en dev; **bloqueante para producción**: rotar credenciales seed y verificar `assertProductionEnv` antes del despliegue | Pendiente (operación) |
-| H-5 | Informativa | El desbloqueo de lockout requiere acceso a BD (no hay endpoint admin para desbloquear). En producción, un usuario bloqueado depende de soporte técnico | Backlog sugerido |
+| H-5 | Informativa | El desbloqueo de lockout requiere acceso a BD (no hay endpoint admin para desbloquear). En producción, un usuario bloqueado depende de soporte técnico | **Implementado** el 2026-10-03: `PATCH /api/v1/users/:id/unlock` (rol ADMIN; scope por `resolveCompanyScope`; 404 cross-tenant, 409 si no está bloqueado) con auditoría `UNLOCK` / `UNLOCK_REJECTED_NOT_LOCKED` y 4 pruebas unitarias. Ver sección 7 |
 
 ## 4. Cobertura NO alcanzada (transparencia)
 
@@ -96,9 +96,46 @@ hallazgos con severidad y plan.
 Cero accesos cross-tenant y cero bypass de permisos en todas las pruebas;
 lockout operativo; rutas protegidas correctas. H-1 corregido, H-3 corregido con
 pruebas, H-2 documentado. Antes de producción: rotar credenciales del seed
-(H-4), decidir endpoint de desbloqueo (H-5) y correr análisis de dependencias.
+(H-4), correr análisis de dependencias (ejecutado el 2026-10-03, ver sección 6)
+y ~~decidir endpoint de desbloqueo~~ H-5 implementado (ver sección 7).
 
-## 6. Cómo reproducir
+## 7. Cierre posterior (2026-10-03)
+
+### 7.1 H-5 — Desbloqueo administrativo de lockout
+
+- Endpoint: `PATCH /api/v1/users/:id/unlock`, RBAC `@Roles('ADMIN')` (el guard
+  concede SUPER_ADMIN por rol; el scope de empresa lo valida el servicio con
+  `resolveCompanyScope`, misma fuente de verdad que el resto del ERP).
+- Comportamiento: 404 si el usuario es de otra empresa (sin revelar existencia);
+  409 `User is not locked` si no hay bloqueo vigente (idempotencia hacia atrás,
+  no re-limpia contadores de un ciclo activo); en éxito limpia
+  `failedLoginAttempts` y `lockedUntil` condicionalmente (`lockedUntil > now`,
+  sin sellar `lastLoginAt`) y responde el estado del lock.
+- Auditoría: `UNLOCK` (con before/after del lock) y `UNLOCK_REJECTED_NOT_LOCKED`
+  en el 409; el 404 no audita (el recurso no existe para el actor).
+- Pruebas: 4 casos unitarios nuevos en `users.service.spec.ts` (éxito con
+  auditoría, 409 auditado, 404 cross-tenant sin mutación, plataforma con empresa
+  activa). Suite: 292/292.
+- Límite conocido: no desbloquea cuentas de otra empresa aunque el actor sea
+  ADMIN de la propia (por diseño multi-tenant); SUPER_ADMIN lo hace desde su
+  empresa activa seleccionada (`POST /auth/active-company`).
+
+### 7.2 Auditoría de dependencias (recomendación del informe, ejecutada)
+
+`npm audit` inicial: API 18 (12 high, 6 moderate), web 8 (6 high). Remediación:
+
+| Acción | Resultado |
+|---|---|
+| `npm audit fix` no rompiente en ambos paquetes | API 18→7; web 8→0 |
+| `nodemailer` ^8 → ^10.0.14 (major; el servicio solo usa `createTransport`/`sendMail`, sin las opciones afectadas por los CVEs) | elimina 5 high |
+| Overrides puntuales en transitivas de tooling (`mysql2` 3.24.5 y `deepmerge-ts` 8.0.0 vía `prisma`; `js-yaml` 5.4.2 vía `@nestjs/swagger`) | elimina las 3 restantes; `prisma validate` verificado |
+| **Final** | **API: 0 vulnerabilidades; web: 0 vulnerabilidades** |
+
+Verificación completa tras la remediación: 292/292 unitarias, `tsc --noEmit`,
+`lint:check` 0 errores y builds API/web OK. `npm audit` queda añadido al
+checklist pre-release de `docs/despliegue-preparacion.md` como paso recurrente.
+
+## 8. Cómo reproducir
 
 ```bash
 docker compose up -d --wait
