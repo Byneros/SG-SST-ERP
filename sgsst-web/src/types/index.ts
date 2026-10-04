@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -1382,5 +1382,172 @@ export type CommitteeCommitmentFormValues = {
   description: string
   responsibleEmployeeId: string
   dueDate: string
+  companyId: string
+}
+
+// --- Emergencias (S12): brigadas, planes por sede y simulacros -----------------
+
+export type EmergencyBrigadeRole =
+  | 'JEFE_BRIGADA'
+  | 'PREVENCION_INCENDIOS'
+  | 'PRIMEROS_AUXILIOS'
+  | 'EVACUACION_RESCATE'
+  | 'BRIGADISTA'
+export type EmergencyThreatRisk = 'LOW' | 'MEDIUM' | 'HIGH'
+export type EmergencyResourceStatus = 'OPERATIVE' | 'MAINTENANCE' | 'EXPIRED'
+export type EmergencyDrillStatus = 'PLANNED' | 'EXECUTED' | 'CLOSED' | 'CANCELLED'
+export type EmergencyFindingSeverity = 'MINOR' | 'MAJOR' | 'CRITICAL'
+
+export type EmergencyBrigadeMember = {
+  id: string
+  role: EmergencyBrigadeRole
+  formationCompletedAt?: string | null
+  validUntil?: string | null
+  brigadeId: string
+  employeeId: string
+  companyId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'document' | 'position'>
+  brigade?: { id: string; name: string; siteId: string }
+}
+
+export type EmergencyBrigade = {
+  id: string
+  name: string
+  siteId: string
+  companyId: string
+  createdAt: string
+  updatedAt: string
+  site?: Pick<Site, 'id' | 'name' | 'code'>
+  members?: EmergencyBrigadeMember[]
+  _count?: { members: number }
+}
+
+export type EmergencyThreat = {
+  id: string
+  type: string
+  description?: string
+  riskLevel: EmergencyThreatRisk
+  planId: string
+  companyId: string
+}
+
+export type EmergencyResource = {
+  id: string
+  resourceType: string
+  location?: string
+  quantity: number
+  status: EmergencyResourceStatus
+  lastInspectedAt?: string | null
+  expiresAt?: string | null
+  planId: string
+  companyId: string
+}
+
+export type EmergencyPlan = {
+  id: string
+  name: string
+  siteId: string
+  responsibleEmployeeId?: string | null
+  meetingPoint?: string
+  routesDescription?: string
+  procedures?: string
+  vulnerabilityNotes?: string
+  companyId: string
+  createdAt: string
+  updatedAt: string
+  site?: Pick<Site, 'id' | 'name' | 'code'>
+  responsible?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'position'> | null
+  threats?: EmergencyThreat[]
+  resources?: EmergencyResource[]
+  _count?: { threats: number; resources: number; drills: number }
+}
+
+export type EmergencyDrillFinding = {
+  id: string
+  description: string
+  severity: EmergencyFindingSeverity
+  actionDescription?: string
+  actionResponsible?: string
+  actionDueDate?: string | null
+  closedAt?: string | null
+  drillId: string
+  companyId: string
+}
+
+export type EmergencyDrill = {
+  id: string
+  name: string
+  scenario?: string
+  planId: string
+  plannedAt: string
+  executedAt?: string | null
+  durationMinutes?: number | null
+  participants?: number | null
+  resultNotes?: string
+  status: EmergencyDrillStatus
+  companyId: string
+  createdAt: string
+  updatedAt: string
+  plan?: { id: string; name: string; site: { id: string; name: string } | null }
+  findings?: EmergencyDrillFinding[]
+  _count?: { findings: number }
+}
+
+export type EmergencyBrigadeFormValues = {
+  name: string
+  siteId: string
+  companyId: string
+}
+
+export type EmergencyBrigadeMemberFormValues = {
+  role: EmergencyBrigadeRole
+  formationCompletedAt: string
+  validUntil: string
+  employeeId: string
+  companyId: string
+}
+
+export type EmergencyPlanFormValues = {
+  name: string
+  siteId: string
+  responsibleEmployeeId: string
+  meetingPoint: string
+  routesDescription: string
+  procedures: string
+  vulnerabilityNotes: string
+  companyId: string
+}
+
+export type EmergencyThreatFormValues = {
+  type: string
+  description: string
+  riskLevel: EmergencyThreatRisk
+  companyId: string
+}
+
+export type EmergencyResourceFormValues = {
+  resourceType: string
+  location: string
+  quantity: number | ''
+  status: EmergencyResourceStatus
+  lastInspectedAt: string
+  expiresAt: string
+  companyId: string
+}
+
+export type EmergencyDrillFormValues = {
+  name: string
+  scenario: string
+  planId: string
+  plannedAt: string
+  companyId: string
+}
+
+export type EmergencyDrillFindingFormValues = {
+  description: string
+  severity: EmergencyFindingSeverity
+  actionDescription: string
+  actionResponsible: string
+  actionDueDate: string
   companyId: string
 }

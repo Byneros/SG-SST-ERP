@@ -6,6 +6,7 @@ const pageLoaders = {
   aiAssistant: () => import('../pages/ai-assistant/AssistantChatPage'),
   companies: () => import('../pages/companies/CompaniesPage'),
   committees: () => import('../pages/committees/CommitteesPage'),
+  emergency: () => import('../pages/emergency/EmergencyPage'),
   contractors: () => import('../pages/contractors/ContractorsPage'),
   sites: () => import('../pages/sites/SitesPage'),
   employees: () => import('../pages/employees/EmployeesPage'),
@@ -33,6 +34,7 @@ const pageLoaders = {
 const dialogLoaders = {
   company: () => import('../pages/companies/CompanyDialog'),
   committeeDialogs: () => import('../pages/committees/CommitteeDialogs'),
+  emergencyDialogs: () => import('../pages/emergency/EmergencyDialogs'),
   contractorDialogs: () => import('../pages/contractors/ContractorDialogs'),
   site: () => import('../pages/sites/SiteDialog'),
   employee: () => import('../pages/employees/EmployeeDialog'),
@@ -63,6 +65,27 @@ export const CompaniesPage = lazy(() =>
 )
 export const CommitteesPage = lazy(() =>
   pageLoaders.committees().then((module) => ({ default: module.CommitteesPage })),
+)
+export const EmergencyPage = lazy(() =>
+  pageLoaders.emergency().then((module) => ({ default: module.EmergencyPage })),
+)
+export const EmergencyBrigadeDialog = lazy(() =>
+  dialogLoaders.emergencyDialogs().then((module) => ({ default: module.EmergencyBrigadeDialog })),
+)
+export const EmergencyBrigadeDetailDialog = lazy(() =>
+  dialogLoaders.emergencyDialogs().then((module) => ({ default: module.EmergencyBrigadeDetailDialog })),
+)
+export const EmergencyPlanDialog = lazy(() =>
+  dialogLoaders.emergencyDialogs().then((module) => ({ default: module.EmergencyPlanDialog })),
+)
+export const EmergencyPlanDetailDialog = lazy(() =>
+  dialogLoaders.emergencyDialogs().then((module) => ({ default: module.EmergencyPlanDetailDialog })),
+)
+export const EmergencyDrillDialog = lazy(() =>
+  dialogLoaders.emergencyDialogs().then((module) => ({ default: module.EmergencyDrillDialog })),
+)
+export const EmergencyDrillDetailDialog = lazy(() =>
+  dialogLoaders.emergencyDialogs().then((module) => ({ default: module.EmergencyDrillDetailDialog })),
 )
 export const ContractorsPage = lazy(() =>
   pageLoaders.contractors().then((module) => ({ default: module.ContractorsPage })),
@@ -229,6 +252,10 @@ export function preloadCompanyDialog() {
 
 export function preloadCommitteeDialogs() {
   void dialogLoaders.committeeDialogs()
+}
+
+export function preloadEmergencyDialogs() {
+  void dialogLoaders.emergencyDialogs()
 }
 
 export function preloadContractorDialogs() {

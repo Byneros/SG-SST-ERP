@@ -102,6 +102,13 @@ model Company {
   committeeMembers              CommitteeMember[]
   committeeMeetings             CommitteeMeeting[]
   committeeCommitments          CommitteeCommitment[]
+  emergencyBrigades             EmergencyBrigade[]
+  emergencyBrigadeMembers       EmergencyBrigadeMember[]
+  emergencyPlans                EmergencyPlan[]
+  emergencyThreats              EmergencyThreat[]
+  emergencyResources            EmergencyResource[]
+  emergencyDrills               EmergencyDrill[]
+  emergencyDrillFindings        EmergencyDrillFinding[]
 }
 
 model Site {
@@ -123,6 +130,8 @@ model Site {
   unplannedInspections UnplannedInspection[]
   unsafeReports        UnsafeReport[]
   indicators           Indicator[]
+  emergencyBrigades    EmergencyBrigade[]
+  emergencyPlans       EmergencyPlan[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   isActive             Boolean               @default(true)
@@ -133,33 +142,35 @@ model Site {
 }
 
 model Employee {
-  id                  String                      @id @default(uuid())
-  firstName           String
-  lastName            String
-  document            String                      @unique
-  position            String
-  email               String?
-  phone               String?
-  createdAt           DateTime                    @default(now())
-  companyId           String
-  isActive            Boolean                     @default(true)
-  deletedAt           DateTime?
-  updatedAt           DateTime                    @updatedAt
-  documentType        DocumentType                @default(CC)
-  workCenter          String?
-  contractType        ContractType                @default(INDEFINITE)
-  employmentStatus    EmploymentStatus            @default(ACTIVE)
-  hireDate            DateTime?
-  siteId              String?
-  company             Company                     @relation(fields: [companyId], references: [id])
-  site                Site?                       @relation(fields: [siteId], references: [id])
-  ppeDeliveries       PpeDelivery[]
-  medicalExams        MedicalExam[]
-  medicalRestrictions MedicalRestriction[]
-  surveillanceCohorts MedicalSurveillanceCohort[]
-  pveCases            PveCase[]
-  committeeMembers    CommitteeMember[]
-  responsibleCommitments CommitteeCommitment[] @relation("CommitmentResponsible")
+  id                            String                      @id @default(uuid())
+  firstName                     String
+  lastName                      String
+  document                      String                      @unique
+  position                      String
+  email                         String?
+  phone                         String?
+  createdAt                     DateTime                    @default(now())
+  companyId                     String
+  isActive                      Boolean                     @default(true)
+  deletedAt                     DateTime?
+  updatedAt                     DateTime                    @updatedAt
+  documentType                  DocumentType                @default(CC)
+  workCenter                    String?
+  contractType                  ContractType                @default(INDEFINITE)
+  employmentStatus              EmploymentStatus            @default(ACTIVE)
+  hireDate                      DateTime?
+  siteId                        String?
+  company                       Company                     @relation(fields: [companyId], references: [id])
+  site                          Site?                       @relation(fields: [siteId], references: [id])
+  ppeDeliveries                 PpeDelivery[]
+  medicalExams                  MedicalExam[]
+  medicalRestrictions           MedicalRestriction[]
+  surveillanceCohorts           MedicalSurveillanceCohort[]
+  pveCases                      PveCase[]
+  committeeMembers              CommitteeMember[]
+  responsibleCommitments        CommitteeCommitment[]       @relation("CommitmentResponsible")
+  emergencyBrigadeMemberships   EmergencyBrigadeMember[]
+  emergencyPlanResponsibilities EmergencyPlan[]             @relation("EmergencyPlanResponsible")
 }
 
 model Risk {
@@ -1330,17 +1341,17 @@ model SsoState {
 // Convivencia Laboral (issue #30: "reutiliza el modelo de comites con tipo
 // comite"); el tipo habilita reglas propias en la UI y reportes.
 model Committee {
-  id        String          @id @default(uuid())
-  name      String
-  type      CommitteeType   @default(COPASST)
+  id          String             @id @default(uuid())
+  name        String
+  type        CommitteeType      @default(COPASST)
   // Periodo de vigencia del comite (electo): minimo y maximo legales.
   periodStart DateTime
   periodEnd   DateTime
-  status    CommitteeStatus @default(ACTIVE)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  companyId String
-  company   Company         @relation(fields: [companyId], references: [id])
+  status      CommitteeStatus    @default(ACTIVE)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  companyId   String
+  company     Company            @relation(fields: [companyId], references: [id])
   members     CommitteeMember[]
   meetings    CommitteeMeeting[]
 
@@ -1349,61 +1360,61 @@ model Committee {
 }
 
 model CommitteeMember {
-  id         String                @id @default(uuid())
-  role       CommitteeMemberRole
+  id          String              @id @default(uuid())
+  role        CommitteeMemberRole
   // Principal y suplente por apartado (patronal/trabajador) segun Res. 2013.
-  seatType   CommitteeSeatType     @default(PRINCIPAL)
-  startDate  DateTime
-  endDate    DateTime?
-  createdAt  DateTime              @default(now())
-  updatedAt  DateTime              @updatedAt
+  seatType    CommitteeSeatType   @default(PRINCIPAL)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   committeeId String
-  committee   Committee            @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  committee   Committee           @relation(fields: [committeeId], references: [id], onDelete: Cascade)
   employeeId  String
-  employee    Employee             @relation(fields: [employeeId], references: [id])
+  employee    Employee            @relation(fields: [employeeId], references: [id])
   companyId   String
-  company     Company              @relation(fields: [companyId], references: [id])
+  company     Company             @relation(fields: [companyId], references: [id])
 
   @@unique([committeeId, employeeId])
   @@index([companyId])
 }
 
 model CommitteeMeeting {
-  id        String          @id @default(uuid())
-  number    Int
-  meetingAt DateTime
+  id                String                 @id @default(uuid())
+  number            Int
+  meetingAt         DateTime
   // Agenda y desarrollo de la reunion (texto libre del acta).
-  agenda    String?
-  notes     String?
-  status    CommitteeMeetingStatus @default(SCHEDULED)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  committeeId String
-  committee   Committee      @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  agenda            String?
+  notes             String?
+  status            CommitteeMeetingStatus @default(SCHEDULED)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  committeeId       String
+  committee         Committee              @relation(fields: [committeeId], references: [id], onDelete: Cascade)
   // Acta como documento del expediente (criterio S11.1: acta (document)).
   minutesDocumentId String?
-  minutesDocument   Document? @relation(fields: [minutesDocumentId], references: [id], onDelete: SetNull)
-  commitments CommitteeCommitment[]
-  companyId   String
-  company     Company              @relation(fields: [companyId], references: [id])
+  minutesDocument   Document?              @relation(fields: [minutesDocumentId], references: [id], onDelete: SetNull)
+  commitments       CommitteeCommitment[]
+  companyId         String
+  company           Company                @relation(fields: [companyId], references: [id])
 
   @@unique([committeeId, number])
   @@index([companyId, meetingAt])
 }
 
 model CommitteeCommitment {
-  id          String                 @id @default(uuid())
-  description String
+  id                    String           @id @default(uuid())
+  description           String
   responsibleEmployeeId String
-  dueDate     DateTime
-  completedAt DateTime?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
-  meetingId   String
-  meeting     CommitteeMeeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  responsible Employee               @relation("CommitmentResponsible", fields: [responsibleEmployeeId], references: [id])
-  companyId   String
-  company     Company                @relation(fields: [companyId], references: [id])
+  dueDate               DateTime
+  completedAt           DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  meetingId             String
+  meeting               CommitteeMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  responsible           Employee         @relation("CommitmentResponsible", fields: [responsibleEmployeeId], references: [id])
+  companyId             String
+  company               Company          @relation(fields: [companyId], references: [id])
 
   @@index([meetingId])
   @@index([companyId, dueDate])
@@ -1437,3 +1448,165 @@ enum CommitteeMeetingStatus {
   CANCELLED
 }
 
+// S12: emergencias. Brigadas por sede con vigencia de formacion (issue #31),
+// plan de emergencias independiente por sede con amenazas y recursos
+// (issue #32) y simulacros con hallazgos -> acciones -> cierre (issue #33).
+model EmergencyBrigade {
+  id        String                   @id @default(uuid())
+  name      String
+  siteId    String
+  site      Site                     @relation(fields: [siteId], references: [id])
+  companyId String
+  company   Company                  @relation(fields: [companyId], references: [id])
+  members   EmergencyBrigadeMember[]
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+
+  @@index([companyId, siteId])
+}
+
+model EmergencyBrigadeMember {
+  id                   String               @id @default(uuid())
+  role                 EmergencyBrigadeRole @default(BRIGADISTA)
+  formationCompletedAt DateTime?
+  // Vigencia de la formacion: vencida requiere recertificar (criterio #31).
+  validUntil           DateTime?
+  brigadeId            String
+  brigade              EmergencyBrigade     @relation(fields: [brigadeId], references: [id], onDelete: Cascade)
+  employeeId           String
+  employee             Employee             @relation(fields: [employeeId], references: [id])
+  companyId            String
+  company              Company              @relation(fields: [companyId], references: [id])
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@unique([brigadeId, employeeId])
+  @@index([companyId])
+}
+
+model EmergencyPlan {
+  id                    String              @id @default(uuid())
+  name                  String
+  // Plan independiente por sede (criterio #32): una sede, un plan.
+  siteId                String
+  site                  Site                @relation(fields: [siteId], references: [id])
+  responsibleEmployeeId String?
+  responsible           Employee?           @relation("EmergencyPlanResponsible", fields: [responsibleEmployeeId], references: [id])
+  meetingPoint          String?
+  routesDescription     String?
+  procedures            String?
+  vulnerabilityNotes    String?
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id])
+  threats               EmergencyThreat[]
+  resources             EmergencyResource[]
+  drills                EmergencyDrill[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@unique([siteId])
+  @@index([companyId])
+}
+
+model EmergencyThreat {
+  id          String              @id @default(uuid())
+  type        String
+  description String?
+  riskLevel   EmergencyThreatRisk @default(MEDIUM)
+  planId      String
+  plan        EmergencyPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company             @relation(fields: [companyId], references: [id])
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([planId])
+}
+
+model EmergencyResource {
+  id              String                  @id @default(uuid())
+  resourceType    String
+  location        String?
+  quantity        Int                     @default(1)
+  status          EmergencyResourceStatus @default(OPERATIVE)
+  lastInspectedAt DateTime?
+  expiresAt       DateTime?
+  planId          String
+  plan            EmergencyPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company                 @relation(fields: [companyId], references: [id])
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([planId])
+  @@index([companyId, status])
+}
+
+model EmergencyDrill {
+  id              String                  @id @default(uuid())
+  name            String
+  scenario        String?
+  planId          String
+  plan            EmergencyPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plannedAt       DateTime
+  executedAt      DateTime?
+  durationMinutes Int?
+  participants    Int?
+  resultNotes     String?
+  status          EmergencyDrillStatus    @default(PLANNED)
+  companyId       String
+  company         Company                 @relation(fields: [companyId], references: [id])
+  findings        EmergencyDrillFinding[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([planId])
+  @@index([companyId, status])
+}
+
+model EmergencyDrillFinding {
+  id                String          @id @default(uuid())
+  description       String
+  severity          FindingSeverity @default(MINOR)
+  // Accion correctiva derivada del hallazgo (criterio #33: acciones y cierre).
+  actionDescription String?
+  actionResponsible String?
+  actionDueDate     DateTime?
+  closedAt          DateTime?
+  drillId           String
+  drill             EmergencyDrill  @relation(fields: [drillId], references: [id], onDelete: Cascade)
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([drillId])
+  @@index([companyId, closedAt])
+}
+
+enum EmergencyBrigadeRole {
+  JEFE_BRIGADA
+  PREVENCION_INCENDIOS
+  PRIMEROS_AUXILIOS
+  EVACUACION_RESCATE
+  BRIGADISTA
+}
+
+enum EmergencyThreatRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EmergencyResourceStatus {
+  OPERATIVE
+  MAINTENANCE
+  EXPIRED
+}
+
+enum EmergencyDrillStatus {
+  PLANNED
+  EXECUTED
+  CLOSED
+  CANCELLED
+}

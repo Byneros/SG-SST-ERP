@@ -35,6 +35,13 @@ import {
   emptyAnnualWorkPlan,
   emptyCompany,
   emptyCommittee,
+  emptyEmergencyBrigade,
+  emptyEmergencyBrigadeMember,
+  emptyEmergencyDrill,
+  emptyEmergencyDrillFinding,
+  emptyEmergencyPlan,
+  emptyEmergencyResource,
+  emptyEmergencyThreat,
   emptyCommitteeCommitment,
   emptyCommitteeMeeting,
   emptyCommitteeMember,
@@ -68,6 +75,7 @@ import {
   initialTableState,
 } from './constants/forms'
 import { AppLayout } from './layout/AppLayout'
+import type { EmergencyTab } from './pages/emergency/EmergencyPage'
 import {
   AssistantChatPage,
   AuditPage,
@@ -75,6 +83,13 @@ import {
   CommitteesPage,
   CommitteeDialog,
   CommitteeDetailDialog,
+  EmergencyPage,
+  EmergencyBrigadeDialog,
+  EmergencyBrigadeDetailDialog,
+  EmergencyPlanDialog,
+  EmergencyPlanDetailDialog,
+  EmergencyDrillDialog,
+  EmergencyDrillDetailDialog,
   ContractorsPage,
   ContractorDialog,
   ContractorWorkerDialog,
@@ -127,6 +142,7 @@ import {
   preloadSgsstEvaluationDialog,
   preloadCompanyDialog,
   preloadCommitteeDialogs,
+  preloadEmergencyDialogs,
   preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -186,6 +202,21 @@ import type {
   Company,
   Committee,
   CommitteeCommitmentFormValues,
+  EmergencyBrigade,
+  EmergencyBrigadeFormValues,
+  EmergencyBrigadeMember,
+  EmergencyBrigadeMemberFormValues,
+  EmergencyDrill,
+  EmergencyDrillFinding,
+  EmergencyDrillFindingFormValues,
+  EmergencyDrillFormValues,
+  EmergencyDrillStatus,
+  EmergencyPlan,
+  EmergencyPlanFormValues,
+  EmergencyResource,
+  EmergencyResourceFormValues,
+  EmergencyThreat,
+  EmergencyThreatFormValues,
   CommitteeFollowUp,
   CommitteeFormValues,
   CommitteeMeeting,
@@ -224,6 +255,7 @@ const ALL_VIEWS: View[] = [
   'aiAssistant',
   'companies',
   'committees',
+  'emergency',
   'contractors',
   'developer',
   'sites',
@@ -307,6 +339,31 @@ function App() {
   const [committeeMeetingForm, setCommitteeMeetingForm] = useState<CommitteeMeetingFormValues>(emptyCommitteeMeeting)
   const [committeeCommitmentForm, setCommitteeCommitmentForm] = useState<CommitteeCommitmentFormValues>(emptyCommitteeCommitment)
   const [committeeCommitmentMeeting, setCommitteeCommitmentMeeting] = useState<CommitteeMeeting | null>(null)
+  // S12 Emergencias: brigadas, planes por sede y simulacros (con sub-recursos).
+  const [emergencyTab, setEmergencyTab] = useState<EmergencyTab>('brigades')
+  const [emergencyBrigades, setEmergencyBrigades] = useState<EmergencyBrigade[]>([])
+  const [emergencyBrigadeMeta, setEmergencyBrigadeMeta] = useState(emptyMeta)
+  const [emergencyBrigadeTable, setEmergencyBrigadeTable] = useState(initialTableState)
+  const [emergencyBrigadeDialog, setEmergencyBrigadeDialog] = useState<{ open: boolean; item?: EmergencyBrigade }>({ open: false })
+  const [emergencyBrigadeForm, setEmergencyBrigadeForm] = useState<EmergencyBrigadeFormValues>(emptyEmergencyBrigade)
+  const [emergencyBrigadeDetail, setEmergencyBrigadeDetail] = useState<EmergencyBrigade | null>(null)
+  const [emergencyBrigadeMembers, setEmergencyBrigadeMembers] = useState<EmergencyBrigadeMember[]>([])
+  const [emergencyBrigadeMemberForm, setEmergencyBrigadeMemberForm] = useState<EmergencyBrigadeMemberFormValues>(emptyEmergencyBrigadeMember)
+  const [emergencyPlans, setEmergencyPlans] = useState<EmergencyPlan[]>([])
+  const [emergencyPlanMeta, setEmergencyPlanMeta] = useState(emptyMeta)
+  const [emergencyPlanTable, setEmergencyPlanTable] = useState(initialTableState)
+  const [emergencyPlanDialog, setEmergencyPlanDialog] = useState<{ open: boolean; item?: EmergencyPlan }>({ open: false })
+  const [emergencyPlanForm, setEmergencyPlanForm] = useState<EmergencyPlanFormValues>(emptyEmergencyPlan)
+  const [emergencyPlanDetail, setEmergencyPlanDetail] = useState<EmergencyPlan | null>(null)
+  const [emergencyThreatForm, setEmergencyThreatForm] = useState<EmergencyThreatFormValues>(emptyEmergencyThreat)
+  const [emergencyResourceForm, setEmergencyResourceForm] = useState<EmergencyResourceFormValues>(emptyEmergencyResource)
+  const [emergencyDrills, setEmergencyDrills] = useState<EmergencyDrill[]>([])
+  const [emergencyDrillMeta, setEmergencyDrillMeta] = useState(emptyMeta)
+  const [emergencyDrillTable, setEmergencyDrillTable] = useState(initialTableState)
+  const [emergencyDrillDialog, setEmergencyDrillDialog] = useState<{ open: boolean; item?: EmergencyDrill }>({ open: false })
+  const [emergencyDrillForm, setEmergencyDrillForm] = useState<EmergencyDrillFormValues>(emptyEmergencyDrill)
+  const [emergencyDrillDetail, setEmergencyDrillDetail] = useState<EmergencyDrill | null>(null)
+  const [emergencyFindingForm, setEmergencyFindingForm] = useState<EmergencyDrillFindingFormValues>(emptyEmergencyDrillFinding)
   // S11 Contratistas: listado + sub-recursos + autorizacion de ingreso.
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [contractorMeta, setContractorMeta] = useState(emptyMeta)
@@ -502,6 +559,9 @@ function App() {
   // S11 Comites: lectura ADMIN/SST/AUDITOR/EMPLOYEE; gestion ADMIN/SST.
   const canViewCommittees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageCommittees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  // S12 Emergencias: misma matriz de permisos (lectura amplia para evacuacion).
+  const canViewEmergency = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
+  const canManageEmergency = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewEntryAuth = canManageContractors || user?.role === 'AUDITOR'
@@ -550,7 +610,9 @@ function App() {
         ? 'Empresas'
         : view === 'committees'
           ? 'Comités'
-          : view === 'contractors'
+          : view === 'emergency'
+            ? 'Emergencias'
+            : view === 'contractors'
           ? 'Contratistas'
         : view === 'developer'
           ? 'Panel de desarrollador'
@@ -613,7 +675,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, committeeTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
+  }, [token, companyTable, committeeTable, emergencyBrigadeTable, emergencyPlanTable, emergencyDrillTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -659,6 +721,16 @@ function App() {
       const committeeRequest = canViewCommittees && hasCompanyScope
         ? api.get<Paginated<Committee>>('/committees', { params: tableParams(committeeTable) })
         : Promise.resolve({ data: { data: [] as Committee[], meta: emptyMeta } })
+      // S12 Emergencias: brigadas, planes y simulacros paginados.
+      const emergencyBrigadeRequest = canViewEmergency && hasCompanyScope
+        ? api.get<Paginated<EmergencyBrigade>>('/emergency-brigades', { params: tableParams(emergencyBrigadeTable) })
+        : Promise.resolve({ data: { data: [] as EmergencyBrigade[], meta: emptyMeta } })
+      const emergencyPlanRequest = canViewEmergency && hasCompanyScope
+        ? api.get<Paginated<EmergencyPlan>>('/emergency-plans', { params: tableParams(emergencyPlanTable) })
+        : Promise.resolve({ data: { data: [] as EmergencyPlan[], meta: emptyMeta } })
+      const emergencyDrillRequest = canViewEmergency && hasCompanyScope
+        ? api.get<Paginated<EmergencyDrill>>('/emergency-drills', { params: tableParams(emergencyDrillTable) })
+        : Promise.resolve({ data: { data: [] as EmergencyDrill[], meta: emptyMeta } })
       const contractorRequest = canViewContractors && hasCompanyScope
         ? api.get<Paginated<Contractor>>('/contractors', { params: tableParams(contractorTable) })
         : Promise.resolve({ data: { data: [] as Contractor[], meta: emptyMeta } })
@@ -855,6 +927,9 @@ function App() {
       const [
         companySettled,
         committeeSettled,
+        emergencyBrigadeSettled,
+        emergencyPlanSettled,
+        emergencyDrillSettled,
         contractorSettled,
         siteSettled,
         employeeSettled,
@@ -888,6 +963,9 @@ function App() {
       ] = await Promise.allSettled([
         companyRequest,
         committeeRequest,
+        emergencyBrigadeRequest,
+        emergencyPlanRequest,
+        emergencyDrillRequest,
         contractorRequest,
         siteRequest,
         employeeRequest,
@@ -926,6 +1004,9 @@ function App() {
       }
       const companyResponse = settledData(companySettled)
       const committeeResponse = settledData(committeeSettled)
+      const emergencyBrigadeResponse = settledData(emergencyBrigadeSettled)
+      const emergencyPlanResponse = settledData(emergencyPlanSettled)
+      const emergencyDrillResponse = settledData(emergencyDrillSettled)
       const contractorResponse = settledData(contractorSettled)
       const siteResponse = settledData(siteSettled)
       const employeeResponse = settledData(employeeSettled)
@@ -976,6 +1057,33 @@ function App() {
         } else {
           setCommittees([])
           setCommitteeMeta(emptyMeta)
+        }
+      }
+      if (emergencyBrigadeResponse) {
+        if (isPaginated<EmergencyBrigade>(emergencyBrigadeResponse.data)) {
+          setEmergencyBrigades(emergencyBrigadeResponse.data.data)
+          setEmergencyBrigadeMeta(emergencyBrigadeResponse.data.meta)
+        } else {
+          setEmergencyBrigades([])
+          setEmergencyBrigadeMeta(emptyMeta)
+        }
+      }
+      if (emergencyPlanResponse) {
+        if (isPaginated<EmergencyPlan>(emergencyPlanResponse.data)) {
+          setEmergencyPlans(emergencyPlanResponse.data.data)
+          setEmergencyPlanMeta(emergencyPlanResponse.data.meta)
+        } else {
+          setEmergencyPlans([])
+          setEmergencyPlanMeta(emptyMeta)
+        }
+      }
+      if (emergencyDrillResponse) {
+        if (isPaginated<EmergencyDrill>(emergencyDrillResponse.data)) {
+          setEmergencyDrills(emergencyDrillResponse.data.data)
+          setEmergencyDrillMeta(emergencyDrillResponse.data.meta)
+        } else {
+          setEmergencyDrills([])
+          setEmergencyDrillMeta(emptyMeta)
         }
       }
       if (contractorResponse) {
@@ -1462,6 +1570,286 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // --- Emergencias (S12): brigadas, planes, simulacros -------------------------
+
+  function openEmergencyBrigadeForm(item?: EmergencyBrigade) {
+    setEmergencyBrigadeForm(
+      item
+        ? { name: item.name, siteId: item.siteId, companyId: item.companyId }
+        : { ...emptyEmergencyBrigade, siteId: sites[0]?.id ?? '', companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setEmergencyBrigadeDialog({ open: true, item })
+    preloadEmergencyDialogs()
+  }
+
+  async function saveEmergencyBrigade() {
+    await saveRecord(async () => {
+      const payload = sanitize(emergencyBrigadeForm)
+      if (emergencyBrigadeDialog.item) {
+        await api.patch(`/emergency-brigades/${emergencyBrigadeDialog.item.id}`, payload)
+      } else {
+        await api.post('/emergency-brigades', payload)
+      }
+      setEmergencyBrigadeDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteEmergencyBrigade(brigade: EmergencyBrigade) {
+    openConfirmDialog(
+      'Eliminar brigada',
+      `¿Seguro que deseas eliminar la brigada ${brigade.name}? Se eliminan tambien sus brigadistas.`,
+      'Eliminar',
+      'error',
+      () => { void removeEmergencyBrigade(brigade.id) },
+    )
+  }
+
+  async function removeEmergencyBrigade(id: string) {
+    await saveRecord(() => api.delete(`/emergency-brigades/${id}`).then())
+  }
+
+  async function openEmergencyBrigadeDetail(item: EmergencyBrigade) {
+    setEmergencyBrigadeDetail(item)
+    setEmergencyBrigadeMembers(item.members ?? [])
+    setEmergencyBrigadeMemberForm({ ...emptyEmergencyBrigadeMember, companyId: item.companyId })
+    try {
+      const response = await api.get<EmergencyBrigadeMember[]>(`/emergency-brigades/${item.id}/members`)
+      setEmergencyBrigadeMembers(Array.isArray(response.data) ? response.data : [])
+    } catch (currentError) {
+      setError(readApiError(currentError))
+      setEmergencyBrigadeDetail(null)
+    }
+  }
+
+  async function saveEmergencyBrigadeMember() {
+    if (!emergencyBrigadeDetail) return
+    await saveRecord(async () => {
+      const payload = {
+        role: emergencyBrigadeMemberForm.role,
+        employeeId: emergencyBrigadeMemberForm.employeeId,
+        formationCompletedAt: emergencyBrigadeMemberForm.formationCompletedAt || undefined,
+        validUntil: emergencyBrigadeMemberForm.validUntil || undefined,
+        companyId: emergencyBrigadeMemberForm.companyId,
+      }
+      await api.post(`/emergency-brigades/${emergencyBrigadeDetail.id}/members`, payload)
+      setEmergencyBrigadeMemberForm({ ...emptyEmergencyBrigadeMember, companyId: emergencyBrigadeDetail.companyId })
+      await openEmergencyBrigadeDetail(emergencyBrigadeDetail)
+    })
+  }
+
+  async function removeEmergencyBrigadeMember(member: EmergencyBrigadeMember) {
+    if (!emergencyBrigadeDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/emergency-brigades/${emergencyBrigadeDetail.id}/members/${member.id}`)
+      await openEmergencyBrigadeDetail(emergencyBrigadeDetail)
+    })
+  }
+
+  function openEmergencyPlanForm(item?: EmergencyPlan) {
+    setEmergencyPlanForm(
+      item
+        ? {
+            name: item.name,
+            siteId: item.siteId,
+            responsibleEmployeeId: item.responsibleEmployeeId ?? '',
+            meetingPoint: item.meetingPoint ?? '',
+            routesDescription: item.routesDescription ?? '',
+            procedures: item.procedures ?? '',
+            vulnerabilityNotes: item.vulnerabilityNotes ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyEmergencyPlan, siteId: sites[0]?.id ?? '', companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setEmergencyPlanDialog({ open: true, item })
+    preloadEmergencyDialogs()
+  }
+
+  async function saveEmergencyPlan() {
+    await saveRecord(async () => {
+      const payload = {
+        ...sanitize(emergencyPlanForm),
+        responsibleEmployeeId: emergencyPlanForm.responsibleEmployeeId || undefined,
+      }
+      if (emergencyPlanDialog.item) {
+        await api.patch(`/emergency-plans/${emergencyPlanDialog.item.id}`, payload)
+      } else {
+        await api.post('/emergency-plans', payload)
+      }
+      setEmergencyPlanDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteEmergencyPlan(plan: EmergencyPlan) {
+    openConfirmDialog(
+      'Eliminar plan de emergencias',
+      `¿Seguro que deseas eliminar el plan ${plan.name}? Se eliminan tambien sus amenazas, recursos y simulacros.`,
+      'Eliminar',
+      'error',
+      () => { void removeEmergencyPlan(plan.id) },
+    )
+  }
+
+  async function removeEmergencyPlan(id: string) {
+    await saveRecord(() => api.delete(`/emergency-plans/${id}`).then())
+  }
+
+  async function openEmergencyPlanDetail(item: EmergencyPlan) {
+    setEmergencyPlanDetail(item)
+    setEmergencyThreatForm({ ...emptyEmergencyThreat, companyId: item.companyId })
+    setEmergencyResourceForm({ ...emptyEmergencyResource, companyId: item.companyId })
+  }
+
+  async function saveEmergencyThreat() {
+    if (!emergencyPlanDetail) return
+    await saveRecord(async () => {
+      const payload = { ...sanitize(emergencyThreatForm), riskLevel: emergencyThreatForm.riskLevel }
+      await api.post(`/emergency-plans/${emergencyPlanDetail.id}/threats`, payload)
+      setEmergencyThreatForm({ ...emptyEmergencyThreat, companyId: emergencyPlanDetail.companyId })
+      await refreshEmergencyPlanDetail(emergencyPlanDetail.id)
+    })
+  }
+
+  async function removeEmergencyThreat(threat: EmergencyThreat) {
+    if (!emergencyPlanDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/emergency-plans/${emergencyPlanDetail.id}/threats/${threat.id}`)
+      await refreshEmergencyPlanDetail(emergencyPlanDetail.id)
+    })
+  }
+
+  async function saveEmergencyResource() {
+    if (!emergencyPlanDetail) return
+    await saveRecord(async () => {
+      const payload = {
+        resourceType: emergencyResourceForm.resourceType,
+        location: emergencyResourceForm.location || undefined,
+        quantity: Number(emergencyResourceForm.quantity) || 1,
+        status: emergencyResourceForm.status,
+        expiresAt: emergencyResourceForm.expiresAt || undefined,
+        companyId: emergencyResourceForm.companyId,
+      }
+      await api.post(`/emergency-plans/${emergencyPlanDetail.id}/resources`, payload)
+      setEmergencyResourceForm({ ...emptyEmergencyResource, companyId: emergencyPlanDetail.companyId })
+      await refreshEmergencyPlanDetail(emergencyPlanDetail.id)
+    })
+  }
+
+  async function removeEmergencyResource(resource: EmergencyResource) {
+    if (!emergencyPlanDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/emergency-plans/${emergencyPlanDetail.id}/resources/${resource.id}`)
+      await refreshEmergencyPlanDetail(emergencyPlanDetail.id)
+    })
+  }
+
+  /** Recarga el plan (amenazas/recursos actualizados) y refresca el listado. */
+  async function refreshEmergencyPlanDetail(planId: string) {
+    const response = await api.get<EmergencyPlan>(`/emergency-plans/${planId}`)
+    setEmergencyPlanDetail(response.data)
+    await loadData()
+  }
+
+  function openEmergencyDrillForm(item?: EmergencyDrill) {
+    setEmergencyDrillForm(
+      item
+        ? {
+            name: item.name,
+            scenario: item.scenario ?? '',
+            planId: item.planId,
+            plannedAt: item.plannedAt.slice(0, 16),
+            companyId: item.companyId,
+          }
+        : { ...emptyEmergencyDrill, planId: emergencyPlans[0]?.id ?? '', companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setEmergencyDrillDialog({ open: true, item })
+    preloadEmergencyDialogs()
+  }
+
+  async function saveEmergencyDrill() {
+    await saveRecord(async () => {
+      const payload = {
+        ...sanitize(emergencyDrillForm),
+        plannedAt: emergencyDrillForm.plannedAt ? new Date(emergencyDrillForm.plannedAt).toISOString() : '',
+      }
+      if (emergencyDrillDialog.item) {
+        await api.patch(`/emergency-drills/${emergencyDrillDialog.item.id}`, payload)
+      } else {
+        await api.post('/emergency-drills', payload)
+      }
+      setEmergencyDrillDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteEmergencyDrill(drill: EmergencyDrill) {
+    openConfirmDialog(
+      'Eliminar simulacro',
+      `¿Seguro que deseas eliminar el simulacro ${drill.name}? Se eliminan tambien sus hallazgos.`,
+      'Eliminar',
+      'error',
+      () => { void removeEmergencyDrill(drill.id) },
+    )
+  }
+
+  async function removeEmergencyDrill(id: string) {
+    await saveRecord(() => api.delete(`/emergency-drills/${id}`).then())
+  }
+
+  async function openEmergencyDrillDetail(item: EmergencyDrill) {
+    setEmergencyDrillDetail(item)
+    setEmergencyFindingForm({ ...emptyEmergencyDrillFinding, companyId: item.companyId })
+  }
+
+  /** Transicion del simulacro: ejecutar (sella executedAt) o cerrar. */
+  async function updateEmergencyDrillStatus(drill: EmergencyDrill, status: EmergencyDrillStatus) {
+    await saveRecord(async () => {
+      await api.patch(`/emergency-drills/${drill.id}`, { status })
+      if (emergencyDrillDetail?.id === drill.id) {
+        await refreshEmergencyDrillDetail(drill.id)
+      } else {
+        await loadData()
+      }
+    })
+  }
+
+  async function refreshEmergencyDrillDetail(drillId: string) {
+    const response = await api.get<EmergencyDrill>(`/emergency-drills/${drillId}`)
+    setEmergencyDrillDetail(response.data)
+    await loadData()
+  }
+
+  async function saveEmergencyFinding() {
+    if (!emergencyDrillDetail) return
+    await saveRecord(async () => {
+      const payload = {
+        ...sanitize(emergencyFindingForm),
+        severity: emergencyFindingForm.severity,
+        actionDueDate: emergencyFindingForm.actionDueDate || undefined,
+      }
+      await api.post(`/emergency-drills/${emergencyDrillDetail.id}/findings`, payload)
+      setEmergencyFindingForm({ ...emptyEmergencyDrillFinding, companyId: emergencyDrillDetail.companyId })
+      await refreshEmergencyDrillDetail(emergencyDrillDetail.id)
+    })
+  }
+
+  /** Cierra o reabre un hallazgo (closedAt); la accion queda trazada. */
+  async function toggleEmergencyFinding(finding: EmergencyDrillFinding, closed: boolean) {
+    if (!emergencyDrillDetail) return
+    await saveRecord(async () => {
+      await api.patch(`/emergency-drills/${emergencyDrillDetail.id}/findings/${finding.id}`, {
+        closedAt: closed ? new Date().toISOString() : null,
+      })
+      await refreshEmergencyDrillDetail(emergencyDrillDetail.id)
+    })
+  }
+
+  async function removeEmergencyFinding(finding: EmergencyDrillFinding) {
+    if (!emergencyDrillDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/emergency-drills/${emergencyDrillDetail.id}/findings/${finding.id}`)
+      await refreshEmergencyDrillDetail(emergencyDrillDetail.id)
+    })
   }
 
   // --- Comites (S11): COPASST y Convivencia ----------------------------------
@@ -3433,6 +3821,7 @@ function App() {
           error={error}
           canViewUsers={canViewUsers}
           canViewCommittees={canViewCommittees}
+          canViewEmergency={canViewEmergency}
           canViewContractors={canViewContractors}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
@@ -3535,6 +3924,38 @@ function App() {
                 onEdit={openCommitteeForm}
                 onDelete={confirmDeleteCommittee}
                 onOpenDetail={openCommitteeDetail}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'emergency' && (
+              <EmergencyPage
+                tab={emergencyTab}
+                onTabChange={setEmergencyTab}
+                brigades={emergencyBrigades}
+                brigadeMeta={emergencyBrigadeMeta}
+                brigadeTable={emergencyBrigadeTable}
+                plans={emergencyPlans}
+                planMeta={emergencyPlanMeta}
+                planTable={emergencyPlanTable}
+                drills={emergencyDrills}
+                drillMeta={emergencyDrillMeta}
+                drillTable={emergencyDrillTable}
+                canManage={canManageEmergency}
+                onBrigadeTableChange={setEmergencyBrigadeTable}
+                onPlanTableChange={setEmergencyPlanTable}
+                onDrillTableChange={setEmergencyDrillTable}
+                onCreateBrigade={() => openEmergencyBrigadeForm()}
+                onEditBrigade={openEmergencyBrigadeForm}
+                onDeleteBrigade={confirmDeleteEmergencyBrigade}
+                onOpenBrigadeDetail={openEmergencyBrigadeDetail}
+                onCreatePlan={() => openEmergencyPlanForm()}
+                onEditPlan={openEmergencyPlanForm}
+                onDeletePlan={confirmDeleteEmergencyPlan}
+                onOpenPlanDetail={openEmergencyPlanDetail}
+                onCreateDrill={() => openEmergencyDrillForm()}
+                onEditDrill={openEmergencyDrillForm}
+                onDeleteDrill={confirmDeleteEmergencyDrill}
+                onOpenDrillDetail={openEmergencyDrillDetail}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4019,6 +4440,82 @@ function App() {
               onChange={setCompanyForm}
               onClose={() => setCompanyDialog({ open: false })}
               onSave={saveCompany}
+            />
+            <EmergencyBrigadeDialog
+              open={emergencyBrigadeDialog.open}
+              editing={Boolean(emergencyBrigadeDialog.item)}
+              values={emergencyBrigadeForm}
+              sites={sites}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setEmergencyBrigadeForm}
+              onClose={() => setEmergencyBrigadeDialog({ open: false })}
+              onSave={saveEmergencyBrigade}
+            />
+            <EmergencyBrigadeDetailDialog
+              open={Boolean(emergencyBrigadeDetail)}
+              brigade={emergencyBrigadeDetail}
+              members={emergencyBrigadeMembers}
+              employees={employees}
+              canManage={canManageEmergency}
+              memberForm={emergencyBrigadeMemberForm}
+              onMemberFormChange={setEmergencyBrigadeMemberForm}
+              onSaveMember={saveEmergencyBrigadeMember}
+              onRemoveMember={removeEmergencyBrigadeMember}
+              onClose={() => setEmergencyBrigadeDetail(null)}
+            />
+            <EmergencyPlanDialog
+              open={emergencyPlanDialog.open}
+              editing={Boolean(emergencyPlanDialog.item)}
+              values={emergencyPlanForm}
+              sites={sites}
+              employees={employees}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setEmergencyPlanForm}
+              onClose={() => setEmergencyPlanDialog({ open: false })}
+              onSave={saveEmergencyPlan}
+            />
+            <EmergencyPlanDetailDialog
+              open={Boolean(emergencyPlanDetail)}
+              plan={emergencyPlanDetail}
+              canManage={canManageEmergency}
+              threatForm={emergencyThreatForm}
+              resourceForm={emergencyResourceForm}
+              onThreatFormChange={setEmergencyThreatForm}
+              onResourceFormChange={setEmergencyResourceForm}
+              onSaveThreat={saveEmergencyThreat}
+              onSaveResource={saveEmergencyResource}
+              onRemoveThreat={removeEmergencyThreat}
+              onRemoveResource={removeEmergencyResource}
+              onClose={() => setEmergencyPlanDetail(null)}
+            />
+            <EmergencyDrillDialog
+              open={emergencyDrillDialog.open}
+              editing={Boolean(emergencyDrillDialog.item)}
+              values={emergencyDrillForm}
+              plans={emergencyPlans}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setEmergencyDrillForm}
+              onClose={() => setEmergencyDrillDialog({ open: false })}
+              onSave={saveEmergencyDrill}
+            />
+            <EmergencyDrillDetailDialog
+              open={Boolean(emergencyDrillDetail)}
+              drill={emergencyDrillDetail}
+              canManage={canManageEmergency}
+              findingForm={emergencyFindingForm}
+              onFindingFormChange={setEmergencyFindingForm}
+              onSaveFinding={saveEmergencyFinding}
+              onRemoveFinding={removeEmergencyFinding}
+              onToggleFinding={toggleEmergencyFinding}
+              onMarkExecuted={(drill) => { void updateEmergencyDrillStatus(drill, 'EXECUTED') }}
+              onMarkClosed={(drill) => { void updateEmergencyDrillStatus(drill, 'CLOSED') }}
+              onClose={() => setEmergencyDrillDetail(null)}
             />
             <CommitteeDialog
               open={committeeDialog.open}

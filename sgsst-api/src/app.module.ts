@@ -15,6 +15,7 @@ import { AnnualWorkPlansModule } from './modules/annual-work-plans/annual-work-p
 import { CommitteesModule } from './modules/committees/committees.module';
 import { ContractorsModule } from './modules/contractors/contractors.module';
 import { DeveloperModule } from './modules/developer/developer.module';
+import { EmergencyModule } from './modules/emergency/emergency.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { PlannedInspectionsModule } from './modules/planned-inspections/planned-inspections.module';
 import { UnplannedInspectionsModule } from './modules/unplanned-inspections/unplanned-inspections.module';
@@ -47,6 +48,7 @@ import { UsersModule } from './modules/users/users.module';
     AnnualWorkPlansModule,
     CommitteesModule,
     ContractorsModule,
+    EmergencyModule,
     DeveloperModule,
     PlannedInspectionsModule,
     UnplannedInspectionsModule,

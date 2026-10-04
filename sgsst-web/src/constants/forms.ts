@@ -3,6 +3,13 @@ import type {
   AnnualWorkPlanFormValues,
   CompanyFormValues,
   CommitteeCommitmentFormValues,
+  EmergencyBrigadeFormValues,
+  EmergencyBrigadeMemberFormValues,
+  EmergencyDrillFindingFormValues,
+  EmergencyDrillFormValues,
+  EmergencyPlanFormValues,
+  EmergencyResourceFormValues,
+  EmergencyThreatFormValues,
   CommitteeFormValues,
   CommitteeMeetingFormValues,
   CommitteeMemberFormValues,
@@ -113,6 +120,65 @@ export const emptyCommitteeCommitment: CommitteeCommitmentFormValues = {
   description: '',
   responsibleEmployeeId: '',
   dueDate: '',
+  companyId: '',
+}
+
+export const emptyEmergencyBrigade: EmergencyBrigadeFormValues = {
+  name: '',
+  siteId: '',
+  companyId: '',
+}
+
+export const emptyEmergencyBrigadeMember: EmergencyBrigadeMemberFormValues = {
+  role: 'BRIGADISTA',
+  formationCompletedAt: '',
+  validUntil: '',
+  employeeId: '',
+  companyId: '',
+}
+
+export const emptyEmergencyPlan: EmergencyPlanFormValues = {
+  name: '',
+  siteId: '',
+  responsibleEmployeeId: '',
+  meetingPoint: '',
+  routesDescription: '',
+  procedures: '',
+  vulnerabilityNotes: '',
+  companyId: '',
+}
+
+export const emptyEmergencyThreat: EmergencyThreatFormValues = {
+  type: '',
+  description: '',
+  riskLevel: 'MEDIUM',
+  companyId: '',
+}
+
+export const emptyEmergencyResource: EmergencyResourceFormValues = {
+  resourceType: '',
+  location: '',
+  quantity: 1,
+  status: 'OPERATIVE',
+  lastInspectedAt: '',
+  expiresAt: '',
+  companyId: '',
+}
+
+export const emptyEmergencyDrill: EmergencyDrillFormValues = {
+  name: '',
+  scenario: '',
+  planId: '',
+  plannedAt: '',
+  companyId: '',
+}
+
+export const emptyEmergencyDrillFinding: EmergencyDrillFindingFormValues = {
+  description: '',
+  severity: 'MINOR',
+  actionDescription: '',
+  actionResponsible: '',
+  actionDueDate: '',
   companyId: '',
 }
 
