@@ -34,6 +34,10 @@ import type { SsoConfigValues } from './auth/ssoConfig'
 import {
   emptyAnnualWorkPlan,
   emptyCompany,
+  emptyCommittee,
+  emptyCommitteeCommitment,
+  emptyCommitteeMeeting,
+  emptyCommitteeMember,
   emptyContractor,
   emptyContractorDocument,
   emptyContractorWorker,
@@ -68,6 +72,9 @@ import {
   AssistantChatPage,
   AuditPage,
   DeveloperPanelPage,
+  CommitteesPage,
+  CommitteeDialog,
+  CommitteeDetailDialog,
   ContractorsPage,
   ContractorDialog,
   ContractorWorkerDialog,
@@ -119,6 +126,7 @@ import {
   preloadSgsstAuditDialog,
   preloadSgsstEvaluationDialog,
   preloadCompanyDialog,
+  preloadCommitteeDialogs,
   preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -176,6 +184,14 @@ import type {
   ExternalDeliveryFilters,
   AuthUser,
   Company,
+  Committee,
+  CommitteeCommitmentFormValues,
+  CommitteeFollowUp,
+  CommitteeFormValues,
+  CommitteeMeeting,
+  CommitteeMeetingFormValues,
+  CommitteeMember,
+  CommitteeMemberFormValues,
   DashboardSummary,
   SgsstDocument,
   Employee,
@@ -207,6 +223,7 @@ const ALL_VIEWS: View[] = [
   'dashboard',
   'aiAssistant',
   'companies',
+  'committees',
   'contractors',
   'developer',
   'sites',
@@ -275,6 +292,21 @@ function App() {
   const [view, setView] = useState<View>(initialHash.view)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
+  // S11 Comites: COPASST y Convivencia (listado + detalle con sub-recursos).
+  const [committees, setCommittees] = useState<Committee[]>([])
+  const [committeeMeta, setCommitteeMeta] = useState(emptyMeta)
+  const [committeeTable, setCommitteeTable] = useState(initialTableState)
+  const [committeeDialog, setCommitteeDialog] = useState<{ open: boolean; item?: Committee }>({ open: false })
+  const [committeeForm, setCommitteeForm] = useState<CommitteeFormValues>(emptyCommittee)
+  const [committeeDetail, setCommitteeDetail] = useState<Committee | null>(null)
+  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([])
+  const [committeeMeetings, setCommitteeMeetings] = useState<CommitteeMeeting[]>([])
+  const [committeeFollowUp, setCommitteeFollowUp] = useState<CommitteeFollowUp | null>(null)
+  const [committeeFollowUpLoading, setCommitteeFollowUpLoading] = useState(false)
+  const [committeeMemberForm, setCommitteeMemberForm] = useState<CommitteeMemberFormValues>(emptyCommitteeMember)
+  const [committeeMeetingForm, setCommitteeMeetingForm] = useState<CommitteeMeetingFormValues>(emptyCommitteeMeeting)
+  const [committeeCommitmentForm, setCommitteeCommitmentForm] = useState<CommitteeCommitmentFormValues>(emptyCommitteeCommitment)
+  const [committeeCommitmentMeeting, setCommitteeCommitmentMeeting] = useState<CommitteeMeeting | null>(null)
   // S11 Contratistas: listado + sub-recursos + autorizacion de ingreso.
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [contractorMeta, setContractorMeta] = useState(emptyMeta)
@@ -467,6 +499,9 @@ function App() {
   const canManageCompanies = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   // S11 Contratistas: lectura para ADMIN/SST/AUDITOR/EMPLOYEE; gestion y
   // autorizacion de ingreso sin EMPLOYEE (mismo criterio del backend).
+  // S11 Comites: lectura ADMIN/SST/AUDITOR/EMPLOYEE; gestion ADMIN/SST.
+  const canViewCommittees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
+  const canManageCommittees = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewEntryAuth = canManageContractors || user?.role === 'AUDITOR'
@@ -513,7 +548,9 @@ function App() {
         ? 'Asistente inteligente'
         : view === 'companies'
         ? 'Empresas'
-        : view === 'contractors'
+        : view === 'committees'
+          ? 'Comités'
+          : view === 'contractors'
           ? 'Contratistas'
         : view === 'developer'
           ? 'Panel de desarrollador'
@@ -576,7 +613,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
+  }, [token, companyTable, committeeTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -618,6 +655,10 @@ function App() {
             : Promise.resolve({ data: [] as Company[] })
       // S11 Contratistas: paginado; la empresa la resuelve el backend desde el
       // JWT (resolveCompanyScope) y el DTO no acepta companyId en el query.
+      // S11 Comites: paginado; la empresa la resuelve el backend (resolveCompanyScope).
+      const committeeRequest = canViewCommittees && hasCompanyScope
+        ? api.get<Paginated<Committee>>('/committees', { params: tableParams(committeeTable) })
+        : Promise.resolve({ data: { data: [] as Committee[], meta: emptyMeta } })
       const contractorRequest = canViewContractors && hasCompanyScope
         ? api.get<Paginated<Contractor>>('/contractors', { params: tableParams(contractorTable) })
         : Promise.resolve({ data: { data: [] as Contractor[], meta: emptyMeta } })
@@ -813,6 +854,7 @@ function App() {
       // demas listados desactualizados; el que falla conserva su estado previo.
       const [
         companySettled,
+        committeeSettled,
         contractorSettled,
         siteSettled,
         employeeSettled,
@@ -845,6 +887,7 @@ function App() {
         summarySettled,
       ] = await Promise.allSettled([
         companyRequest,
+        committeeRequest,
         contractorRequest,
         siteRequest,
         employeeRequest,
@@ -882,6 +925,7 @@ function App() {
         return settled.status === 'fulfilled' ? settled.value : null
       }
       const companyResponse = settledData(companySettled)
+      const committeeResponse = settledData(committeeSettled)
       const contractorResponse = settledData(contractorSettled)
       const siteResponse = settledData(siteSettled)
       const employeeResponse = settledData(employeeSettled)
@@ -923,6 +967,15 @@ function App() {
           const data = Array.isArray(companyResponse.data) ? companyResponse.data : [companyResponse.data]
           setCompanies(data)
           setCompanyMeta({ ...emptyMeta, total: data.length, totalPages: 1 })
+        }
+      }
+      if (committeeResponse) {
+        if (isPaginated<Committee>(committeeResponse.data)) {
+          setCommittees(committeeResponse.data.data)
+          setCommitteeMeta(committeeResponse.data.meta)
+        } else {
+          setCommittees([])
+          setCommitteeMeta(emptyMeta)
         }
       }
       if (contractorResponse) {
@@ -1409,6 +1462,161 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // --- Comites (S11): COPASST y Convivencia ----------------------------------
+
+  function openCommitteeForm(item?: Committee) {
+    setCommitteeForm(
+      item
+        ? {
+            name: item.name,
+            type: item.type,
+            periodStart: item.periodStart.slice(0, 10),
+            periodEnd: item.periodEnd.slice(0, 10),
+            status: item.status,
+            companyId: item.companyId,
+          }
+        : { ...emptyCommittee, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setCommitteeDialog({ open: true, item })
+    preloadCommitteeDialogs()
+  }
+
+  async function saveCommittee() {
+    await saveRecord(async () => {
+      const payload = {
+        ...sanitize(committeeForm),
+        type: committeeForm.type,
+        status: committeeForm.status,
+      }
+      if (committeeDialog.item) {
+        await api.patch(`/committees/${committeeDialog.item.id}`, payload)
+      } else {
+        await api.post('/committees', payload)
+      }
+      setCommitteeDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteCommittee(committee: Committee) {
+    openConfirmDialog(
+      'Eliminar comité',
+      `¿Seguro que deseas eliminar ${committee.name}? Se eliminan tambien sus integrantes, reuniones y compromisos.`,
+      'Eliminar',
+      'error',
+      () => { void removeCommittee(committee.id) },
+    )
+  }
+
+  async function removeCommittee(id: string) {
+    await saveRecord(() => api.delete(`/committees/${id}`).then())
+  }
+
+  /** Abre el detalle y carga integrantes, reuniones y seguimiento del comite. */
+  async function openCommitteeDetail(item: Committee) {
+    setCommitteeDetail(item)
+    setCommitteeMembers([])
+    setCommitteeMeetings([])
+    setCommitteeFollowUp(null)
+    setCommitteeMemberForm({ ...emptyCommitteeMember, companyId: item.companyId })
+    setCommitteeMeetingForm({ ...emptyCommitteeMeeting, companyId: item.companyId })
+    setCommitteeCommitmentForm({ ...emptyCommitteeCommitment, companyId: item.companyId })
+    setCommitteeCommitmentMeeting(null)
+    try {
+      const [membersResponse, meetingsResponse] = await Promise.all([
+        api.get<CommitteeMember[]>(`/committees/${item.id}/members`),
+        api.get<CommitteeMeeting[]>(`/committees/${item.id}/meetings`),
+      ])
+      setCommitteeMembers(Array.isArray(membersResponse.data) ? membersResponse.data : [])
+      setCommitteeMeetings(Array.isArray(meetingsResponse.data) ? meetingsResponse.data : [])
+      if (canManageCommittees || user?.role === 'AUDITOR') {
+        setCommitteeFollowUpLoading(true)
+        try {
+          const followUpResponse = await api.get<CommitteeFollowUp>(`/committees/${item.id}/follow-up`)
+          setCommitteeFollowUp(followUpResponse.data)
+        } finally {
+          setCommitteeFollowUpLoading(false)
+        }
+      }
+    } catch (currentError) {
+      setError(readApiError(currentError))
+      setCommitteeDetail(null)
+    }
+  }
+
+  async function saveCommitteeMember() {
+    if (!committeeDetail) return
+    await saveRecord(async () => {
+      const payload = {
+        ...sanitize(committeeMemberForm),
+        role: committeeMemberForm.role,
+        seatType: committeeMemberForm.seatType,
+        endDate: committeeMemberForm.endDate || undefined,
+      }
+      await api.post(`/committees/${committeeDetail.id}/members`, payload)
+      setCommitteeMemberForm({ ...emptyCommitteeMember, companyId: committeeDetail.companyId })
+      await openCommitteeDetail(committeeDetail)
+    })
+  }
+
+  async function removeCommitteeMember(member: CommitteeMember) {
+    if (!committeeDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/committees/${committeeDetail.id}/members/${member.id}`)
+      await openCommitteeDetail(committeeDetail)
+    })
+  }
+
+  async function saveCommitteeMeeting() {
+    if (!committeeDetail) return
+    await saveRecord(async () => {
+      const payload = {
+        // Sin sanitize: number no entra en su firma (Record<string, string|boolean>).
+        number: Number(committeeMeetingForm.number),
+        meetingAt: new Date(committeeMeetingForm.meetingAt).toISOString(),
+        agenda: committeeMeetingForm.agenda.trim() || undefined,
+        notes: committeeMeetingForm.notes.trim() || undefined,
+        status: committeeMeetingForm.status,
+        minutesDocumentId: committeeMeetingForm.minutesDocumentId || undefined,
+      }
+      await api.post(`/committees/${committeeDetail.id}/meetings`, payload)
+      setCommitteeMeetingForm({ ...emptyCommitteeMeeting, companyId: committeeDetail.companyId })
+      await openCommitteeDetail(committeeDetail)
+    })
+  }
+
+  async function removeCommitteeMeeting(meeting: CommitteeMeeting) {
+    if (!committeeDetail) return
+    await saveRecord(async () => {
+      await api.delete(`/committees/${committeeDetail.id}/meetings/${meeting.id}`)
+      await openCommitteeDetail(committeeDetail)
+    })
+  }
+
+  async function saveCommitteeCommitment() {
+    if (!committeeDetail || !committeeCommitmentMeeting) return
+    await saveRecord(async () => {
+      const payload = {
+        ...sanitize(committeeCommitmentForm),
+        dueDate: new Date(committeeCommitmentForm.dueDate).toISOString(),
+      }
+      await api.post(`/committees/meetings/${committeeCommitmentMeeting.id}/commitments`, payload)
+      setCommitteeCommitmentForm({ ...emptyCommitteeCommitment, companyId: committeeDetail.companyId })
+      setCommitteeCommitmentMeeting(null)
+      await openCommitteeDetail(committeeDetail)
+    })
+  }
+
+  /** Cierra o reabre un compromiso (completedAt); el backend audita el cambio. */
+  async function toggleCommitment(meeting: CommitteeMeeting, commitmentId: string, completed: boolean) {
+    if (!committeeDetail) return
+    await saveRecord(async () => {
+      await api.patch(`/committees/meetings/${meeting.id}/commitments/${commitmentId}`, {
+        completedAt: completed ? new Date().toISOString() : null,
+      })
+      await openCommitteeDetail(committeeDetail)
+    })
   }
 
   // --- Contratistas (S11) -----------------------------------------------------
@@ -3224,6 +3432,7 @@ function App() {
           loading={loading}
           error={error}
           canViewUsers={canViewUsers}
+          canViewCommittees={canViewCommittees}
           canViewContractors={canViewContractors}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
@@ -3311,6 +3520,21 @@ function App() {
                     confirmHardDeleteCompany(company)
                   }
                 }}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'committees' && (
+              <CommitteesPage
+                committees={committees}
+                meta={committeeMeta}
+                tableState={committeeTable}
+                canManage={canManageCommittees}
+                onTableChange={setCommitteeTable}
+                onCreate={() => openCommitteeForm()}
+                onPreloadCreate={preloadCommitteeDialogs}
+                onEdit={openCommitteeForm}
+                onDelete={confirmDeleteCommittee}
+                onOpenDetail={openCommitteeDetail}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -3795,6 +4019,43 @@ function App() {
               onChange={setCompanyForm}
               onClose={() => setCompanyDialog({ open: false })}
               onSave={saveCompany}
+            />
+            <CommitteeDialog
+              open={committeeDialog.open}
+              editing={Boolean(committeeDialog.item)}
+              values={committeeForm}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setCommitteeForm}
+              onClose={() => setCommitteeDialog({ open: false })}
+              onSave={saveCommittee}
+            />
+            <CommitteeDetailDialog
+              open={Boolean(committeeDetail)}
+              committee={committeeDetail}
+              members={committeeMembers}
+              meetings={committeeMeetings}
+              employees={employees}
+              documents={documents}
+              followUp={committeeFollowUp}
+              followUpLoading={committeeFollowUpLoading}
+              canManage={canManageCommittees}
+              memberForm={committeeMemberForm}
+              meetingForm={committeeMeetingForm}
+              commitmentForm={committeeCommitmentForm}
+              commitmentMeeting={committeeCommitmentMeeting}
+              onMemberFormChange={setCommitteeMemberForm}
+              onMeetingFormChange={setCommitteeMeetingForm}
+              onCommitmentFormChange={setCommitteeCommitmentForm}
+              onCommitmentMeetingChange={setCommitteeCommitmentMeeting}
+              onSaveMember={saveCommitteeMember}
+              onSaveMeeting={saveCommitteeMeeting}
+              onSaveCommitment={saveCommitteeCommitment}
+              onRemoveMember={removeCommitteeMember}
+              onRemoveMeeting={removeCommitteeMeeting}
+              onToggleCommitment={toggleCommitment}
+              onClose={() => setCommitteeDetail(null)}
             />
             <ContractorDialog
               open={contractorDialog.open}

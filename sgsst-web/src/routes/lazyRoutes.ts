@@ -5,6 +5,7 @@ const pageLoaders = {
   dashboard: () => import('../pages/dashboard/DashboardPage'),
   aiAssistant: () => import('../pages/ai-assistant/AssistantChatPage'),
   companies: () => import('../pages/companies/CompaniesPage'),
+  committees: () => import('../pages/committees/CommitteesPage'),
   contractors: () => import('../pages/contractors/ContractorsPage'),
   sites: () => import('../pages/sites/SitesPage'),
   employees: () => import('../pages/employees/EmployeesPage'),
@@ -31,6 +32,7 @@ const pageLoaders = {
 
 const dialogLoaders = {
   company: () => import('../pages/companies/CompanyDialog'),
+  committeeDialogs: () => import('../pages/committees/CommitteeDialogs'),
   contractorDialogs: () => import('../pages/contractors/ContractorDialogs'),
   site: () => import('../pages/sites/SiteDialog'),
   employee: () => import('../pages/employees/EmployeeDialog'),
@@ -59,8 +61,17 @@ export const DashboardPage = lazy(() =>
 export const CompaniesPage = lazy(() =>
   pageLoaders.companies().then((module) => ({ default: module.CompaniesPage })),
 )
+export const CommitteesPage = lazy(() =>
+  pageLoaders.committees().then((module) => ({ default: module.CommitteesPage })),
+)
 export const ContractorsPage = lazy(() =>
   pageLoaders.contractors().then((module) => ({ default: module.ContractorsPage })),
+)
+export const CommitteeDialog = lazy(() =>
+  dialogLoaders.committeeDialogs().then((module) => ({ default: module.CommitteeDialog })),
+)
+export const CommitteeDetailDialog = lazy(() =>
+  dialogLoaders.committeeDialogs().then((module) => ({ default: module.CommitteeDetailDialog })),
 )
 export const ContractorDialog = lazy(() =>
   dialogLoaders.contractorDialogs().then((module) => ({ default: module.ContractorDialog })),
@@ -214,6 +225,10 @@ export function preloadView(view: View) {
 
 export function preloadCompanyDialog() {
   void dialogLoaders.company()
+}
+
+export function preloadCommitteeDialogs() {
+  void dialogLoaders.committeeDialogs()
 }
 
 export function preloadContractorDialogs() {

@@ -2,6 +2,10 @@ import type {
   AnnualActivityFormValues,
   AnnualWorkPlanFormValues,
   CompanyFormValues,
+  CommitteeCommitmentFormValues,
+  CommitteeFormValues,
+  CommitteeMeetingFormValues,
+  CommitteeMemberFormValues,
   ContractorDocumentFormValues,
   ContractorFormValues,
   ContractorWorkerFormValues,
@@ -74,6 +78,41 @@ export const emptySite: SiteFormValues = {
   city: '',
   department: '',
   isMain: false,
+  companyId: '',
+}
+
+export const emptyCommittee: CommitteeFormValues = {
+  name: '',
+  type: 'COPASST',
+  periodStart: '',
+  periodEnd: '',
+  status: 'ACTIVE',
+  companyId: '',
+}
+
+export const emptyCommitteeMember: CommitteeMemberFormValues = {
+  role: 'PRINCIPAL',
+  seatType: 'PRINCIPAL',
+  startDate: '',
+  endDate: '',
+  employeeId: '',
+  companyId: '',
+}
+
+export const emptyCommitteeMeeting: CommitteeMeetingFormValues = {
+  number: '',
+  meetingAt: '',
+  agenda: '',
+  notes: '',
+  status: 'HELD',
+  minutesDocumentId: '',
+  companyId: '',
+}
+
+export const emptyCommitteeCommitment: CommitteeCommitmentFormValues = {
+  description: '',
+  responsibleEmployeeId: '',
+  dueDate: '',
   companyId: '',
 }
 

@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -1275,5 +1275,112 @@ export type PlannedInspectionFormValues = {
   status: InspectionStatus
   siteId: string
   inspectorId: string
+  companyId: string
+}
+
+// --- Comites (S11): COPASST y Comite de Convivencia ---------------------------
+
+export type CommitteeType = 'COPASST' | 'CONVIVENCIA'
+export type CommitteeStatus = 'ACTIVE' | 'CLOSED'
+export type CommitteeMemberRole = 'PRESIDENT' | 'SECRETARY' | 'PRINCIPAL' | 'SUPERNUMERARY'
+export type CommitteeSeatType = 'PRINCIPAL' | 'ALTERNATE'
+export type CommitteeMeetingStatus = 'SCHEDULED' | 'HELD' | 'CANCELLED'
+
+export type CommitteeMember = {
+  id: string
+  role: CommitteeMemberRole
+  seatType: CommitteeSeatType
+  startDate: string
+  endDate?: string | null
+  committeeId: string
+  employeeId: string
+  companyId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'document' | 'position'>
+}
+
+export type CommitteeCommitment = {
+  id: string
+  description: string
+  responsibleEmployeeId: string
+  dueDate: string
+  completedAt?: string | null
+  meetingId: string
+  companyId: string
+  responsible?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'position'>
+}
+
+export type CommitteeMeeting = {
+  id: string
+  number: number
+  meetingAt: string
+  agenda?: string
+  notes?: string
+  status: CommitteeMeetingStatus
+  committeeId: string
+  minutesDocumentId?: string | null
+  minutesDocument?: Pick<SgsstDocument, 'id' | 'name'> & { status?: string; expiresAt?: string | null } | null
+  commitments: CommitteeCommitment[]
+  companyId: string
+}
+
+export type Committee = {
+  id: string
+  name: string
+  type: CommitteeType
+  periodStart: string
+  periodEnd: string
+  status: CommitteeStatus
+  companyId: string
+  createdAt: string
+  updatedAt: string
+  members?: CommitteeMember[]
+  meetings?: CommitteeMeeting[]
+  _count?: { members: number; meetings: number }
+}
+
+export type CommitteeFollowUp = {
+  committee: { id: string; name: string; status: CommitteeStatus }
+  overdueCount: number
+  overdue: Array<{
+    id: string
+    description: string
+    dueDate: string
+    meetingId: string
+    responsible?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'position'>
+  }>
+}
+
+export type CommitteeFormValues = {
+  name: string
+  type: CommitteeType
+  periodStart: string
+  periodEnd: string
+  status: CommitteeStatus
+  companyId: string
+}
+
+export type CommitteeMemberFormValues = {
+  role: CommitteeMemberRole
+  seatType: CommitteeSeatType
+  startDate: string
+  endDate: string
+  employeeId: string
+  companyId: string
+}
+
+export type CommitteeMeetingFormValues = {
+  number: number | ''
+  meetingAt: string
+  agenda: string
+  notes: string
+  status: CommitteeMeetingStatus
+  minutesDocumentId: string
+  companyId: string
+}
+
+export type CommitteeCommitmentFormValues = {
+  description: string
+  responsibleEmployeeId: string
+  dueDate: string
   companyId: string
 }

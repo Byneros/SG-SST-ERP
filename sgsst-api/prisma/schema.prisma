@@ -98,6 +98,10 @@ model Company {
   contractors                   Contractor[]
   contractorWorkers             ContractorWorker[]
   contractorDocuments           ContractorDocument[]
+  committees                    Committee[]
+  committeeMembers              CommitteeMember[]
+  committeeMeetings             CommitteeMeeting[]
+  committeeCommitments          CommitteeCommitment[]
 }
 
 model Site {
@@ -154,6 +158,8 @@ model Employee {
   medicalRestrictions MedicalRestriction[]
   surveillanceCohorts MedicalSurveillanceCohort[]
   pveCases            PveCase[]
+  committeeMembers    CommitteeMember[]
+  responsibleCommitments CommitteeCommitment[] @relation("CommitmentResponsible")
 }
 
 model Risk {
@@ -809,6 +815,7 @@ model Document {
   versions             DocumentVersion[]
   annualPlanActivities AnnualPlanActivity[]
   contractorDocuments  ContractorDocument[]
+  committeeMinutes     CommitteeMeeting[]
 }
 
 model DocumentVersion {
@@ -1318,3 +1325,115 @@ model SsoState {
   createdAt DateTime @default(now())
   expiresAt DateTime
 }
+
+// S11: comites del SG-SST. Un mismo modelo cubre COPASST y Comite de
+// Convivencia Laboral (issue #30: "reutiliza el modelo de comites con tipo
+// comite"); el tipo habilita reglas propias en la UI y reportes.
+model Committee {
+  id        String          @id @default(uuid())
+  name      String
+  type      CommitteeType   @default(COPASST)
+  // Periodo de vigencia del comite (electo): minimo y maximo legales.
+  periodStart DateTime
+  periodEnd   DateTime
+  status    CommitteeStatus @default(ACTIVE)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  companyId String
+  company   Company         @relation(fields: [companyId], references: [id])
+  members     CommitteeMember[]
+  meetings    CommitteeMeeting[]
+
+  @@index([companyId, type])
+  @@index([companyId, status])
+}
+
+model CommitteeMember {
+  id         String                @id @default(uuid())
+  role       CommitteeMemberRole
+  // Principal y suplente por apartado (patronal/trabajador) segun Res. 2013.
+  seatType   CommitteeSeatType     @default(PRINCIPAL)
+  startDate  DateTime
+  endDate    DateTime?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  committeeId String
+  committee   Committee            @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee             @relation(fields: [employeeId], references: [id])
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id])
+
+  @@unique([committeeId, employeeId])
+  @@index([companyId])
+}
+
+model CommitteeMeeting {
+  id        String          @id @default(uuid())
+  number    Int
+  meetingAt DateTime
+  // Agenda y desarrollo de la reunion (texto libre del acta).
+  agenda    String?
+  notes     String?
+  status    CommitteeMeetingStatus @default(SCHEDULED)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  committeeId String
+  committee   Committee      @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  // Acta como documento del expediente (criterio S11.1: acta (document)).
+  minutesDocumentId String?
+  minutesDocument   Document? @relation(fields: [minutesDocumentId], references: [id], onDelete: SetNull)
+  commitments CommitteeCommitment[]
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id])
+
+  @@unique([committeeId, number])
+  @@index([companyId, meetingAt])
+}
+
+model CommitteeCommitment {
+  id          String                 @id @default(uuid())
+  description String
+  responsibleEmployeeId String
+  dueDate     DateTime
+  completedAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  meetingId   String
+  meeting     CommitteeMeeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  responsible Employee               @relation("CommitmentResponsible", fields: [responsibleEmployeeId], references: [id])
+  companyId   String
+  company     Company                @relation(fields: [companyId], references: [id])
+
+  @@index([meetingId])
+  @@index([companyId, dueDate])
+}
+
+enum CommitteeType {
+  COPASST
+  CONVIVENCIA
+}
+
+enum CommitteeStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum CommitteeMemberRole {
+  PRESIDENT
+  SECRETARY
+  PRINCIPAL
+  SUPERNUMERARY
+}
+
+enum CommitteeSeatType {
+  PRINCIPAL
+  ALTERNATE
+}
+
+enum CommitteeMeetingStatus {
+  SCHEDULED
+  HELD
+  CANCELLED
+}
+
