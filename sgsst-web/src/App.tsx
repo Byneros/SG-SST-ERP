@@ -46,6 +46,7 @@ import {
   emptyCommitteeMeeting,
   emptyCommitteeMember,
   emptyChangeRequest,
+  emptyFinding,
   emptyContractor,
   emptyContractorDocument,
   emptyContractorWorker,
@@ -83,6 +84,8 @@ import {
   DeveloperPanelPage,
   ChangeRequestsPage,
   ChangeRequestDialog,
+  FindingsPage,
+  FindingDialog,
   CommitteesPage,
   CommitteeDialog,
   CommitteeDetailDialog,
@@ -147,6 +150,7 @@ import {
   preloadCommitteeDialogs,
   preloadEmergencyDialogs,
   preloadChangeRequestDialog,
+  preloadFindingDialog,
   preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -173,6 +177,8 @@ import type {
   AuditLog,
   ChangeRequest,
   ChangeRequestStatus,
+  Finding,
+  FindingStatus,
   Contractor,
   ContractorDocument,
   ContractorEntryAuthorization,
@@ -264,6 +270,7 @@ const ALL_VIEWS: View[] = [
   'committees',
   'emergency',
   'changeRequests',
+  'findings',
   'contractors',
   'developer',
   'sites',
@@ -383,6 +390,15 @@ function App() {
   const [changeWorkflow, setChangeWorkflow] = useState<ChangeRequest | null>(null)
   const [changeWorkflowLoading, setChangeWorkflowLoading] = useState(false)
   const [changeAdvancing, setChangeAdvancing] = useState(false)
+  // S15.1: hallazgos unificados.
+  const [findings, setFindings] = useState<Finding[]>([])
+  const [findingMeta, setFindingMeta] = useState(emptyMeta)
+  const [findingTable, setFindingTable] = useState(initialTableState)
+  const [findingDialog, setFindingDialog] = useState<{ open: boolean; item?: Finding }>({ open: false })
+  const [findingForm, setFindingForm] = useState(emptyFinding)
+  const [findingDetail, setFindingDetail] = useState<Finding | null>(null)
+  const [findingDetailLoading, setFindingDetailLoading] = useState(false)
+  const [findingDetailSaving, setFindingDetailSaving] = useState(false)
   const [contractorWorkers, setContractorWorkers] = useState<ContractorWorker[]>([])
   const [contractorDocuments, setContractorDocuments] = useState<ContractorDocument[]>([])
   const [contractorEntryAuth, setContractorEntryAuth] = useState<ContractorEntryAuthorization | null>(null)
@@ -584,6 +600,9 @@ function App() {
   const canViewChangeRequests = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canManageChangeRequests = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewChangeRequestsNav = canViewChangeRequests
+  // S15.1: hallazgos — lectura ADMIN/SST/AUDITOR, gestion ADMIN/SST.
+  const canViewFindings = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canManageFindings = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewEntryAuth = canManageContractors || user?.role === 'AUDITOR'
@@ -635,6 +654,8 @@ function App() {
             ? 'Emergencias'
             : view === 'changeRequests'
           ? 'Gestión del cambio'
+            : view === 'findings'
+          ? 'Hallazgos'
             : view === 'contractors'
           ? 'Contratistas'
         : view === 'developer'
@@ -760,6 +781,9 @@ function App() {
       const changeRequestFetch = canViewChangeRequests && hasCompanyScope
         ? api.get<Paginated<ChangeRequest>>('/change-requests', { params: tableParams(changeRequestTable) })
         : Promise.resolve({ data: { data: [] as ChangeRequest[], meta: emptyMeta } })
+      const findingFetch = canViewFindings && hasCompanyScope
+        ? api.get<Paginated<Finding>>('/findings', { params: tableParams(findingTable) })
+        : Promise.resolve({ data: { data: [] as Finding[], meta: emptyMeta } })
       const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
             params: {
@@ -958,6 +982,7 @@ function App() {
         emergencyDrillSettled,
         contractorSettled,
         changeRequestSettled,
+        findingSettled,
         siteSettled,
         employeeSettled,
         incidentsSettled,
@@ -995,6 +1020,7 @@ function App() {
         emergencyDrillRequest,
         contractorRequest,
         changeRequestFetch,
+        findingFetch,
         siteRequest,
         employeeRequest,
         incidentsRequest,
@@ -1037,6 +1063,7 @@ function App() {
       const emergencyDrillResponse = settledData(emergencyDrillSettled)
       const contractorResponse = settledData(contractorSettled)
       const changeResponse = settledData(changeRequestSettled)
+      const findingResponse = settledData(findingSettled)
       const siteResponse = settledData(siteSettled)
       const employeeResponse = settledData(employeeSettled)
       const incidentsResponse = settledData(incidentsSettled)
@@ -1119,6 +1146,12 @@ function App() {
         if (isPaginated<ChangeRequest>(changeResponse.data)) {
           setChangeRequests(changeResponse.data.data)
           setChangeRequestMeta(changeResponse.data.meta)
+        }
+      }
+      if (findingResponse) {
+        if (isPaginated<Finding>(findingResponse.data)) {
+          setFindings(findingResponse.data.data)
+          setFindingMeta(findingResponse.data.meta)
         }
       }
       if (contractorResponse) {
@@ -2120,6 +2153,118 @@ function App() {
       setError(readApiError(currentError))
     } finally {
       setChangeAdvancing(false)
+    }
+  }
+
+  // --- S15.1: hallazgos unificados ------------------------------------------
+
+  function openFindingForm(item?: Finding) {
+    setFindingForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description,
+            sourceType: item.sourceType,
+            sourceId: item.sourceId ?? '',
+            type: item.type,
+            severity: item.severity,
+            ownerId: item.ownerId ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyFinding, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setFindingDialog({ open: true, item })
+    preloadFindingDialog()
+  }
+
+  async function saveFindingRequest() {
+    await saveRecord(async () => {
+      const payload = sanitize(findingForm) as Record<string, unknown>
+      if (findingDialog.item) {
+        await api.patch(`/findings/${findingDialog.item.id}`, payload)
+      } else {
+        await api.post('/findings', payload)
+      }
+      setFindingDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteFinding(finding: Finding) {
+    openConfirmDialog(
+      'Eliminar hallazgo',
+      `¿Seguro que deseas eliminar el hallazgo "${finding.title}"?`,
+      'Eliminar',
+      'error',
+      () => { void removeFinding(finding.id) },
+    )
+  }
+
+  async function removeFinding(id: string) {
+    await saveRecord(() => api.delete(`/findings/${id}`).then())
+  }
+
+  /** Abre el detalle con el hallazgo fresco (causas incluidas). */
+  async function openFindingDetail(item: Finding) {
+    setFindingDetail(item)
+    setFindingDetailLoading(true)
+    try {
+      const response = await api.get<Finding>(`/findings/${item.id}`)
+      setFindingDetail(response.data)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+      setFindingDetail(null)
+    } finally {
+      setFindingDetailLoading(false)
+    }
+  }
+
+  /** Refresca el detalle abierto tras una mutacion de causas/estado. */
+  async function refreshFindingDetail(id: string) {
+    try {
+      const response = await api.get<Finding>(`/findings/${id}`)
+      setFindingDetail(response.data)
+    } catch {
+      setFindingDetail(null)
+    }
+  }
+
+  async function addFindingCause(findingId: string, values: { causeType: string; description: string }) {
+    setFindingDetailSaving(true)
+    try {
+      await api.post(`/findings/${findingId}/causes`, values)
+      await loadData(true)
+      await refreshFindingDetail(findingId)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setFindingDetailSaving(false)
+    }
+  }
+
+  async function removeFindingCause(findingId: string, causeId: string) {
+    setFindingDetailSaving(true)
+    try {
+      await api.delete(`/findings/${findingId}/causes/${causeId}`)
+      await loadData(true)
+      await refreshFindingDetail(findingId)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setFindingDetailSaving(false)
+    }
+  }
+
+  /** Cierra o reabre el hallazgo; el sello de closedAt vive en el backend. */
+  async function setFindingStatus(findingId: string, status: FindingStatus) {
+    setFindingDetailSaving(true)
+    try {
+      await api.patch(`/findings/${findingId}`, { status })
+      await loadData(true)
+      await refreshFindingDetail(findingId)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setFindingDetailSaving(false)
     }
   }
 
@@ -3953,6 +4098,7 @@ function App() {
           canViewCommittees={canViewCommittees}
           canViewEmergency={canViewEmergency}
           canViewChangeRequests={canViewChangeRequestsNav}
+          canViewFindings={canViewFindings}
           canViewContractors={canViewContractors}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
@@ -4107,6 +4253,28 @@ function App() {
                 onCloseWorkflow={() => setChangeWorkflow(null)}
                 onAdvanceWorkflow={advanceChangeWorkflow}
                 advancing={changeAdvancing}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'findings' && (
+              <FindingsPage
+                findings={findings}
+                meta={findingMeta}
+                tableState={findingTable}
+                canManage={canManageFindings}
+                onTableChange={setFindingTable}
+                onCreate={() => openFindingForm()}
+                onPreloadCreate={preloadFindingDialog}
+                onEdit={openFindingForm}
+                onDelete={confirmDeleteFinding}
+                onOpenDetail={openFindingDetail}
+                detailState={findingDetail}
+                detailLoading={findingDetailLoading}
+                onCloseDetail={() => setFindingDetail(null)}
+                onAddCause={addFindingCause}
+                onRemoveCause={removeFindingCause}
+                onSetStatus={setFindingStatus}
+                detailSaving={findingDetailSaving}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4743,6 +4911,18 @@ function App() {
               onChange={setChangeForm}
               onClose={() => setChangeDialog({ open: false })}
               onSave={saveChangeRequest}
+            />
+            <FindingDialog
+              open={findingDialog.open}
+              editing={Boolean(findingDialog.item)}
+              values={findingForm}
+              users={users}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setFindingForm}
+              onClose={() => setFindingDialog({ open: false })}
+              onSave={saveFindingRequest}
             />
             <ContractorWorkerDialog
               open={contractorWorkerDialog.open}

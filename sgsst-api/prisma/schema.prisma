@@ -36,6 +36,7 @@ model User {
   plannedInspectionsAsInspector    PlannedInspection[]          @relation("PlannedInspectionInspector")
   unplannedInspectionsAsInspector  UnplannedInspection[]        @relation("UnplannedInspectionInspector")
   unsafeReportsAsReporter          UnsafeReport[]               @relation("UnsafeReportReporter")
+  findingsOwned                    Finding[]                    @relation("FindingOwner")
   approvedChangeRequests           ChangeRequest[]              @relation("ChangeRequestApprover")
   company                          Company?                     @relation(fields: [companyId], references: [id])
 
@@ -111,6 +112,7 @@ model Company {
   emergencyDrills               EmergencyDrill[]
   emergencyDrillFindings        EmergencyDrillFinding[]
   changeRequests                ChangeRequest[]
+  findings                      Finding[]
 }
 
 model Site {
@@ -181,35 +183,35 @@ model Employee {
 // Solicitud -> Evaluacion -> Controles -> Aprobacion -> Implementacion ->
 // Verificacion -> Cierre (#38, #39). Borrado: hard delete con traza (ADR).
 model ChangeRequest {
-  id           String              @id @default(uuid())
-  title        String
+  id                       String              @id @default(uuid())
+  title                    String
   /// Motivo del cambio.
-  reason       String
+  reason                   String
   /// Proceso afectado.
-  process      String
+  process                  String
   /// Responsable del cambio (texto libre del area solicitante).
-  responsible  String
-  requestedAt  DateTime            @default(now())
+  responsible              String
+  requestedAt              DateTime            @default(now())
   // --- Evaluacion de riesgos (#38): obligatoria para avanzar del flujo ---
-  hazards      String?
-  impacts      String?
-  controls     String?
+  hazards                  String?
+  impacts                  String?
+  controls                 String?
   /// Riesgo de la matriz GTC-45 asociado al cambio (obligatorio).
-  riskId       String?
-  risk         Risk?               @relation(fields: [riskId], references: [id])
+  riskId                   String?
+  risk                     Risk?               @relation(fields: [riskId], references: [id])
   // --- Implementacion y verificacion (#39) ---
-  implementationNotes  String?
+  implementationNotes      String?
   implementationEvidenceId String?
-  implementationEvidence   Document? @relation("ChangeRequestEvidence", fields: [implementationEvidenceId], references: [id], onDelete: SetNull)
-  verificationNotes    String?
-  approvedById String?
-  approvedBy   User?               @relation("ChangeRequestApprover", fields: [approvedById], references: [id])
-  approvedAt   DateTime?
-  status       ChangeRequestStatus @default(REQUESTED)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  companyId    String
-  company      Company             @relation(fields: [companyId], references: [id])
+  implementationEvidence   Document?           @relation("ChangeRequestEvidence", fields: [implementationEvidenceId], references: [id], onDelete: SetNull)
+  verificationNotes        String?
+  approvedById             String?
+  approvedBy               User?               @relation("ChangeRequestApprover", fields: [approvedById], references: [id])
+  approvedAt               DateTime?
+  status                   ChangeRequestStatus @default(REQUESTED)
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  companyId                String
+  company                  Company             @relation(fields: [companyId], references: [id])
 
   @@index([companyId, status])
   @@index([riskId])
@@ -224,6 +226,60 @@ enum ChangeRequestStatus {
   IMPLEMENTATION
   VERIFICATION
   CLOSED
+}
+
+// Hallazgos unificados (S15.1, issue #40): punto unico de registro de no
+// conformidades (NC), observaciones (OBS) y oportunidades de mejora (OM) con
+// origen trazable (inspecciones, auditorias, reportes inseguros) o manual.
+// Decision S15: coexisten con los hallazgos por modulo (sin migracion de datos).
+model Finding {
+  id          String            @id @default(uuid())
+  title       String
+  description String
+  /// Origen del hallazgo; MANUAL no exige sourceId.
+  sourceType  FindingSourceType @default(MANUAL)
+  sourceId    String?
+  type        FindingType       @default(NON_CONFORMITY)
+  severity    FindingSeverity   @default(MINOR)
+  status      FindingStatus     @default(OPEN)
+  ownerId     String?
+  owner       User?             @relation("FindingOwner", fields: [ownerId], references: [id])
+  closedAt    DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id])
+  causes      FindingCause[]
+
+  @@index([companyId, status])
+  @@index([sourceType, sourceId])
+}
+
+// Causas del hallazgo (S15.1): analisis de causa raiz antes de acciones (S15.2).
+model FindingCause {
+  id          String   @id @default(uuid())
+  causeType   String
+  description String
+  createdAt   DateTime @default(now())
+  findingId   String
+  finding     Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@index([findingId])
+}
+
+// S15.1: origen trazable y tipo del hallazgo.
+enum FindingSourceType {
+  INSPECTION_PLANNED
+  INSPECTION_UNPLANNED
+  AUDIT
+  UNSAFE_REPORT
+  MANUAL
+}
+
+enum FindingType {
+  NON_CONFORMITY
+  OPPORTUNITY
+  OBSERVATION
 }
 
 model Risk {
@@ -378,21 +434,21 @@ model AnnualPlanActivity {
 // documents via FK (mismo patron de AnnualPlanActivity.evidence).
 // Borrado: hard delete con traza en AuditLog (ADR de estrategia de borrado).
 model Contractor {
-  id          String                 @id @default(uuid())
+  id          String                @id @default(uuid())
   name        String
   nit         String
   contact     String?
   phone       String?
   arl         String?
   activity    String?
-  status      ContractorStatus       @default(ACTIVE)
-  entryStatus ContractorEntryStatus  @default(VALIDATION)
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
-  companyId String
-  company   Company              @relation(fields: [companyId], references: [id])
-  workers   ContractorWorker[]
-  documents ContractorDocument[]
+  status      ContractorStatus      @default(ACTIVE)
+  entryStatus ContractorEntryStatus @default(VALIDATION)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  companyId   String
+  company     Company               @relation(fields: [companyId], references: [id])
+  workers     ContractorWorker[]
+  documents   ContractorDocument[]
 
   @@unique([companyId, nit])
   @@index([companyId, status])
@@ -880,26 +936,26 @@ model CorrectiveAction {
 }
 
 model Document {
-  id                   String               @id @default(uuid())
-  name                 String
-  fileUrl              String
-  createdAt            DateTime             @default(now())
-  companyId            String
-  description          String?
-  category             DocumentCategory     @default(OTHER)
-  status               DocumentStatus       @default(DRAFT)
-  fileName             String?
-  mimeType             String?
-  version              Int                  @default(1)
-  expiresAt            DateTime?
-  updatedAt            DateTime             @updatedAt
-  company              Company              @relation(fields: [companyId], references: [id])
-  siteId               String?
-  site                 Site?                @relation(fields: [siteId], references: [id])
-  versions             DocumentVersion[]
-  annualPlanActivities AnnualPlanActivity[]
-  contractorDocuments  ContractorDocument[]
-  committeeMinutes     CommitteeMeeting[]
+  id                    String               @id @default(uuid())
+  name                  String
+  fileUrl               String
+  createdAt             DateTime             @default(now())
+  companyId             String
+  description           String?
+  category              DocumentCategory     @default(OTHER)
+  status                DocumentStatus       @default(DRAFT)
+  fileName              String?
+  mimeType              String?
+  version               Int                  @default(1)
+  expiresAt             DateTime?
+  updatedAt             DateTime             @updatedAt
+  company               Company              @relation(fields: [companyId], references: [id])
+  siteId                String?
+  site                  Site?                @relation(fields: [siteId], references: [id])
+  versions              DocumentVersion[]
+  annualPlanActivities  AnnualPlanActivity[]
+  contractorDocuments   ContractorDocument[]
+  committeeMinutes      CommitteeMeeting[]
   changeRequestEvidence ChangeRequest[]      @relation("ChangeRequestEvidence")
 }
 

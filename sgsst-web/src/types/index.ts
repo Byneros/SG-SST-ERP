@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -615,6 +615,52 @@ export type ChangeRequestFormValues = {
   impacts: string
   controls: string
   requestedAt: string
+  companyId: string
+}
+
+// --- Hallazgos unificados (S15.1) --------------------------------------------
+
+export type FindingSourceType = 'INSPECTION_PLANNED' | 'INSPECTION_UNPLANNED' | 'AUDIT' | 'UNSAFE_REPORT' | 'MANUAL'
+export type FindingType = 'NON_CONFORMITY' | 'OPPORTUNITY' | 'OBSERVATION'
+// FindingSeverity y FindingStatus ya estaban definidos en la cabecera del
+// archivo (los comparten los hallazgos de inspecciones/auditorias).
+
+export type FindingCause = {
+  id: string
+  causeType: string
+  description: string
+  createdAt: string
+  findingId: string
+}
+
+export type Finding = {
+  id: string
+  title: string
+  description: string
+  sourceType: FindingSourceType
+  /** Id del recurso de origen (inspección, auditoría, reporte inseguro). */
+  sourceId?: string | null
+  type: FindingType
+  severity: FindingSeverity
+  status: FindingStatus
+  ownerId?: string | null
+  owner?: Pick<SystemUser, 'id' | 'name' | 'email'> | null
+  closedAt?: string | null
+  companyId: string
+  company?: Pick<Company, 'id' | 'name'>
+  causes: FindingCause[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type FindingFormValues = {
+  title: string
+  description: string
+  sourceType: FindingSourceType
+  sourceId: string
+  type: FindingType
+  severity: FindingSeverity
+  ownerId: string
   companyId: string
 }
 

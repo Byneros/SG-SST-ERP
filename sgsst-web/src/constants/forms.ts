@@ -14,6 +14,7 @@ import type {
   CommitteeMeetingFormValues,
   CommitteeMemberFormValues,
   ChangeRequestFormValues,
+  FindingFormValues,
   ContractorDocumentFormValues,
   ContractorFormValues,
   ContractorWorkerFormValues,
@@ -193,6 +194,17 @@ export const emptyChangeRequest: ChangeRequestFormValues = {
   impacts: '',
   controls: '',
   requestedAt: '',
+  companyId: '',
+}
+
+export const emptyFinding: FindingFormValues = {
+  title: '',
+  description: '',
+  sourceType: 'MANUAL',
+  sourceId: '',
+  type: 'NON_CONFORMITY',
+  severity: 'MINOR',
+  ownerId: '',
   companyId: '',
 }
 
