@@ -34,6 +34,8 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     medicalExam: { findMany: jest.fn().mockResolvedValue([]) },
     // #44: casos PVE escaneados por nextFollowUpAt.
     pveCase: { findMany: jest.fn().mockResolvedValue([]) },
+    // S13.3: documentos de contratistas escaneados por vencimiento (#36).
+    contractorDocument: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const emailService = { send: jest.fn() };
   const whatsAppService = { sendText: jest.fn() };
@@ -73,12 +75,13 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           priority: input.data.priority ?? 'MEDIUM',
         }),
     );
-    // Documentos/trainings/incidentes/plan/examenes vacios: escaneo base.
-    prisma.$transaction.mockResolvedValue([[], [], [], [], [], []]);
+    // Documentos/trainings/incidentes/plan/examenes/PVE/contratistas vacios:
+    // escaneo base (7 consultas en la transaccion).
+    prisma.$transaction.mockResolvedValue([[], [], [], [], [], [], []]);
   });
 
   it('escanea actividades del plan anual y examenes medicos junto a documents/trainings/incidents', async () => {
-    prisma.$transaction.mockResolvedValue([[], [], [], [], [], []]);
+    prisma.$transaction.mockResolvedValue([[], [], [], [], [], [], []]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
 
@@ -89,6 +92,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
       planActivities: 0,
       medicalExams: 0,
       pveCases: 0,
+      contractorDocuments: 0,
     });
     // El where del escaneo excluye actividades DONE/CANCELLED y filtra por
     // vencidas/proximas/sin evidencia (OR sobre dueDate y evidenceId).
@@ -127,6 +131,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
       ],
       [], // medicalExams
       [], // pveCases (#44)
+      [], // contractorDocuments (#36)
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -169,6 +174,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
       ],
       [], // medicalExams
       [], // pveCases (#44)
+      [], // contractorDocuments (#36)
     ]);
 
     await service.generateDueAlertsForCompany('company-a');
@@ -202,6 +208,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
         },
       ],
       [], // pveCases
+      [], // contractorDocuments (#36)
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -242,6 +249,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
         },
       ],
       [], // pveCases
+      [], // contractorDocuments (#36)
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -279,6 +287,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           diagnosis: { code: 'M54.5', name: 'Lumbago' },
         },
       ],
+      [], // contractorDocuments (#36)
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -318,6 +327,7 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
           diagnosis: { code: 'H52.4', name: 'Presbicia' },
         },
       ],
+      [], // contractorDocuments (#36)
     ]);
 
     const result = await service.generateDueAlertsForCompany('company-a');
@@ -336,5 +346,99 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     });
     expect(String(createCall.data.message)).toContain('H52.4');
     expect(String(createCall.data.message)).toContain('debe revisarse');
+  });
+
+  it('S13.3: crea notificacion critica por documento de contratista vencido', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          id: 'cdoc-overdue',
+          documentType: 'ARL',
+          expiresAt: daysAgo(5),
+          status: 'VALID',
+          companyId: 'company-a',
+          contractor: { name: 'Seguridad Total SAS' },
+        },
+      ],
+    ]);
+
+    const result = await service.generateDueAlertsForCompany('company-a');
+
+    expect(result.created).toBe(1);
+    expect(result.scanned.contractorDocuments).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      title: 'Documento de contratista vencido',
+      type: NotificationType.DOCUMENT_EXPIRING,
+      priority: NotificationPriority.CRITICAL,
+      entity: 'ContractorDocument',
+      entityId: 'cdoc-overdue',
+    });
+    expect(String(createCall.data.message)).toContain('ARL');
+    expect(String(createCall.data.message)).toContain('Seguridad Total SAS');
+    expect(String(createCall.data.message)).toContain('vencio el');
+  });
+
+  it('S13.3: crea notificacion de alta prioridad por documento de contratista proximo a vencer', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          id: 'cdoc-upcoming',
+          documentType: 'Afiliacion a seguridad social',
+          expiresAt: daysAhead(12),
+          status: 'VALID',
+          companyId: 'company-a',
+          contractor: { name: 'Aseo Industrial Ltda' },
+        },
+      ],
+    ]);
+
+    const result = await service.generateDueAlertsForCompany('company-a');
+
+    expect(result.created).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      title: 'Documento de contratista proximo a vencer',
+      type: NotificationType.DOCUMENT_EXPIRING,
+      priority: NotificationPriority.HIGH,
+      entity: 'ContractorDocument',
+      entityId: 'cdoc-upcoming',
+    });
+    expect(String(createCall.data.message)).toContain('vence el');
+  });
+
+  it('S13.3: el where del escaneo excluye documentos rechazados y sin vigencia', async () => {
+    prisma.$transaction.mockResolvedValue([[], [], [], [], [], [], []]);
+
+    await service.generateDueAlertsForCompany('company-a');
+
+    const docCall = (
+      prisma.contractorDocument.findMany.mock.calls as unknown as Array<
+        [{ where: { status: unknown; expiresAt: Record<string, unknown> } }]
+      >
+    )[0][0];
+    expect(docCall.where.status).toEqual({ not: 'REJECTED' });
+    expect(docCall.where.expiresAt).toHaveProperty('not', null);
+    expect(docCall.where.expiresAt).toHaveProperty('lte');
   });
 });

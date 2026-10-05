@@ -96,6 +96,11 @@ export class CreateContractorWorkerDto {
   @IsString()
   job?: string;
 
+  /** Sede donde ejecuta su actividad (#35): debe ser sede de la empresa. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
+
   /** Induccion completada (fecha); habilita el ingreso del personal. */
   @IsOptional()
   @IsDateString()
@@ -126,6 +131,11 @@ export class UpdateContractorWorkerDto {
   @IsString()
   job?: string;
 
+  /** Sede donde ejecuta su actividad; null la desasigna. */
+  @IsOptional()
+  @IsUUID()
+  siteId?: string | null;
+
   @IsOptional()
   @IsDateString()
   inductedAt?: string | null;
@@ -133,6 +143,20 @@ export class UpdateContractorWorkerDto {
   @IsOptional()
   @IsIn(CONTRACTOR_WORKER_STATUSES)
   status?: (typeof CONTRACTOR_WORKER_STATUSES)[number];
+}
+
+/** Etapas del flujo de ingreso (#37) a las que se puede avanzar. */
+export const CONTRACTOR_ENTRY_TARGETS = [
+  'INDUCTION',
+  'AUTHORIZED',
+  'WORK',
+  'CLOSED',
+] as const;
+
+export class AdvanceContractorEntryDto {
+  /** Etapa destino del flujo: solo transiciones hacia adelante. */
+  @IsIn(CONTRACTOR_ENTRY_TARGETS)
+  target!: (typeof CONTRACTOR_ENTRY_TARGETS)[number];
 }
 
 export class CreateContractorDocumentDto {

@@ -579,6 +579,8 @@ export type ExternalDeliveryFilters = {
 export type ContractorStatus = 'ACTIVE' | 'SUSPENDED' | 'BLOCKED'
 export type ContractorWorkerStatus = 'ACTIVE' | 'INACTIVE'
 export type ContractorDocumentStatus = 'PENDING' | 'VALID' | 'EXPIRED' | 'REJECTED'
+/** S13.4: etapas del flujo de ingreso del contratista. */
+export type ContractorEntryStatus = 'VALIDATION' | 'INDUCTION' | 'AUTHORIZED' | 'WORK' | 'CLOSED'
 
 export type Contractor = {
   id: string
@@ -589,6 +591,7 @@ export type Contractor = {
   arl?: string
   activity?: string
   status: ContractorStatus
+  entryStatus: ContractorEntryStatus
   companyId: string
   company?: Pick<Company, 'id' | 'name'>
   createdAt: string
@@ -602,6 +605,9 @@ export type ContractorWorker = {
   firstName: string
   lastName: string
   job?: string
+  /** S13.2: sede donde ejecuta su actividad. */
+  siteId?: string | null
+  site?: Pick<Site, 'id' | 'name' | 'code'> | null
   inductedAt?: string | null
   status: ContractorWorkerStatus
   contractorId: string
@@ -623,7 +629,7 @@ export type ContractorDocument = {
 
 /** Respuesta de GET /contractors/:id/entry-authorization. */
 export type ContractorEntryAuthorization = {
-  contractor: Pick<Contractor, 'id' | 'name'> & { status: string } | null
+  contractor: (Pick<Contractor, 'id' | 'name'> & { status: string; entryStatus?: ContractorEntryStatus }) | null
   documentsTotal: number
   byDocumentStatus: Record<string, number>
   workersTotal: number
@@ -632,6 +638,11 @@ export type ContractorEntryAuthorization = {
   blockingReasons: string[]
   expiredByDate: Array<Pick<ContractorDocument, 'id' | 'documentType' | 'expiresAt'>>
   workersWithoutInduction: number
+  /** S13.4: etapa persistida del flujo y etapa siguiente (null si cerrado). */
+  entryStatus: ContractorEntryStatus
+  nextStage: ContractorEntryStatus | null
+  documentsValidated: boolean
+  workersInducted: boolean
 }
 
 export type ContractorFormValues = {
@@ -650,6 +661,7 @@ export type ContractorWorkerFormValues = {
   firstName: string
   lastName: string
   job: string
+  siteId: string
   inductedAt: string
   status: ContractorWorkerStatus
   companyId: string

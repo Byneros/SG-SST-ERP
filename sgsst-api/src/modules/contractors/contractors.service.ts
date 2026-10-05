@@ -9,6 +9,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
 import { ContractorsRepository } from './contractors.repository';
 import type {
+  AdvanceContractorEntryDto,
   ContractorListQueryDto,
   CreateContractorDocumentDto,
   CreateContractorDto,
@@ -22,6 +23,17 @@ import type {
 function isExpired(expiresAt: Date | null | undefined): boolean {
   return Boolean(expiresAt && expiresAt.getTime() < Date.now());
 }
+
+/** Etapas del flujo de ingreso (#37): solo avanza hacia adelante. */
+const ENTRY_FLOW_ORDER = [
+  'VALIDATION',
+  'INDUCTION',
+  'AUTHORIZED',
+  'WORK',
+  'CLOSED',
+] as const;
+
+type EntryStage = (typeof ENTRY_FLOW_ORDER)[number];
 
 @Injectable()
 export class ContractorsService {
@@ -162,6 +174,9 @@ export class ContractorsService {
       );
     }
 
+    // S13.2: la sede debe pertenecer a la empresa del alcance (404 ajena).
+    await this.assertWorkerSite(dto.siteId, companyId);
+
     const worker = await this.repository.createWorker(
       dto,
       contractorId,
@@ -199,6 +214,9 @@ export class ContractorsService {
         );
       }
     }
+
+    // S13.2: la sede debe pertenecer a la empresa del alcance (404 ajena).
+    await this.assertWorkerSite(dto.siteId, companyId);
 
     const updated = await this.repository.updateWorkerScoped(
       id,
@@ -349,19 +367,32 @@ export class ContractorsService {
 
   // --- Autorizacion de ingreso ------------------------------------------------
 
-  /**
-   * Regla de negocio (doc funcional §8): no se autoriza el ingreso con
-   * documentos vencidos/rechazados o pendientes de validacion, ni con el
-   * contratista no activo. El agregado considera vencidos por fecha real,
-   * ademas del estado almacenado.
-   */
-  async getEntryAuthorization(
-    currentUser: AuthenticatedUser,
-    contractorId: string,
+  /** S13.2: la sede del trabajador debe ser sede de la empresa del alcance. */
+  private async assertWorkerSite(
+    siteId: string | null | undefined,
+    companyId: string,
   ) {
-    await this.findOne(currentUser, contractorId);
-    const companyId = this.resolveCompanyId(currentUser);
+    if (!siteId) {
+      return;
+    }
+    const site = await this.prisma.site.findFirst({
+      where: { id: siteId, companyId },
+      select: { id: true },
+    });
+    if (!site) {
+      throw new NotFoundException('Site not found');
+    }
+  }
 
+  /**
+   * Estado calculado del flujo de ingreso (#37). Regla de negocio (doc
+   * funcional §8): no se autoriza el ingreso con documentos vencidos/
+   * rechazados o pendientes de validacion, ni con el contratista no activo.
+   * El agregado considera vencidos por fecha real, ademas del estado
+   * almacenado. La etapa del flujo (entryStatus) es persistida; los
+   * requisitos son calculados en cada consulta.
+   */
+  private async computeEntryState(contractorId: string, companyId: string) {
     const compliance = await this.repository.getCompliance(
       contractorId,
       companyId,
@@ -396,8 +427,42 @@ export class ContractorsService {
       blockingReasons.push('sin personal registrado');
     }
 
+    // S13.4: el estado calculado tambien considera vencidos por fecha real,
+    // aunque su estado almacenado siga en VALID (el repositorio solo ve el
+    // estado almacenado).
     const canAuthorizeEntry =
-      compliance.canAuthorizeEntry && workersWithoutInduction.length === 0;
+      compliance.canAuthorizeEntry &&
+      workersWithoutInduction.length === 0 &&
+      expiredByDate.length === 0;
+
+    // S13.4: requisitos calculados por transicion del flujo.
+    // Validacion: todos los documentos validos (sin pendientes/vencidos/
+    // rechazados, al menos uno). Induccion: ademas todo el personal activo
+    // inducido y al menos un trabajador. Trabajo y cierre: libres.
+    const documentsValidated =
+      compliance.documentsTotal > 0 &&
+      (compliance.byDocumentStatus.PENDING ?? 0) === 0 &&
+      (compliance.byDocumentStatus.EXPIRED ?? 0) === 0 &&
+      (compliance.byDocumentStatus.REJECTED ?? 0) === 0 &&
+      expiredByDate.length === 0;
+    const workersInducted =
+      workers.length > 0 && workersWithoutInduction.length === 0;
+
+    const entryStatus = (compliance.contractor?.entryStatus ??
+      'VALIDATION') as EntryStage;
+    const stageIndex = ENTRY_FLOW_ORDER.indexOf(entryStatus);
+    const nextStage =
+      stageIndex >= 0 && stageIndex < ENTRY_FLOW_ORDER.length - 1
+        ? ENTRY_FLOW_ORDER[stageIndex + 1]
+        : null;
+
+    const requirementsByStage: Record<EntryStage, string[]> = {
+      VALIDATION: ['todos los documentos en VALID'],
+      INDUCTION: ['todo el personal activo inducido'],
+      AUTHORIZED: [],
+      WORK: [],
+      CLOSED: [],
+    };
 
     return {
       ...compliance,
@@ -409,6 +474,106 @@ export class ContractorsService {
       workersWithoutInduction: workersWithoutInduction.length,
       canAuthorizeEntry,
       blockingReasons,
+      entryStatus,
+      nextStage,
+      requirementsByStage,
+      documentsValidated,
+      workersInducted,
+    };
+  }
+
+  /** Estado del flujo de ingreso: decision calculada, la UI nunca decide. */
+  async getEntryAuthorization(
+    currentUser: AuthenticatedUser,
+    contractorId: string,
+  ) {
+    await this.findOne(currentUser, contractorId);
+    return this.computeEntryState(
+      contractorId,
+      this.resolveCompanyId(currentUser),
+    );
+  }
+
+  /**
+   * S13.4: avanza el flujo Contratista -> Validacion -> Induccion ->
+   * Autorizacion -> Trabajo -> Cierre. Solo transiciones hacia la etapa
+   * siguiente, con los requisitos calculados de cada etapa (los documentos
+   * criticos vencidos bloquean la validacion; la induccion pendiente
+   * bloquea la autorizacion). Toda transicion queda auditada.
+   */
+  async advanceEntry(
+    currentUser: AuthenticatedUser,
+    contractorId: string,
+    dto: AdvanceContractorEntryDto,
+  ) {
+    const companyId = this.resolveCompanyId(currentUser);
+    await this.findOne(currentUser, contractorId);
+
+    const state = await this.computeEntryState(contractorId, companyId);
+    const current = state.entryStatus;
+
+    if (current === 'CLOSED') {
+      throw new BadRequestException('El flujo de ingreso ya esta cerrado');
+    }
+    if (dto.target !== state.nextStage) {
+      throw new BadRequestException(
+        `Transicion invalida: desde ${current} solo se puede avanzar a ${state.nextStage ?? 'ninguna etapa'}`,
+      );
+    }
+
+    if (dto.target === 'INDUCTION' && !state.documentsValidated) {
+      throw new BadRequestException(
+        'No se puede avanzar a Induccion: hay documentos pendientes, vencidos o rechazados',
+      );
+    }
+    if (dto.target === 'AUTHORIZED') {
+      const reasons: string[] = [];
+      if (!state.documentsValidated) {
+        reasons.push('documentos pendientes, vencidos o rechazados');
+      }
+      if (!state.workersInducted) {
+        reasons.push('personal sin induccion o sin personal registrado');
+      }
+      if (state.contractor?.status !== 'ACTIVE') {
+        reasons.push('contratista no activo');
+      }
+      if (reasons.length > 0) {
+        throw new BadRequestException(
+          `No se puede autorizar el ingreso: ${reasons.join('; ')}`,
+        );
+      }
+    }
+
+    const updated = await this.repository.updateEntryStatus(
+      contractorId,
+      companyId,
+      dto.target,
+    );
+    await this.auditService.log({
+      user: currentUser,
+      action: 'ENTRY_FLOW_ADVANCE',
+      entity: 'Contractor',
+      entityId: contractorId,
+      before: { entryStatus: current },
+      after: { entryStatus: updated?.entryStatus ?? dto.target },
+    });
+
+    const targetIndex = ENTRY_FLOW_ORDER.indexOf(dto.target);
+    const nextAfterTarget =
+      targetIndex < ENTRY_FLOW_ORDER.length - 1
+        ? ENTRY_FLOW_ORDER[targetIndex + 1]
+        : null;
+
+    return {
+      ...state,
+      contractor: state.contractor
+        ? {
+            ...state.contractor,
+            entryStatus: updated?.entryStatus ?? dto.target,
+          }
+        : state.contractor,
+      entryStatus: updated?.entryStatus ?? dto.target,
+      nextStage: nextAfterTarget,
     };
   }
 }

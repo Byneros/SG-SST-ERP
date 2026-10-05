@@ -22,6 +22,10 @@ const workerInclude = {
   contractor: {
     select: { id: true, name: true, nit: true, status: true },
   },
+  // S13.2: sede donde el trabajador ejecuta su actividad.
+  site: {
+    select: { id: true, name: true, code: true },
+  },
 } satisfies Prisma.ContractorWorkerInclude;
 
 const documentInclude = {
@@ -119,6 +123,22 @@ export class ContractorsRepository {
     return before;
   }
 
+  /** S13.4: persiste la etapa del flujo de ingreso (scoped por empresa). */
+  async updateEntryStatus(
+    id: string,
+    companyId: string,
+    entryStatus: 'INDUCTION' | 'AUTHORIZED' | 'WORK' | 'CLOSED',
+  ) {
+    const result = await this.prisma.contractor.updateMany({
+      where: { id, companyId },
+      data: { entryStatus },
+    });
+    if (result.count === 0) {
+      return null;
+    }
+    return this.findByIdScoped(id, companyId);
+  }
+
   // --- Personal ---------------------------------------------------------------
 
   findWorkers(contractorId: string, companyId: string) {
@@ -147,6 +167,7 @@ export class ContractorsRepository {
         firstName: dto.firstName,
         lastName: dto.lastName,
         job: dto.job,
+        siteId: dto.siteId ?? null,
         inductedAt: dto.inductedAt ? new Date(dto.inductedAt) : null,
         status: dto.status,
         contractorId,
@@ -167,6 +188,8 @@ export class ContractorsRepository {
         firstName: dto.firstName,
         lastName: dto.lastName,
         job: dto.job,
+        // undefined = no tocar; null = desasignar sede.
+        siteId: dto.siteId !== undefined ? (dto.siteId ?? null) : undefined,
         inductedAt: dto.inductedAt ? new Date(dto.inductedAt) : null,
         status: dto.status,
       },
@@ -276,12 +299,17 @@ export class ContractorsRepository {
         }),
         this.prisma.contractor.findFirst({
           where: { id: contractorId, companyId },
-          select: { id: true, status: true, name: true },
+          select: { id: true, status: true, name: true, entryStatus: true },
         }),
       ])) as [
         Array<{ status: string; _count: { _all: number } }>,
         Array<{ status: string; _count: { _all: number } }>,
-        { id: string; status: string; name: string } | null,
+        {
+          id: string;
+          status: string;
+          name: string;
+          entryStatus: string;
+        } | null,
       ];
 
     const byDocumentStatus: Record<string, number> = {};

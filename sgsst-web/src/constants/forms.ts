@@ -198,6 +198,7 @@ export const emptyContractorWorker: ContractorWorkerFormValues = {
   firstName: '',
   lastName: '',
   job: '',
+  siteId: '',
   inductedAt: '',
   status: 'ACTIVE',
   companyId: '',

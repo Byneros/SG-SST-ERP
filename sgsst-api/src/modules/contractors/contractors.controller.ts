@@ -18,6 +18,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { ContractorsService } from './contractors.service';
 import {
+  AdvanceContractorEntryDto,
   ContractorListQueryDto,
   CreateContractorDocumentDto,
   CreateContractorDto,
@@ -176,5 +177,16 @@ export class ContractorsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.service.getEntryAuthorization(user, id);
+  }
+
+  /** S13.4: avanza el flujo de ingreso (solo a la etapa siguiente). */
+  @Post(':id/entry-authorization/advance')
+  @Roles('ADMIN', 'SST')
+  advanceEntry(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdvanceContractorEntryDto,
+  ) {
+    return this.service.advanceEntry(user, id, dto);
   }
 }

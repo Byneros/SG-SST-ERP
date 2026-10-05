@@ -132,6 +132,7 @@ model Site {
   indicators           Indicator[]
   emergencyBrigades    EmergencyBrigade[]
   emergencyPlans       EmergencyPlan[]
+  contractorWorkers    ContractorWorker[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   isActive             Boolean               @default(true)
@@ -315,20 +316,24 @@ model AnnualPlanActivity {
   @@index([companyId, status])
 }
 
-// Contratistas (S11): empresas contratistas, personal y documentos requeridos.
-// Regla de negocio: no se autoriza ingreso con documentos vencidos/rechazados
-// o contratista no activo (responsabilidad solidaria). Evidencia documental se
-// integra con documents via FK (mismo patron de AnnualPlanActivity.evidence).
+// Contratistas (S11/S13): empresas contratistas, personal y documentos
+// requeridos. Regla de negocio: no se autoriza ingreso con documentos
+// vencidos/rechazados o contratista no activo (responsabilidad solidaria).
+// S13.4: flujo de ingreso explícito VALIDATION -> INDUCTION -> AUTHORIZED ->
+// WORK -> CLOSED con transiciones guardadas (entry-flow advance) y estado
+// calculado en entry-authorization. Evidencia documental se integra con
+// documents via FK (mismo patron de AnnualPlanActivity.evidence).
 // Borrado: hard delete con traza en AuditLog (ADR de estrategia de borrado).
 model Contractor {
-  id        String               @id @default(uuid())
-  name      String
-  nit       String
-  contact   String?
-  phone     String?
-  arl       String?
-  activity  String?
-  status    ContractorStatus     @default(ACTIVE)
+  id          String                 @id @default(uuid())
+  name        String
+  nit         String
+  contact     String?
+  phone       String?
+  arl         String?
+  activity    String?
+  status      ContractorStatus       @default(ACTIVE)
+  entryStatus ContractorEntryStatus  @default(VALIDATION)
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
   companyId String
@@ -346,6 +351,10 @@ model ContractorWorker {
   firstName    String
   lastName     String
   job          String?
+  /// Sede donde el trabajador contratista ejecuta su actividad (#35):
+  /// Contratista -> Trabajador -> Actividad -> Sede.
+  siteId       String?
+  site         Site?                  @relation(fields: [siteId], references: [id])
   inductedAt   DateTime?
   status       ContractorWorkerStatus @default(ACTIVE)
   createdAt    DateTime               @default(now())
@@ -357,6 +366,7 @@ model ContractorWorker {
 
   @@unique([contractorId, document])
   @@index([companyId])
+  @@index([siteId])
 }
 
 model ContractorDocument {
@@ -387,6 +397,16 @@ enum ContractorStatus {
 enum ContractorWorkerStatus {
   ACTIVE
   INACTIVE
+}
+
+// S13.4: etapas del flujo de ingreso del contratista.
+// Contratista -> Validacion -> Induccion -> Autorizacion -> Trabajo -> Cierre.
+enum ContractorEntryStatus {
+  VALIDATION
+  INDUCTION
+  AUTHORIZED
+  WORK
+  CLOSED
 }
 
 enum ContractorDocumentStatus {

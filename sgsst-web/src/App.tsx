@@ -170,6 +170,7 @@ import type {
   Contractor,
   ContractorDocument,
   ContractorEntryAuthorization,
+  ContractorEntryStatus,
   ContractorWorker,
   DeveloperAuditEntry,
   DeveloperDiagnostics,
@@ -372,6 +373,7 @@ function App() {
   const [contractorDocuments, setContractorDocuments] = useState<ContractorDocument[]>([])
   const [contractorEntryAuth, setContractorEntryAuth] = useState<ContractorEntryAuthorization | null>(null)
   const [contractorEntryAuthLoading, setContractorEntryAuthLoading] = useState(false)
+  const [contractorAdvancing, setContractorAdvancing] = useState(false)
   // Panel de desarrollador (rol DEVELOPER): datos tecnicos de plataforma.
   const emptyDeveloperPanel: DeveloperPanelData = {
     overview: null,
@@ -2086,6 +2088,21 @@ function App() {
     }
   }
 
+  /** S13.4: avanza el flujo de ingreso; la guarda vive en el backend. */
+  async function advanceContractorEntry(contractorId: string, target: ContractorEntryStatus) {
+    setContractorAdvancing(true)
+    try {
+      await api.post(`/contractors/${contractorId}/entry-authorization/advance`, { target })
+      await loadData(true)
+      const response = await api.get<ContractorEntryAuthorization>(`/contractors/${contractorId}/entry-authorization`)
+      setContractorEntryAuth(response.data)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setContractorAdvancing(false)
+    }
+  }
+
   function openContractorWorkerForm(item?: ContractorWorker) {
     if (!contractorDetail) return
     setContractorWorkerForm(
@@ -2095,6 +2112,7 @@ function App() {
             firstName: item.firstName,
             lastName: item.lastName,
             job: item.job ?? '',
+            siteId: item.siteId ?? '',
             inductedAt: item.inductedAt?.slice(0, 10) ?? '',
             status: item.status,
             companyId: item.companyId,
@@ -3975,6 +3993,8 @@ function App() {
                 entryAuth={contractorEntryAuth}
                 entryAuthLoading={contractorEntryAuthLoading}
                 onCloseEntryAuth={() => setContractorEntryAuth(null)}
+                onAdvanceEntry={advanceContractorEntry}
+                advancingEntry={contractorAdvancing}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4584,6 +4604,7 @@ function App() {
               editing={Boolean(contractorWorkerDialog.item)}
               values={contractorWorkerForm}
               companies={companies}
+              sites={sites}
               loading={loading}
               canPickCompany={isPlatformAdmin}
               onChange={setContractorWorkerForm}

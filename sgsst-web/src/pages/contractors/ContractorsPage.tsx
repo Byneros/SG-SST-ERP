@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Delete, Edit, VerifiedUser } from '@mui/icons-material'
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { Contractor, ContractorEntryAuthorization, ContractorStatus, PageMeta, TableState } from '../../types'
+import type { Contractor, ContractorEntryAuthorization, ContractorEntryStatus, ContractorStatus, PageMeta, TableState } from '../../types'
 
 const statusColor: Record<ContractorStatus, 'success' | 'warning' | 'error'> = {
   ACTIVE: 'success',
@@ -14,6 +14,17 @@ const statusLabel: Record<ContractorStatus, string> = {
   ACTIVE: 'Activo',
   SUSPENDED: 'Suspendido',
   BLOCKED: 'Bloqueado',
+}
+
+/** S13.4: etapas del flujo Contratista -> Validación -> ... -> Cierre. */
+const entryFlow: ContractorEntryStatus[] = ['VALIDATION', 'INDUCTION', 'AUTHORIZED', 'WORK', 'CLOSED']
+
+const entryStageLabel: Record<ContractorEntryStatus, string> = {
+  VALIDATION: 'Validación',
+  INDUCTION: 'Inducción',
+  AUTHORIZED: 'Autorizado',
+  WORK: 'Trabajo',
+  CLOSED: 'Cierre',
 }
 
 export function ContractorsPage(props: {
@@ -31,6 +42,8 @@ export function ContractorsPage(props: {
   entryAuth: ContractorEntryAuthorization | null
   entryAuthLoading: boolean
   onCloseEntryAuth: () => void
+  onAdvanceEntry: (contractorId: string, target: ContractorEntryStatus) => void
+  advancingEntry: boolean
   activeCompanyName?: string
 }) {
   const [statusFilter, setStatusFilter] = useState<'all' | ContractorStatus>('all')
@@ -129,6 +142,9 @@ export function ContractorsPage(props: {
       <EntryAuthorizationDialog
         entryAuth={props.entryAuth}
         loading={props.entryAuthLoading}
+        canManage={props.canManage}
+        advancing={props.advancingEntry}
+        onAdvance={props.onAdvanceEntry}
         onClose={props.onCloseEntryAuth}
       />
     </Paper>
@@ -137,11 +153,16 @@ export function ContractorsPage(props: {
 
 /**
  * Dialogo de autorizacion de ingreso: refleja la decision del backend
- * (canAuthorizeEntry) y las razones de bloqueo; la UI nunca decide sola.
+ * (canAuthorizeEntry), las razones de bloqueo y el flujo persistido
+ * (entryStatus); la UI nunca decide sola. S13.4: avance de etapa con
+ * guardas del backend (solo a la etapa siguiente).
  */
 function EntryAuthorizationDialog(props: {
   entryAuth: ContractorEntryAuthorization | null
   loading: boolean
+  canManage: boolean
+  advancing: boolean
+  onAdvance: (contractorId: string, target: ContractorEntryStatus) => void
   onClose: () => void
 }) {
   const entryAuth = props.entryAuth
@@ -168,6 +189,39 @@ function EntryAuthorizationDialog(props: {
                 {entryAuth.contractor.name} — estado {entryAuth.contractor.status}
               </Typography>
             )}
+            <Stack spacing={0.5}>
+              <Typography variant="subtitle2">Flujo de ingreso</Typography>
+              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap alignItems="center">
+                {entryFlow.map((stage, index) => {
+                  const currentIndex = entryFlow.indexOf(entryAuth.entryStatus)
+                  const done = index < currentIndex
+                  const current = index === currentIndex
+                  return (
+                    <Chip
+                      key={stage}
+                      size="small"
+                      label={entryStageLabel[stage]}
+                      color={current ? 'primary' : done ? 'success' : 'default'}
+                      variant={current ? 'filled' : 'outlined'}
+                    />
+                  )
+                })}
+              </Stack>
+              {props.canManage && entryAuth.nextStage && entryAuth.entryStatus !== 'CLOSED' && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={props.advancing || props.loading}
+                  onClick={() => {
+                    const target = entryAuth.nextStage
+                    if (entryAuth.contractor && target) props.onAdvance(entryAuth.contractor.id, target)
+                  }}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  {props.advancing ? 'Avanzando...' : `Avanzar a ${entryStageLabel[entryAuth.nextStage]}`}
+                </Button>
+              )}
+            </Stack>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Chip size="small" label={`Documentos: ${entryAuth.documentsTotal}`} variant="outlined" />
               <Chip size="small" label={`Personal: ${entryAuth.workersActive}/${entryAuth.workersTotal} activo(s)`} variant="outlined" />

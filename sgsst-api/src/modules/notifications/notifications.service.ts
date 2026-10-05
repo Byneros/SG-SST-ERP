@@ -531,6 +531,7 @@ export class NotificationsService {
       planActivities,
       medicalExams,
       pveCases,
+      contractorDocuments,
     ] = await this.prisma.$transaction([
       this.prisma.document.findMany({
         where: {
@@ -614,6 +615,24 @@ export class NotificationsService {
           companyId: true,
           employee: { select: { firstName: true, lastName: true } },
           diagnosis: { select: { code: true, name: true } },
+        },
+      }),
+      // S13.3 (#36): documentos de contratistas por vencer (30 dias) o ya
+      // vencidos por fecha. Los rechazados no alertan vencimiento (ya
+      // bloquean el ingreso por si mismos).
+      this.prisma.contractorDocument.findMany({
+        where: {
+          ...companyScope,
+          status: { not: 'REJECTED' },
+          expiresAt: { not: null, lte: next30Days },
+        },
+        select: {
+          id: true,
+          documentType: true,
+          expiresAt: true,
+          status: true,
+          companyId: true,
+          contractor: { select: { name: true } },
         },
       }),
     ]);
@@ -758,6 +777,33 @@ export class NotificationsService {
         });
         if (notification.createdAt.getTime() >= now.getTime()) created += 1;
       }
+
+      // S13.3: alertas de vencimiento de documentos de contratistas (#36).
+      for (const contractorDoc of contractorDocuments.filter((item) =>
+        this.isVisibleForUser(targetUser, item.companyId),
+      )) {
+        const isOverdue =
+          contractorDoc.expiresAt !== null && contractorDoc.expiresAt < now;
+        const dueLabel =
+          contractorDoc.expiresAt?.toISOString().slice(0, 10) ?? 'sin fecha';
+        const notification = await this.create({
+          userId: targetUser.id,
+          companyId: contractorDoc.companyId,
+          title: isOverdue
+            ? 'Documento de contratista vencido'
+            : 'Documento de contratista proximo a vencer',
+          message: isOverdue
+            ? `${contractorDoc.documentType} de ${contractorDoc.contractor.name} vencio el ${dueLabel}`
+            : `${contractorDoc.documentType} de ${contractorDoc.contractor.name} vence el ${dueLabel}`,
+          type: NotificationType.DOCUMENT_EXPIRING,
+          priority: isOverdue
+            ? NotificationPriority.CRITICAL
+            : NotificationPriority.HIGH,
+          entity: 'ContractorDocument',
+          entityId: contractorDoc.id,
+        });
+        if (notification.createdAt.getTime() >= now.getTime()) created += 1;
+      }
     }
 
     return {
@@ -770,6 +816,7 @@ export class NotificationsService {
         planActivities: planActivities.length,
         medicalExams: medicalExams.length,
         pveCases: pveCases.length,
+        contractorDocuments: contractorDocuments.length,
       },
     };
   }

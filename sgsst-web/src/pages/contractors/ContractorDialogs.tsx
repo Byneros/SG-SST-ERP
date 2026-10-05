@@ -1,5 +1,5 @@
 import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import type { Company, ContractorDocument, ContractorDocumentFormValues, ContractorDocumentStatus, ContractorFormValues, ContractorWorker, ContractorWorkerFormValues, ContractorWorkerStatus } from '../../types'
+import type { Company, ContractorDocument, ContractorDocumentFormValues, ContractorDocumentStatus, ContractorFormValues, ContractorWorker, ContractorWorkerFormValues, ContractorWorkerStatus, Site } from '../../types'
 
 const contractorStatuses: Array<{ value: ContractorFormValues['status']; label: string }> = [
   { value: 'ACTIVE', label: 'Activo' },
@@ -143,12 +143,15 @@ export function ContractorWorkerDialog(props: {
   editing: boolean
   values: ContractorWorkerFormValues
   companies: Company[]
+  /** S13.2: sedes de la empresa para vincular Contratista -> Trabajador -> Sede. */
+  sites: Site[]
   loading: boolean
   canPickCompany: boolean
   onChange: (values: ContractorWorkerFormValues) => void
   onClose: () => void
   onSave: () => void
 }) {
+  const workerSites = props.sites.filter((site) => site.companyId === props.values.companyId && site.isActive)
   return (
     <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{props.editing ? 'Editar personal' : 'Nuevo personal del contratista'}</DialogTitle>
@@ -179,12 +182,28 @@ export function ContractorWorkerDialog(props: {
               fullWidth
             />
             <TextField
-              label="Cargo"
+              label="Actividad / cargo"
               value={props.values.job}
               onChange={(event) => props.onChange({ ...props.values, job: event.target.value })}
+              helperText="Actividad que ejecuta en la sede"
               fullWidth
             />
           </Stack>
+          <TextField
+            select
+            label="Sede"
+            value={props.values.siteId}
+            onChange={(event) => props.onChange({ ...props.values, siteId: event.target.value })}
+            helperText="Sede donde ejecuta su actividad (#35)"
+          >
+            <MenuItem value="">Sin sede asignada</MenuItem>
+            {workerSites.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                {site.name}
+                {site.code ? ` (${site.code})` : ''}
+              </MenuItem>
+            ))}
+          </TextField>
           <Stack direction="row" spacing={2}>
             <TextField
               label="Fecha de inducción"
@@ -344,6 +363,7 @@ export function ContractorDetailDialog(props: {
                   <Typography variant="body2">
                     {worker.firstName} {worker.lastName} — {worker.document}
                     {worker.job ? ` (${worker.job})` : ''}
+                    {worker.site ? ` · Sede: ${worker.site.name}` : ''}
                   </Typography>
                   <Stack direction="row" spacing={0.5} alignItems="center">
                     <Chip
