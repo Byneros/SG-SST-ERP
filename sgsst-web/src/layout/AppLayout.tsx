@@ -1,4 +1,4 @@
-import { Assessment, AssignmentTurnedIn, BugReport, Business, CalendarMonth, Campaign, Checklist, Description, Engineering, FactCheck, ForwardToInbox, Gavel, Groups, Handyman, HealthAndSafety, History, LocalFireDepartment, LocationCity, Logout, ManageAccounts, MedicalInformation, Menu, Notifications, People, Percent, Refresh, ReportProblem, School, SmartToy, SpaceDashboard, Tour, WarningAmber } from '@mui/icons-material'
+import { Assessment, AssignmentTurnedIn, BugReport, Business, CalendarMonth, Campaign, ChangeCircle, Checklist, Description, Engineering, FactCheck, ForwardToInbox, Gavel, Groups, Handyman, HealthAndSafety, History, LocalFireDepartment, LocationCity, Logout, ManageAccounts, MedicalInformation, Menu, Notifications, People, Percent, Refresh, ReportProblem, School, SmartToy, SpaceDashboard, Tour, WarningAmber } from '@mui/icons-material'
 import { Alert, AppBar, Avatar, Badge, Box, Button, Chip, Divider, Drawer, FormControl, IconButton, LinearProgress, List, ListItemButton, ListItemText, Menu as MuiMenu, MenuItem, Paper, Select, Stack, Toolbar, Tooltip, Typography } from '@mui/material'
 import { useState, type ReactNode } from 'react'
 import type { AppNotification, AuthUser, Company, View } from '../types'
@@ -18,6 +18,7 @@ export function AppLayout({
   canViewUsers,
   canViewCommittees,
   canViewEmergency,
+  canViewChangeRequests,
   canViewContractors,
   canViewSites,
   canViewDocuments,
@@ -58,6 +59,7 @@ export function AppLayout({
   canViewUsers: boolean
   canViewCommittees: boolean
   canViewEmergency: boolean
+  canViewChangeRequests: boolean
   canViewContractors: boolean
   canViewSites: boolean
   canViewDocuments: boolean
@@ -108,6 +110,7 @@ export function AppLayout({
         <NavButton active={view === 'companies'} icon={<Business />} label="Empresas" onClick={() => onSelectView('companies')} onPreload={() => onPreloadView('companies')} />
         {canViewCommittees && <NavButton active={view === 'committees'} icon={<Groups />} label="Comités" onClick={() => onSelectView('committees')} onPreload={() => onPreloadView('committees')} />}
         {canViewEmergency && <NavButton active={view === 'emergency'} icon={<LocalFireDepartment />} label="Emergencias" onClick={() => onSelectView('emergency')} onPreload={() => onPreloadView('emergency')} />}
+        {canViewChangeRequests && <NavButton active={view === 'changeRequests'} icon={<ChangeCircle />} label="Gestión del cambio" onClick={() => onSelectView('changeRequests')} onPreload={() => onPreloadView('changeRequests')} />}
         {canViewContractors && <NavButton active={view === 'contractors'} icon={<Handyman />} label="Contratistas" onClick={() => onSelectView('contractors')} onPreload={() => onPreloadView('contractors')} />}
         {canViewSites && <NavButton active={view === 'sites'} icon={<LocationCity />} label="Sedes" onClick={() => onSelectView('sites')} onPreload={() => onPreloadView('sites')} />}
         <NavButton active={view === 'employees'} icon={<People />} label="Empleados" onClick={() => onSelectView('employees')} onPreload={() => onPreloadView('employees')} />

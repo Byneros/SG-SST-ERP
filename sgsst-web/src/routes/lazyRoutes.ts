@@ -5,6 +5,7 @@ const pageLoaders = {
   dashboard: () => import('../pages/dashboard/DashboardPage'),
   aiAssistant: () => import('../pages/ai-assistant/AssistantChatPage'),
   companies: () => import('../pages/companies/CompaniesPage'),
+  changeRequests: () => import('../pages/change-requests/ChangeRequestsPage'),
   committees: () => import('../pages/committees/CommitteesPage'),
   emergency: () => import('../pages/emergency/EmergencyPage'),
   contractors: () => import('../pages/contractors/ContractorsPage'),
@@ -62,6 +63,12 @@ export const DashboardPage = lazy(() =>
 )
 export const CompaniesPage = lazy(() =>
   pageLoaders.companies().then((module) => ({ default: module.CompaniesPage })),
+)
+export const ChangeRequestsPage = lazy(() =>
+  pageLoaders.changeRequests().then((module) => ({ default: module.ChangeRequestsPage })),
+)
+export const ChangeRequestDialog = lazy(() =>
+  pageLoaders.changeRequests().then((module) => ({ default: module.ChangeRequestDialog })),
 )
 export const CommitteesPage = lazy(() =>
   pageLoaders.committees().then((module) => ({ default: module.CommitteesPage })),
@@ -260,6 +267,10 @@ export function preloadEmergencyDialogs() {
 
 export function preloadContractorDialogs() {
   void dialogLoaders.contractorDialogs()
+}
+
+export function preloadChangeRequestDialog() {
+  void pageLoaders.changeRequests()
 }
 
 export function preloadSiteDialog() {

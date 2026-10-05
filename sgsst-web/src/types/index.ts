@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -571,6 +571,50 @@ export type ReportExportFilters = {
 export type ExternalDeliveryFilters = {
   provider: 'all' | ExternalDeliveryProvider
   status: 'all' | ExternalDeliveryStatus
+  companyId: string
+}
+
+// --- Gestion del cambio (S14) ------------------------------------------------
+
+export type ChangeRequestStatus = 'REQUESTED' | 'EVALUATION' | 'CONTROLS' | 'APPROVAL' | 'IMPLEMENTATION' | 'VERIFICATION' | 'CLOSED'
+
+export type ChangeRequest = {
+  id: string
+  title: string
+  reason: string
+  process: string
+  responsible: string
+  requestedAt: string
+  hazards?: string
+  impacts?: string
+  controls?: string
+  /** Evaluacion obligatoria de riesgos (#38): riesgo de la matriz GTC-45. */
+  riskId?: string | null
+  risk?: Pick<Risk, 'id' | 'title' | 'level'> | null
+  implementationNotes?: string
+  implementationEvidenceId?: string | null
+  implementationEvidence?: Pick<SgsstDocument, 'id' | 'name'> & { status?: string } | null
+  verificationNotes?: string
+  approvedById?: string | null
+  approvedBy?: Pick<SystemUser, 'id' | 'name' | 'email'> | null
+  approvedAt?: string | null
+  status: ChangeRequestStatus
+  companyId: string
+  company?: Pick<Company, 'id' | 'name'>
+  createdAt: string
+  updatedAt: string
+}
+
+export type ChangeRequestFormValues = {
+  title: string
+  reason: string
+  process: string
+  responsible: string
+  riskId: string
+  hazards: string
+  impacts: string
+  controls: string
+  requestedAt: string
   companyId: string
 }
 

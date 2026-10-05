@@ -36,6 +36,7 @@ model User {
   plannedInspectionsAsInspector    PlannedInspection[]          @relation("PlannedInspectionInspector")
   unplannedInspectionsAsInspector  UnplannedInspection[]        @relation("UnplannedInspectionInspector")
   unsafeReportsAsReporter          UnsafeReport[]               @relation("UnsafeReportReporter")
+  approvedChangeRequests           ChangeRequest[]              @relation("ChangeRequestApprover")
   company                          Company?                     @relation(fields: [companyId], references: [id])
 
   @@index([lockedUntil])
@@ -109,6 +110,7 @@ model Company {
   emergencyResources            EmergencyResource[]
   emergencyDrills               EmergencyDrill[]
   emergencyDrillFindings        EmergencyDrillFinding[]
+  changeRequests                ChangeRequest[]
 }
 
 model Site {
@@ -174,6 +176,56 @@ model Employee {
   emergencyPlanResponsibilities EmergencyPlan[]             @relation("EmergencyPlanResponsible")
 }
 
+// Gestion del cambio (S14): solicitud de cambio con evaluacion de riesgos
+// obligatoria (link a Risk) y workflow con auditoria en cada paso:
+// Solicitud -> Evaluacion -> Controles -> Aprobacion -> Implementacion ->
+// Verificacion -> Cierre (#38, #39). Borrado: hard delete con traza (ADR).
+model ChangeRequest {
+  id           String              @id @default(uuid())
+  title        String
+  /// Motivo del cambio.
+  reason       String
+  /// Proceso afectado.
+  process      String
+  /// Responsable del cambio (texto libre del area solicitante).
+  responsible  String
+  requestedAt  DateTime            @default(now())
+  // --- Evaluacion de riesgos (#38): obligatoria para avanzar del flujo ---
+  hazards      String?
+  impacts      String?
+  controls     String?
+  /// Riesgo de la matriz GTC-45 asociado al cambio (obligatorio).
+  riskId       String?
+  risk         Risk?               @relation(fields: [riskId], references: [id])
+  // --- Implementacion y verificacion (#39) ---
+  implementationNotes  String?
+  implementationEvidenceId String?
+  implementationEvidence   Document? @relation("ChangeRequestEvidence", fields: [implementationEvidenceId], references: [id], onDelete: SetNull)
+  verificationNotes    String?
+  approvedById String?
+  approvedBy   User?               @relation("ChangeRequestApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  status       ChangeRequestStatus @default(REQUESTED)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  companyId    String
+  company      Company             @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([riskId])
+}
+
+// S14.2: etapas del workflow de gestion del cambio.
+enum ChangeRequestStatus {
+  REQUESTED
+  EVALUATION
+  CONTROLS
+  APPROVAL
+  IMPLEMENTATION
+  VERIFICATION
+  CLOSED
+}
+
 model Risk {
   id                  String                      @id @default(uuid())
   title               String
@@ -191,6 +243,7 @@ model Risk {
   profilesForRisk     MedicalProfile[]            @relation("MedicalProfileCargoRisk")
   cohortsForRisk      MedicalSurveillanceCohort[] @relation("MedicalSurveillanceCohortRisk")
   requirementsDerived MedicalExamRequirement[]    @relation("MedicalRequirementOrigin")
+  changeRequests      ChangeRequest[]
 
   @@index([companyId, position])
 }
@@ -847,6 +900,7 @@ model Document {
   annualPlanActivities AnnualPlanActivity[]
   contractorDocuments  ContractorDocument[]
   committeeMinutes     CommitteeMeeting[]
+  changeRequestEvidence ChangeRequest[]      @relation("ChangeRequestEvidence")
 }
 
 model DocumentVersion {

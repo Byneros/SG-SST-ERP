@@ -13,6 +13,7 @@ import type {
   CommitteeFormValues,
   CommitteeMeetingFormValues,
   CommitteeMemberFormValues,
+  ChangeRequestFormValues,
   ContractorDocumentFormValues,
   ContractorFormValues,
   ContractorWorkerFormValues,
@@ -179,6 +180,19 @@ export const emptyEmergencyDrillFinding: EmergencyDrillFindingFormValues = {
   actionDescription: '',
   actionResponsible: '',
   actionDueDate: '',
+  companyId: '',
+}
+
+export const emptyChangeRequest: ChangeRequestFormValues = {
+  title: '',
+  reason: '',
+  process: '',
+  responsible: '',
+  riskId: '',
+  hazards: '',
+  impacts: '',
+  controls: '',
+  requestedAt: '',
   companyId: '',
 }
 

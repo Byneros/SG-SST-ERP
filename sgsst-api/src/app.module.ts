@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 import { AnnualWorkPlansModule } from './modules/annual-work-plans/annual-work-plans.module';
 import { CommitteesModule } from './modules/committees/committees.module';
+import { ChangeRequestsModule } from './modules/change-requests/change-requests.module';
 import { ContractorsModule } from './modules/contractors/contractors.module';
 import { DeveloperModule } from './modules/developer/developer.module';
 import { EmergencyModule } from './modules/emergency/emergency.module';
@@ -47,6 +48,7 @@ import { UsersModule } from './modules/users/users.module';
     AiAssistantModule,
     AnnualWorkPlansModule,
     CommitteesModule,
+    ChangeRequestsModule,
     ContractorsModule,
     EmergencyModule,
     DeveloperModule,

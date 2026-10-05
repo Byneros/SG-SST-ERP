@@ -45,6 +45,7 @@ import {
   emptyCommitteeCommitment,
   emptyCommitteeMeeting,
   emptyCommitteeMember,
+  emptyChangeRequest,
   emptyContractor,
   emptyContractorDocument,
   emptyContractorWorker,
@@ -80,6 +81,8 @@ import {
   AssistantChatPage,
   AuditPage,
   DeveloperPanelPage,
+  ChangeRequestsPage,
+  ChangeRequestDialog,
   CommitteesPage,
   CommitteeDialog,
   CommitteeDetailDialog,
@@ -143,6 +146,7 @@ import {
   preloadCompanyDialog,
   preloadCommitteeDialogs,
   preloadEmergencyDialogs,
+  preloadChangeRequestDialog,
   preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -167,6 +171,8 @@ import type {
   AnnualWorkPlan,
   AppNotification,
   AuditLog,
+  ChangeRequest,
+  ChangeRequestStatus,
   Contractor,
   ContractorDocument,
   ContractorEntryAuthorization,
@@ -257,6 +263,7 @@ const ALL_VIEWS: View[] = [
   'companies',
   'committees',
   'emergency',
+  'changeRequests',
   'contractors',
   'developer',
   'sites',
@@ -369,6 +376,13 @@ function App() {
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [contractorMeta, setContractorMeta] = useState(emptyMeta)
   const [contractorTable, setContractorTable] = useState(initialTableState)
+  // S14: gestion del cambio.
+  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([])
+  const [changeRequestMeta, setChangeRequestMeta] = useState(emptyMeta)
+  const [changeRequestTable, setChangeRequestTable] = useState(initialTableState)
+  const [changeWorkflow, setChangeWorkflow] = useState<ChangeRequest | null>(null)
+  const [changeWorkflowLoading, setChangeWorkflowLoading] = useState(false)
+  const [changeAdvancing, setChangeAdvancing] = useState(false)
   const [contractorWorkers, setContractorWorkers] = useState<ContractorWorker[]>([])
   const [contractorDocuments, setContractorDocuments] = useState<ContractorDocument[]>([])
   const [contractorEntryAuth, setContractorEntryAuth] = useState<ContractorEntryAuthorization | null>(null)
@@ -491,6 +505,8 @@ function App() {
     confirmPassword: '',
   })
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; item?: Company }>({ open: false })
+  const [changeDialog, setChangeDialog] = useState<{ open: boolean; item?: ChangeRequest }>({ open: false })
+  const [changeForm, setChangeForm] = useState(emptyChangeRequest)
   const [contractorDialog, setContractorDialog] = useState<{ open: boolean; item?: Contractor }>({ open: false })
   const [contractorDetail, setContractorDetail] = useState<Contractor | null>(null)
   const [contractorWorkerDialog, setContractorWorkerDialog] = useState<{ open: boolean; item?: ContractorWorker }>({ open: false })
@@ -564,6 +580,10 @@ function App() {
   // S12 Emergencias: misma matriz de permisos (lectura amplia para evacuacion).
   const canViewEmergency = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageEmergency = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  // S14: gestion del cambio — lectura ADMIN/SST/AUDITOR, gestion ADMIN/SST.
+  const canViewChangeRequests = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canManageChangeRequests = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canViewChangeRequestsNav = canViewChangeRequests
   const canViewContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewEntryAuth = canManageContractors || user?.role === 'AUDITOR'
@@ -611,9 +631,10 @@ function App() {
         : view === 'companies'
         ? 'Empresas'
         : view === 'committees'
-          ? 'Comités'
-          : view === 'emergency'
+          ? 'Comités'            : view === 'emergency'
             ? 'Emergencias'
+            : view === 'changeRequests'
+          ? 'Gestión del cambio'
             : view === 'contractors'
           ? 'Contratistas'
         : view === 'developer'
@@ -736,6 +757,9 @@ function App() {
       const contractorRequest = canViewContractors && hasCompanyScope
         ? api.get<Paginated<Contractor>>('/contractors', { params: tableParams(contractorTable) })
         : Promise.resolve({ data: { data: [] as Contractor[], meta: emptyMeta } })
+      const changeRequestFetch = canViewChangeRequests && hasCompanyScope
+        ? api.get<Paginated<ChangeRequest>>('/change-requests', { params: tableParams(changeRequestTable) })
+        : Promise.resolve({ data: { data: [] as ChangeRequest[], meta: emptyMeta } })
       const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
             params: {
@@ -933,6 +957,7 @@ function App() {
         emergencyPlanSettled,
         emergencyDrillSettled,
         contractorSettled,
+        changeRequestSettled,
         siteSettled,
         employeeSettled,
         incidentsSettled,
@@ -969,6 +994,7 @@ function App() {
         emergencyPlanRequest,
         emergencyDrillRequest,
         contractorRequest,
+        changeRequestFetch,
         siteRequest,
         employeeRequest,
         incidentsRequest,
@@ -1010,6 +1036,7 @@ function App() {
       const emergencyPlanResponse = settledData(emergencyPlanSettled)
       const emergencyDrillResponse = settledData(emergencyDrillSettled)
       const contractorResponse = settledData(contractorSettled)
+      const changeResponse = settledData(changeRequestSettled)
       const siteResponse = settledData(siteSettled)
       const employeeResponse = settledData(employeeSettled)
       const incidentsResponse = settledData(incidentsSettled)
@@ -1086,6 +1113,12 @@ function App() {
         } else {
           setEmergencyDrills([])
           setEmergencyDrillMeta(emptyMeta)
+        }
+      }
+      if (changeResponse) {
+        if (isPaginated<ChangeRequest>(changeResponse.data)) {
+          setChangeRequests(changeResponse.data.data)
+          setChangeRequestMeta(changeResponse.data.meta)
         }
       }
       if (contractorResponse) {
@@ -2010,6 +2043,85 @@ function App() {
   }
 
   // --- Contratistas (S11) -----------------------------------------------------
+
+  // --- S14: gestion del cambio -----------------------------------------------
+
+  function openChangeForm(item?: ChangeRequest) {
+    setChangeForm(
+      item
+        ? {
+            title: item.title,
+            reason: item.reason,
+            process: item.process,
+            responsible: item.responsible,
+            riskId: item.riskId ?? '',
+            hazards: item.hazards ?? '',
+            impacts: item.impacts ?? '',
+            controls: item.controls ?? '',
+            requestedAt: item.requestedAt?.slice(0, 10) ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyChangeRequest, riskId: risks[0]?.id ?? '', companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setChangeDialog({ open: true, item })
+    preloadChangeRequestDialog()
+  }
+
+  async function saveChangeRequest() {
+    await saveRecord(async () => {
+      const payload = sanitize(changeForm) as Record<string, unknown>
+      if (changeDialog.item) {
+        await api.patch(`/change-requests/${changeDialog.item.id}`, payload)
+      } else {
+        await api.post('/change-requests', payload)
+      }
+      setChangeDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteChangeRequest(change: ChangeRequest) {
+    openConfirmDialog(
+      'Eliminar solicitud de cambio',
+      `¿Seguro que deseas eliminar la solicitud "${change.title}"?`,
+      'Eliminar',
+      'error',
+      () => { void removeChangeRequest(change.id) },
+    )
+  }
+
+  async function removeChangeRequest(id: string) {
+    await saveRecord(() => api.delete(`/change-requests/${id}`).then())
+  }
+
+  /** Abre el workflow con el detalle fresco del backend. */
+  async function openChangeWorkflow(item: ChangeRequest) {
+    setChangeWorkflow(item)
+    setChangeWorkflowLoading(true)
+    try {
+      const response = await api.get<ChangeRequest>(`/change-requests/${item.id}`)
+      setChangeWorkflow(response.data)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+      setChangeWorkflow(null)
+    } finally {
+      setChangeWorkflowLoading(false)
+    }
+  }
+
+  /** S14.2: avanza el workflow; la guarda vive en el backend. */
+  async function advanceChangeWorkflow(id: string, target: ChangeRequestStatus) {
+    setChangeAdvancing(true)
+    try {
+      await api.post(`/change-requests/${id}/advance`, { target })
+      await loadData(true)
+      const response = await api.get<ChangeRequest>(`/change-requests/${id}`)
+      setChangeWorkflow(response.data)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setChangeAdvancing(false)
+    }
+  }
 
   function openContractorForm(item?: Contractor) {
     setContractorForm(
@@ -3840,6 +3952,7 @@ function App() {
           canViewUsers={canViewUsers}
           canViewCommittees={canViewCommittees}
           canViewEmergency={canViewEmergency}
+          canViewChangeRequests={canViewChangeRequestsNav}
           canViewContractors={canViewContractors}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
@@ -3974,6 +4087,26 @@ function App() {
                 onEditDrill={openEmergencyDrillForm}
                 onDeleteDrill={confirmDeleteEmergencyDrill}
                 onOpenDrillDetail={openEmergencyDrillDetail}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'changeRequests' && (
+              <ChangeRequestsPage
+                changes={changeRequests}
+                meta={changeRequestMeta}
+                tableState={changeRequestTable}
+                canManage={canManageChangeRequests}
+                onTableChange={setChangeRequestTable}
+                onCreate={() => openChangeForm()}
+                onPreloadCreate={preloadChangeRequestDialog}
+                onEdit={openChangeForm}
+                onDelete={confirmDeleteChangeRequest}
+                onOpenWorkflow={openChangeWorkflow}
+                workflowState={changeWorkflow}
+                workflowLoading={changeWorkflowLoading}
+                onCloseWorkflow={() => setChangeWorkflow(null)}
+                onAdvanceWorkflow={advanceChangeWorkflow}
+                advancing={changeAdvancing}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4598,6 +4731,18 @@ function App() {
               onEditDocument={openContractorDocumentForm}
               onDeleteDocument={confirmDeleteContractorDocument}
               onClose={() => setContractorDetail(null)}
+            />
+            <ChangeRequestDialog
+              open={changeDialog.open}
+              editing={Boolean(changeDialog.item)}
+              values={changeForm}
+              risks={risks}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setChangeForm}
+              onClose={() => setChangeDialog({ open: false })}
+              onSave={saveChangeRequest}
             />
             <ContractorWorkerDialog
               open={contractorWorkerDialog.open}
