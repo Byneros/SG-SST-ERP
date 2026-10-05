@@ -47,11 +47,48 @@
   detalle con chips (Mayor / No conformidad / Abierto), alta de causa desde el
   dialogo y limpieza por API. Captura: `scripts/qa-artifacts/s15-findings.png`.
 
+## S15.2 - Issue #41 (Acciones correctivas, preventivas y de mejora)
+
+**Estado implementacion:** completa en backend y frontend (2026-10-05).
+
+- Modelo `ActionPlan` + enums `ActionKind` (CORRECTIVE|PREVENTIVE|IMPROVEMENT),
+  `ActionStatus` (OPEN|IN_PROGRESS|DONE|VERIFIED|CANCELLED) y
+  `ActionEffectiveness` (PENDING|EFFECTIVE|INEFFECTIVE). Migracion
+  `20261005193000_s15_action_plans` aplicada en BD dev (52 migraciones).
+- Workflow con guardas (#41):
+  - La CORRECTIVE exige hallazgo de origen del tenant (400 sin origen, 404
+    ajeno); PREVENTIVE/IMPROVEMENT pueden nacer sin no conformidad previa.
+  - `DONE` exige evidencia de ejecucion (Document del tenant).
+  - `VERIFIED` sella eficacia, verificador y fecha; la CORRECTIVE exige causa
+    raiz y PREVENTIVE/IMPROVEMENT beneficio esperado antes de verificar.
+  - Hallazgos CRITICAL: el verificador no puede ser el responsable de la accion
+    (400 si coincide o si no hay responsable asignado).
+  - `CANCELLED` solo desde OPEN/IN_PROGRESS, con sello de `closedAt`; la accion
+    verificada queda de solo lectura.
+- API `/api/v1/actions`: CRUD + `POST /:id/advance` + `POST /:id/verify`, scope
+  companyId, RBAC (lectura ADMIN/SST/AUDITOR, gestion ADMIN/SST), auditoria
+  `ACTION_FLOW_ADVANCE` por transicion y `ACTION_VERIFIED` al sellar eficacia.
+- UI: vista "Acciones" con tabs por tipo, filtros de estado, chip de eficacia,
+  vencimiento resaltado, avance rapido (iniciar/ejecutar), cancelacion con
+  confirmacion, dialogo de accion (origen, causa raiz, beneficio esperado,
+  responsable) y dialogo de verificacion de eficacia con alertas de guardas.
+
+## Verificacion S15.2 (2026-10-05)
+
+- `npm run build` API y Web: OK (`tsc` limpio).
+- Tests backend: **383/383** (49 suites, +17 nuevas de
+  `action-plans.service.spec.ts`: origen, evidencia, causa raiz, beneficio,
+  regla CRITICAL, cancelacion y auditoria).
+- Smoke HTTP (`scripts/smoke-s15-actions.mjs`): **25/25 pasos OK** con limpieza
+  `[SMOKE]`, incluida la regla CRITICAL con segundo usuario (SST verifica la
+  accion del admin como INEFFECTIVE).
+- QA UI navegador frio (`scripts/qa-s15-actions-ui.mjs`): **pass: true** —
+  accion PREVENTIVE en DONE visible, dialogo "Verificar eficacia" renderizado,
+  verificacion confirmada (fila "Verificada" + "Eficaz"), sin errores de
+  consola. Captura: `scripts/qa-artifacts/s15-actions.png`.
+
 ## Pendiente del sprint
 
-- **S15.2 (issue #41):** acciones correctivas/preventivas/mejora con guardas
-  de cierre (causa raiz + verificacion de eficacia; verificador distinto solo
-  para hallazgos CRITICAL) y auditoria por transicion.
 - **S15.3 (issue #42):** bandeja de tareas con generacion automatica para
   hallazgos MAJOR/CRITICAL y widget en dashboard.
-- Aceptacion formal de #40 en la matriz #43 tras revision humana.
+- Aceptacion formal de #40 y #41 en la matriz #43 tras revision humana.

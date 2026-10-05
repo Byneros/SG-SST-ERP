@@ -15,6 +15,7 @@ import type {
   CommitteeMemberFormValues,
   ChangeRequestFormValues,
   FindingFormValues,
+  ActionPlanFormValues,
   ContractorDocumentFormValues,
   ContractorFormValues,
   ContractorWorkerFormValues,
@@ -205,6 +206,19 @@ export const emptyFinding: FindingFormValues = {
   type: 'NON_CONFORMITY',
   severity: 'MINOR',
   ownerId: '',
+  companyId: '',
+}
+
+export const emptyActionPlan: ActionPlanFormValues = {
+  title: '',
+  description: '',
+  kind: 'CORRECTIVE',
+  sourceType: 'FINDING',
+  sourceId: '',
+  rootCause: '',
+  expectedBenefit: '',
+  ownerId: '',
+  dueDate: '',
   companyId: '',
 }
 

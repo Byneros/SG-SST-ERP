@@ -47,6 +47,7 @@ import {
   emptyCommitteeMember,
   emptyChangeRequest,
   emptyFinding,
+  emptyActionPlan,
   emptyContractor,
   emptyContractorDocument,
   emptyContractorWorker,
@@ -86,6 +87,8 @@ import {
   ChangeRequestDialog,
   FindingsPage,
   FindingDialog,
+  ActionsPage,
+  ActionDialog,
   CommitteesPage,
   CommitteeDialog,
   CommitteeDetailDialog,
@@ -151,6 +154,7 @@ import {
   preloadEmergencyDialogs,
   preloadChangeRequestDialog,
   preloadFindingDialog,
+  preloadActionDialog,
   preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -179,6 +183,7 @@ import type {
   ChangeRequestStatus,
   Finding,
   FindingStatus,
+  ActionPlan,
   Contractor,
   ContractorDocument,
   ContractorEntryAuthorization,
@@ -271,6 +276,7 @@ const ALL_VIEWS: View[] = [
   'emergency',
   'changeRequests',
   'findings',
+  'actions',
   'contractors',
   'developer',
   'sites',
@@ -399,6 +405,13 @@ function App() {
   const [findingDetail, setFindingDetail] = useState<Finding | null>(null)
   const [findingDetailLoading, setFindingDetailLoading] = useState(false)
   const [findingDetailSaving, setFindingDetailSaving] = useState(false)
+  // S15.2: acciones correctivas/preventivas/mejora.
+  const [actions, setActions] = useState<ActionPlan[]>([])
+  const [actionMeta, setActionMeta] = useState(emptyMeta)
+  const [actionTable, setActionTable] = useState(initialTableState)
+  const [actionDialog, setActionDialog] = useState<{ open: boolean; item?: ActionPlan }>({ open: false })
+  const [actionForm, setActionForm] = useState(emptyActionPlan)
+  const [advancingActionId, setAdvancingActionId] = useState<string | null>(null)
   const [contractorWorkers, setContractorWorkers] = useState<ContractorWorker[]>([])
   const [contractorDocuments, setContractorDocuments] = useState<ContractorDocument[]>([])
   const [contractorEntryAuth, setContractorEntryAuth] = useState<ContractorEntryAuthorization | null>(null)
@@ -603,6 +616,9 @@ function App() {
   // S15.1: hallazgos — lectura ADMIN/SST/AUDITOR, gestion ADMIN/SST.
   const canViewFindings = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
   const canManageFindings = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  // S15.2: acciones — lectura ADMIN/SST/AUDITOR, gestion ADMIN/SST.
+  const canViewActions = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR'
+  const canManageActions = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST' || user?.role === 'AUDITOR' || user?.role === 'EMPLOYEE'
   const canManageContractors = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canViewEntryAuth = canManageContractors || user?.role === 'AUDITOR'
@@ -656,6 +672,8 @@ function App() {
           ? 'Gestión del cambio'
             : view === 'findings'
           ? 'Hallazgos'
+            : view === 'actions'
+          ? 'Acciones'
             : view === 'contractors'
           ? 'Contratistas'
         : view === 'developer'
@@ -784,6 +802,9 @@ function App() {
       const findingFetch = canViewFindings && hasCompanyScope
         ? api.get<Paginated<Finding>>('/findings', { params: tableParams(findingTable) })
         : Promise.resolve({ data: { data: [] as Finding[], meta: emptyMeta } })
+      const actionFetch = canViewActions && hasCompanyScope
+        ? api.get<Paginated<ActionPlan>>('/actions', { params: tableParams(actionTable) })
+        : Promise.resolve({ data: { data: [] as ActionPlan[], meta: emptyMeta } })
       const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
             params: {
@@ -983,6 +1004,7 @@ function App() {
         contractorSettled,
         changeRequestSettled,
         findingSettled,
+        actionSettled,
         siteSettled,
         employeeSettled,
         incidentsSettled,
@@ -1021,6 +1043,7 @@ function App() {
         contractorRequest,
         changeRequestFetch,
         findingFetch,
+        actionFetch,
         siteRequest,
         employeeRequest,
         incidentsRequest,
@@ -1064,6 +1087,7 @@ function App() {
       const contractorResponse = settledData(contractorSettled)
       const changeResponse = settledData(changeRequestSettled)
       const findingResponse = settledData(findingSettled)
+      const actionResponse = settledData(actionSettled)
       const siteResponse = settledData(siteSettled)
       const employeeResponse = settledData(employeeSettled)
       const incidentsResponse = settledData(incidentsSettled)
@@ -1152,6 +1176,12 @@ function App() {
         if (isPaginated<Finding>(findingResponse.data)) {
           setFindings(findingResponse.data.data)
           setFindingMeta(findingResponse.data.meta)
+        }
+      }
+      if (actionResponse) {
+        if (isPaginated<ActionPlan>(actionResponse.data)) {
+          setActions(actionResponse.data.data)
+          setActionMeta(actionResponse.data.meta)
         }
       }
       if (contractorResponse) {
@@ -2265,6 +2295,97 @@ function App() {
       setError(readApiError(currentError))
     } finally {
       setFindingDetailSaving(false)
+    }
+  }
+
+  // --- S15.2: acciones correctivas/preventivas/mejora -------------------------
+
+  function openActionForm(item?: ActionPlan) {
+    setActionForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description,
+            kind: item.kind,
+            sourceType: item.sourceType === 'FINDING' ? 'FINDING' : 'MANUAL',
+            sourceId: item.sourceId ?? '',
+            rootCause: item.rootCause ?? '',
+            expectedBenefit: item.expectedBenefit ?? '',
+            ownerId: item.ownerId ?? '',
+            dueDate: item.dueDate?.slice(0, 10) ?? '',
+            companyId: item.companyId,
+          }
+        : { ...emptyActionPlan, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setActionDialog({ open: true, item })
+    preloadActionDialog()
+  }
+
+  async function saveActionRequest() {
+    await saveRecord(async () => {
+      const payload = sanitize(actionForm) as Record<string, unknown>
+      // Origen trazable: FINDING solo cuando se cita un hallazgo.
+      payload.sourceType = actionForm.kind === 'CORRECTIVE' || actionForm.sourceId ? 'FINDING' : 'MANUAL'
+      if (actionDialog.item) {
+        await api.patch(`/actions/${actionDialog.item.id}`, payload)
+      } else {
+        await api.post('/actions', payload)
+      }
+      setActionDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteAction(action: ActionPlan) {
+    openConfirmDialog(
+      'Eliminar acción',
+      `¿Seguro que deseas eliminar la acción "${action.title}"?`,
+      'Eliminar',
+      'error',
+      () => { void removeAction(action.id) },
+    )
+  }
+
+  function confirmCancelAction(action: ActionPlan) {
+    openConfirmDialog(
+      'Cancelar acción',
+      `¿Seguro que deseas cancelar la acción "${action.title}"? Quedará trazada como cancelada.`,
+      'Cancelar acción',
+      'primary',
+      () => { void cancelAction(action.id) },
+    )
+  }
+
+  async function removeAction(id: string) {
+    await saveRecord(() => api.delete(`/actions/${id}`).then())
+  }
+
+  async function cancelAction(id: string) {
+    await saveRecord(() => api.patch(`/actions/${id}`, { status: 'CANCELLED' }).then())
+  }
+
+  /** S15.2: avanza OPEN -> IN_PROGRESS -> DONE; la guarda vive en el backend. */
+  async function advanceAction(id: string, target: 'IN_PROGRESS' | 'DONE') {
+    setAdvancingActionId(id)
+    try {
+      await api.post(`/actions/${id}/advance`, { target })
+      await loadData(true)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setAdvancingActionId(null)
+    }
+  }
+
+  /** S15.2: verificacion de eficacia (DONE -> VERIFIED) con sello en backend. */
+  async function verifyAction(id: string, effectiveness: 'EFFECTIVE' | 'INEFFECTIVE', result?: string) {
+    setAdvancingActionId(id)
+    try {
+      await api.post(`/actions/${id}/verify`, { effectiveness, ...(result ? { result } : {}) })
+      await loadData(true)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setAdvancingActionId(null)
     }
   }
 
@@ -4099,6 +4220,7 @@ function App() {
           canViewEmergency={canViewEmergency}
           canViewChangeRequests={canViewChangeRequestsNav}
           canViewFindings={canViewFindings}
+          canViewActions={canViewActions}
           canViewContractors={canViewContractors}
           canViewSites={canViewSites}
           canViewDocuments={canViewDocuments}
@@ -4275,6 +4397,24 @@ function App() {
                 onRemoveCause={removeFindingCause}
                 onSetStatus={setFindingStatus}
                 detailSaving={findingDetailSaving}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'actions' && (
+              <ActionsPage
+                actions={actions}
+                meta={actionMeta}
+                tableState={actionTable}
+                canManage={canManageActions}
+                onTableChange={setActionTable}
+                onCreate={() => openActionForm()}
+                onPreloadCreate={preloadActionDialog}
+                onEdit={openActionForm}
+                onDelete={confirmDeleteAction}
+                onAdvance={advanceAction}
+                onVerify={verifyAction}
+                onCancel={confirmCancelAction}
+                advancingId={advancingActionId}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4923,6 +5063,19 @@ function App() {
               onChange={setFindingForm}
               onClose={() => setFindingDialog({ open: false })}
               onSave={saveFindingRequest}
+            />
+            <ActionDialog
+              open={actionDialog.open}
+              editing={Boolean(actionDialog.item)}
+              values={actionForm}
+              findings={findings}
+              users={users}
+              companies={companies}
+              loading={loading}
+              canPickCompany={isPlatformAdmin}
+              onChange={setActionForm}
+              onClose={() => setActionDialog({ open: false })}
+              onSave={saveActionRequest}
             />
             <ContractorWorkerDialog
               open={contractorWorkerDialog.open}

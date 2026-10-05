@@ -37,6 +37,8 @@ model User {
   unplannedInspectionsAsInspector  UnplannedInspection[]        @relation("UnplannedInspectionInspector")
   unsafeReportsAsReporter          UnsafeReport[]               @relation("UnsafeReportReporter")
   findingsOwned                    Finding[]                    @relation("FindingOwner")
+  actionPlansOwned                 ActionPlan[]                 @relation("ActionPlanOwner")
+  actionPlansVerified              ActionPlan[]                 @relation("ActionPlanVerifier")
   approvedChangeRequests           ChangeRequest[]              @relation("ChangeRequestApprover")
   company                          Company?                     @relation(fields: [companyId], references: [id])
 
@@ -113,6 +115,7 @@ model Company {
   emergencyDrillFindings        EmergencyDrillFinding[]
   changeRequests                ChangeRequest[]
   findings                      Finding[]
+  actionPlans                   ActionPlan[]
 }
 
 model Site {
@@ -280,6 +283,68 @@ enum FindingType {
   NON_CONFORMITY
   OPPORTUNITY
   OBSERVATION
+}
+
+// Acciones correctivas/preventivas/mejora (S15.2, issue #41): plan de accion
+// unificado del ciclo Actuar. Workflow: OPEN -> IN_PROGRESS -> DONE (con
+// evidencia) -> VERIFIED (con sello de eficacia). CANCELLED solo desde
+// OPEN/IN_PROGRESS. Reglas (#41): la CORRECTIVE exige causa raiz para
+// verificarse; PREVENTIVE/IMPROVEMENT exigen beneficio esperado; en hallazgos
+// CRITICAL el verificador no puede ser el responsable.
+model ActionPlan {
+  id              String              @id @default(uuid())
+  title           String
+  description     String
+  kind            ActionKind          @default(CORRECTIVE)
+  /// Causa raiz (obligatoria para verificar una CORRECTIVE).
+  rootCause       String?
+  /// Beneficio/resultado esperado (obligatorio para verificar
+  /// PREVENTIVE/IMPROVEMENT, que no exigen no conformidad previa).
+  expectedBenefit String?
+  /// Resultado medido al verificar (opcional).
+  result          String?
+  ownerId         String?
+  owner           User?               @relation("ActionPlanOwner", fields: [ownerId], references: [id])
+  dueDate         DateTime
+  status          ActionStatus        @default(OPEN)
+  closedAt        DateTime?
+  effectiveness   ActionEffectiveness @default(PENDING)
+  /// Evidencia de ejecucion (requisito para pasar a DONE).
+  evidenceId      String?
+  evidence        Document?           @relation("ActionPlanEvidence", fields: [evidenceId], references: [id], onDelete: SetNull)
+  verifiedById    String?
+  verifiedBy      User?               @relation("ActionPlanVerifier", fields: [verifiedById], references: [id])
+  verifiedAt      DateTime?
+  /// Origen trazable: FINDING (hallazgo unificado S15.1) o null (sin origen).
+  sourceType      String?
+  sourceId        String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  companyId       String
+  company         Company             @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([sourceType, sourceId])
+}
+
+enum ActionKind {
+  CORRECTIVE
+  PREVENTIVE
+  IMPROVEMENT
+}
+
+enum ActionStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  VERIFIED
+  CANCELLED
+}
+
+enum ActionEffectiveness {
+  PENDING
+  EFFECTIVE
+  INEFFECTIVE
 }
 
 model Risk {
@@ -957,6 +1022,7 @@ model Document {
   contractorDocuments   ContractorDocument[]
   committeeMinutes      CommitteeMeeting[]
   changeRequestEvidence ChangeRequest[]      @relation("ChangeRequestEvidence")
+  actionPlanEvidence    ActionPlan[]         @relation("ActionPlanEvidence")
 }
 
 model DocumentVersion {

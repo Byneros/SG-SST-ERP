@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'actions' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -661,6 +661,52 @@ export type FindingFormValues = {
   type: FindingType
   severity: FindingSeverity
   ownerId: string
+  companyId: string
+}
+
+// --- Acciones correctivas/preventivas/mejora (S15.2) ---------------------------
+
+export type ActionKind = 'CORRECTIVE' | 'PREVENTIVE' | 'IMPROVEMENT'
+export type ActionStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'VERIFIED' | 'CANCELLED'
+export type ActionEffectiveness = 'PENDING' | 'EFFECTIVE' | 'INEFFECTIVE'
+
+export type ActionPlan = {
+  id: string
+  title: string
+  description: string
+  kind: ActionKind
+  rootCause?: string | null
+  expectedBenefit?: string | null
+  result?: string | null
+  ownerId?: string | null
+  owner?: Pick<SystemUser, 'id' | 'name' | 'email'> | null
+  dueDate: string
+  status: ActionStatus
+  closedAt?: string | null
+  effectiveness: ActionEffectiveness
+  evidenceId?: string | null
+  evidence?: Pick<SgsstDocument, 'id' | 'name'> & { status?: string } | null
+  verifiedById?: string | null
+  verifiedBy?: Pick<SystemUser, 'id' | 'name' | 'email'> | null
+  verifiedAt?: string | null
+  sourceType?: string | null
+  sourceId?: string | null
+  companyId: string
+  company?: Pick<Company, 'id' | 'name'>
+  createdAt: string
+  updatedAt: string
+}
+
+export type ActionPlanFormValues = {
+  title: string
+  description: string
+  kind: ActionKind
+  sourceType: 'FINDING' | 'MANUAL'
+  sourceId: string
+  rootCause: string
+  expectedBenefit: string
+  ownerId: string
+  dueDate: string
   companyId: string
 }
 

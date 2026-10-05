@@ -10,6 +10,7 @@ import { MetricsTokenGuard } from './common/observability/metrics-token.guard';
 import { RequestObservabilityMiddleware } from './common/observability/request-observability.middleware';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ActionPlansModule } from './modules/actions/action-plans.module';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 import { AnnualWorkPlansModule } from './modules/annual-work-plans/annual-work-plans.module';
 import { CommitteesModule } from './modules/committees/committees.module';
@@ -46,6 +47,7 @@ import { UsersModule } from './modules/users/users.module';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    ActionPlansModule,
     AiAssistantModule,
     AnnualWorkPlansModule,
     CommitteesModule,
