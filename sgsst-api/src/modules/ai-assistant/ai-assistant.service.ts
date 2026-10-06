@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { env } from '../../config/env';
 import { AuditService } from '../audit/audit.service';
@@ -8,6 +13,7 @@ import {
   HELP_TOPICS,
 } from './ai-assistant.knowledge';
 import { AiProviderClient } from './ai-provider.client';
+import { AssistantRegistry } from './assistant-registry';
 import {
   ASSISTANT_ALLOWED_ROLES,
   ASSISTANT_CAPABILITIES,
@@ -36,6 +42,9 @@ export class AiAssistantService {
     private readonly providerClient: AiProviderClient,
     private readonly tools: AiAssistantTools,
     private readonly auditService: AuditService,
+    // Fase C: registro de asistentes. Opcional para no romper los tests que
+    // construyen el servicio a mano; el modulo siempre lo provee.
+    @Optional() private readonly registry?: AssistantRegistry,
   ) {}
 
   async ask(
@@ -65,11 +74,25 @@ export class AiAssistantService {
     return sources.length > 0 ? { ...result, sources } : result;
   }
 
-  capabilities() {
+  capabilities(user?: AuthenticatedUser) {
+    // Fase C: asistentes del registro. Con usuario se filtran por rol; sin
+    // usuario (compatibilidad con tests) se listan todos con sus roles.
+    const assistants = this.registry
+      ? (user ? this.registry.forRole(user.role) : this.registry.all()).map(
+          (assistant) => ({
+            id: assistant.id,
+            name: assistant.name,
+            module: assistant.module,
+            description: assistant.description,
+            ...(user ? {} : { allowedRoles: assistant.allowedRoles }),
+          }),
+        )
+      : [];
     return {
       enabled: env.aiEnabled && Boolean(env.aiApiKey),
       roles: ASSISTANT_ALLOWED_ROLES,
       dataTools: this.toolsList(),
+      assistants,
       helpTopics: HELP_TOPICS.map((topic) => topic.title),
       capabilities: ASSISTANT_CAPABILITIES,
       limits: {
@@ -77,6 +100,71 @@ export class AiAssistantService {
         historyMessages: env.aiHistoryMaxMessages,
         timeoutMs: env.aiRequestTimeoutMs,
       },
+    };
+  }
+
+  /** Ejecuta una herramienta del asistente indicado (framework Fase C).
+   *
+   * Ruta nueva para assistantId != 'central' o params; para compatibilidad
+   * total con la fase 1, 'central' sin params delega en el mismo flujo de
+   * runDataTool (mismas auditoria y formato de respuesta).
+   */
+  async askAssistant(
+    user: AuthenticatedUser,
+    dto: AssistantQueryDto,
+  ): Promise<AssistantResult> {
+    const assistantId = dto.assistantId?.trim() || 'central';
+    if (!this.registry) {
+      // Sin registry (tests a mano): degradar al flujo clasico.
+      return this.ask(user, dto);
+    }
+    const assistant = this.registry.get(assistantId);
+    if (!assistant) {
+      throw new BadRequestException(`Unknown assistant: ${assistantId}`);
+    }
+    if (assistantId === 'central' && !dto.toolName) {
+      // Compatibilidad: el central mantiene el comportamiento de la fase 1.
+      return this.ask(user, dto);
+    }
+
+    const toolName = dto.toolName;
+    if (!toolName) {
+      throw new BadRequestException(
+        `toolName is required for assistant ${assistantId}. ` +
+          `Available: ${assistant.tools.map((tool) => tool.name).join(', ')}`,
+      );
+    }
+
+    const { tool, data } = await this.registry.runTool(
+      assistantId,
+      toolName,
+      user,
+      this.auditService,
+      dto.toolParams ?? {},
+    );
+
+    await this.auditService.log({
+      user,
+      action: 'AI_ASSISTANT_DATA_QUERY',
+      entity: 'AiAssistant',
+      entityId: `${assistantId}:${tool.name}`,
+    });
+
+    const result = await this.providerClient.complete({
+      systemPrompt:
+        `${this.buildSystemPrompt('')}\n\n${assistant.systemPromptAddendum}\n\n` +
+        `Eres el asistente "${assistant.name}". El usuario consulto la ` +
+        `herramienta autorizada "${tool.name}" (${tool.description}). ` +
+        `Responde en espanol, en un maximo de 8 lineas, usando EXCLUSIVAMENTE ` +
+        `los datos JSON siguientes. Si un dato no viene en el JSON, di que no ` +
+        `tienes esa informacion; nunca inventes cifras.\n` +
+        `DATOS:\n${JSON.stringify(data)}`,
+      messages: this.buildMessages(dto),
+    });
+    return {
+      ...result,
+      usedTool: `${assistantId}:${tool.name}`,
+      sources: undefined,
     };
   }
 

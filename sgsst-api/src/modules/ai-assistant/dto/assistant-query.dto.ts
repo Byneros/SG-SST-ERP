@@ -1,4 +1,10 @@
-import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class AssistantQueryDto {
   @IsString()
@@ -15,4 +21,21 @@ export class AssistantQueryDto {
   @IsOptional()
   @IsArray()
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+
+  /** Fase C: asistente especializado solicitado (default: 'central'). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  assistantId?: string;
+
+  /** Fase C: herramienta del asistente (whitelist en el registro). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  toolName?: string;
+
+  /** Fase C: parametros de la herramienta, validados contra paramsSchema. */
+  @IsOptional()
+  @IsObject()
+  toolParams?: Record<string, unknown>;
 }

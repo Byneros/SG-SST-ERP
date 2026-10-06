@@ -19,17 +19,22 @@ export class AiAssistantController {
   @Get('capabilities')
   @Roles(...ASSISTANT_ALLOWED_ROLES)
   @ApiOperation({ summary: 'Capacidades y limites del asistente' })
-  capabilities() {
-    return this.aiAssistantService.capabilities();
+  capabilities(@CurrentUser() user: AuthenticatedUser) {
+    return this.aiAssistantService.capabilities(user);
   }
 
   @Post('ask')
   @Roles(...ASSISTANT_ALLOWED_ROLES)
   @ApiOperation({
     summary:
-      'Consulta al asistente: ayuda del ERP o datos autorizados con @datos',
+      'Consulta al asistente: ayuda del ERP, datos con @datos o asistente especializado',
   })
   ask(@CurrentUser() user: AuthenticatedUser, @Body() dto: AssistantQueryDto) {
+    // Fase C: si el DTO trae assistantId/toolName se usa el framework; el
+    // flujo clasico (ayuda + @datos) queda intacto.
+    if (dto.assistantId || dto.toolName) {
+      return this.aiAssistantService.askAssistant(user, dto);
+    }
     return this.aiAssistantService.ask(user, dto);
   }
 }

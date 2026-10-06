@@ -7,6 +7,7 @@ import { SitesRepository } from '../sites/sites.repository';
 import { TrainingsRepository } from '../trainings/trainings.repository';
 import { AiAssistantController } from './ai-assistant.controller';
 import { AiAssistantService } from './ai-assistant.service';
+import { AssistantRegistry } from './assistant-registry';
 import { AiAssistantTools } from './ai-assistant.tools';
 import { AiProviderClient } from './ai-provider.client';
 
@@ -16,6 +17,7 @@ import { AiProviderClient } from './ai-provider.client';
   // acoplar el asistente a los controladores/servicios de otros modulos.
   providers: [
     AiAssistantService,
+    AssistantRegistry,
     AiAssistantTools,
     AiProviderClient,
     CompaniesRepository,
