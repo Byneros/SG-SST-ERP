@@ -169,9 +169,13 @@ export class ActionPlansService {
   // --- Workflow (#41) ----------------------------------------------------------
 
   /** Guardas por etapa para avanzar. */
-  private assertCanAdvance(current: Stage, target: Stage, action: {
-    evidenceId: string | null;
-  }) {
+  private assertCanAdvance(
+    current: Stage,
+    target: Stage,
+    action: {
+      evidenceId: string | null;
+    },
+  ) {
     const missing: string[] = [];
     if (current === 'IN_PROGRESS' && !action.evidenceId) {
       missing.push('evidencia de ejecucion');
@@ -196,7 +200,7 @@ export class ActionPlansService {
     }
 
     // CANCELLED es un estado posible en runtime aunque no pertenezca al flujo.
-    const current = before.status as Stage | 'CANCELLED';
+    const current = before.status;
     if (current === 'VERIFIED') {
       throw new BadRequestException('La accion ya esta verificada');
     }
@@ -268,7 +272,9 @@ export class ActionPlansService {
         select: { severity: true },
       });
       if (sourceFinding?.severity === 'CRITICAL' && !before.ownerId) {
-        missing.push('responsable de la accion (exigido por hallazgo CRITICAL)');
+        missing.push(
+          'responsable de la accion (exigido por hallazgo CRITICAL)',
+        );
       }
       if (
         sourceFinding?.severity === 'CRITICAL' &&

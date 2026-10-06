@@ -48,6 +48,7 @@ import {
   emptyChangeRequest,
   emptyFinding,
   emptyActionPlan,
+  emptyTask,
   emptyContractor,
   emptyContractorDocument,
   emptyContractorWorker,
@@ -89,6 +90,9 @@ import {
   FindingDialog,
   ActionsPage,
   ActionDialog,
+  TasksPage,
+  TaskDialog,
+  TaskDetailDialog,
   CommitteesPage,
   CommitteeDialog,
   CommitteeDetailDialog,
@@ -155,6 +159,7 @@ import {
   preloadChangeRequestDialog,
   preloadFindingDialog,
   preloadActionDialog,
+  preloadTaskDialogs,
   preloadContractorDialogs,
   preloadDocumentDialog,
   preloadEmployeeDialog,
@@ -172,6 +177,7 @@ import {
   UserDialog,
   UsersPage,
 } from './routes/lazyRoutes'
+import type { TaskDialogValues } from './pages/tasks/TasksPage'
 import { theme } from './theme'
 import { ViewErrorBoundary } from './components/ViewErrorBoundary'
 import type {
@@ -184,6 +190,8 @@ import type {
   Finding,
   FindingStatus,
   ActionPlan,
+  Task,
+  TaskSummary,
   Contractor,
   ContractorDocument,
   ContractorEntryAuthorization,
@@ -277,6 +285,7 @@ const ALL_VIEWS: View[] = [
   'changeRequests',
   'findings',
   'actions',
+  'tasks',
   'contractors',
   'developer',
   'sites',
@@ -410,6 +419,15 @@ function App() {
   const [actionMeta, setActionMeta] = useState(emptyMeta)
   const [actionTable, setActionTable] = useState(initialTableState)
   const [actionDialog, setActionDialog] = useState<{ open: boolean; item?: ActionPlan }>({ open: false })
+  // S15.3: bandeja de tareas unificada.
+  const [taskTable, setTaskTable] = useState(initialTableState)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [taskMeta, setTaskMeta] = useState(emptyMeta)
+  const [taskSummary, setTaskSummary] = useState<TaskSummary>({ total: 0, overdue: 0, dueSoon: 0, mine: 0, mineOverdue: 0 })
+  const [taskDialog, setTaskDialog] = useState<{ open: boolean; item?: Task }>({ open: false })
+  const [taskForm, setTaskForm] = useState<TaskDialogValues>(emptyTask)
+  const [taskDetail, setTaskDetail] = useState<Task | null>(null)
+  const [taskDetailSaving, setTaskDetailSaving] = useState(false)
   const [actionForm, setActionForm] = useState(emptyActionPlan)
   const [advancingActionId, setAdvancingActionId] = useState<string | null>(null)
   const [contractorWorkers, setContractorWorkers] = useState<ContractorWorker[]>([])
@@ -674,6 +692,8 @@ function App() {
           ? 'Hallazgos'
             : view === 'actions'
           ? 'Acciones'
+            : view === 'tasks'
+          ? 'Tareas'
             : view === 'contractors'
           ? 'Contratistas'
         : view === 'developer'
@@ -737,7 +757,7 @@ function App() {
     if (token) {
       void loadData()
     }
-  }, [token, companyTable, committeeTable, emergencyBrigadeTable, emergencyPlanTable, emergencyDrillTable, contractorTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
+  }, [token, companyTable, committeeTable, emergencyBrigadeTable, emergencyPlanTable, emergencyDrillTable, contractorTable, taskTable, siteTable, employeeTable, employeeSiteFilter, incidentTable, incidentSiteFilter, riskTable, riskSiteFilter, trainingTable, trainingSiteFilter, documentTable, documentSiteFilter, sgsstAuditTable, sgsstEvaluationTable, annualWorkPlanTable, plannedInspectionTable, plannedInspectionSiteFilter, indicatorTable, reportExportTable, reportExportFilters, userTable, auditTable, externalDeliveryTable, externalDeliveryFilters, pveTable])
 
   // La URL refleja vista + filtro de sede (sin entradas de historial).
   useEffect(() => {
@@ -805,6 +825,13 @@ function App() {
       const actionFetch = canViewActions && hasCompanyScope
         ? api.get<Paginated<ActionPlan>>('/actions', { params: tableParams(actionTable) })
         : Promise.resolve({ data: { data: [] as ActionPlan[], meta: emptyMeta } })
+      // S15.3: bandeja de tareas + resumen del widget del dashboard.
+      const taskFetch = hasCompanyScope
+        ? api.get<Paginated<Task>>('/tasks', { params: tableParams(taskTable) })
+        : Promise.resolve({ data: { data: [] as Task[], meta: emptyMeta } })
+      const taskSummaryFetch = hasCompanyScope
+        ? api.get<TaskSummary>('/tasks/summary')
+        : Promise.resolve({ data: { total: 0, overdue: 0, dueSoon: 0, mine: 0, mineOverdue: 0 } as TaskSummary })
       const siteRequest = (canViewSites || isEmployee) && hasCompanyScope
         ? api.get<Paginated<Site>>('/sites', {
             params: {
@@ -1005,6 +1032,8 @@ function App() {
         changeRequestSettled,
         findingSettled,
         actionSettled,
+        taskSettled,
+        taskSummarySettled,
         siteSettled,
         employeeSettled,
         incidentsSettled,
@@ -1044,6 +1073,8 @@ function App() {
         changeRequestFetch,
         findingFetch,
         actionFetch,
+        taskFetch,
+        taskSummaryFetch,
         siteRequest,
         employeeRequest,
         incidentsRequest,
@@ -1088,6 +1119,8 @@ function App() {
       const changeResponse = settledData(changeRequestSettled)
       const findingResponse = settledData(findingSettled)
       const actionResponse = settledData(actionSettled)
+      const taskResponse = settledData(taskSettled)
+      const taskSummaryResponse = settledData(taskSummarySettled)
       const siteResponse = settledData(siteSettled)
       const employeeResponse = settledData(employeeSettled)
       const incidentsResponse = settledData(incidentsSettled)
@@ -1183,6 +1216,13 @@ function App() {
           setActions(actionResponse.data.data)
           setActionMeta(actionResponse.data.meta)
         }
+      }
+      if (taskResponse && isPaginated<Task>(taskResponse.data)) {
+        setTasks(taskResponse.data.data)
+        setTaskMeta(taskResponse.data.meta)
+      }
+      if (taskSummaryResponse) {
+        setTaskSummary(taskSummaryResponse.data)
       }
       if (contractorResponse) {
         if (isPaginated<Contractor>(contractorResponse.data)) {
@@ -2387,6 +2427,99 @@ function App() {
     } finally {
       setAdvancingActionId(null)
     }
+  }
+
+  // --- S15.3: bandeja de tareas ----------------------------------------------
+
+  function openTaskForm(item?: Task) {
+    setTaskForm(
+      item
+        ? {
+            title: item.title,
+            description: item.description ?? '',
+            sourceType: item.sourceType,
+            sourceId: item.sourceId ?? '',
+            ownerId: item.ownerId ?? '',
+            dueDate: item.dueDate?.slice(0, 10) ?? '',
+            priority: item.priority,
+            companyId: item.companyId,
+          }
+        : { ...emptyTask, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
+    )
+    setTaskDialog({ open: true, item })
+    preloadTaskDialogs()
+  }
+
+  async function saveTaskRequest() {
+    await saveRecord(async () => {
+      const payload = sanitize(taskForm) as Record<string, unknown>
+      if (taskDialog.item) {
+        await api.patch(`/tasks/${taskDialog.item.id}`, payload)
+      } else {
+        await api.post('/tasks', payload)
+      }
+      setTaskDialog({ open: false })
+    })
+  }
+
+  function confirmDeleteTask(task: Task) {
+    openConfirmDialog(
+      'Eliminar tarea',
+      `¿Seguro que deseas eliminar la tarea "${task.title}"?`,
+      'Eliminar',
+      'error',
+      () => { void saveRecord(() => api.delete(`/tasks/${task.id}`).then()) },
+    )
+  }
+
+  async function setTaskStatus(item: Task, status: 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED') {
+    await saveRecord(() => api.patch(`/tasks/${item.id}`, { status }).then())
+  }
+
+  async function openTaskDetail(item: Task) {
+    setTaskDetail(item)
+    try {
+      const response = await api.get<Task>(`/tasks/${item.id}`)
+      setTaskDetail(response.data)
+    } catch {
+      // El detalle queda con la fila de la tabla si el GET falla.
+    }
+  }
+
+  async function addTaskComment(taskId: string, body: string) {
+    setTaskDetailSaving(true)
+    try {
+      await api.post(`/tasks/${taskId}/comments`, { body })
+      const response = await api.get<Task>(`/tasks/${taskId}`)
+      setTaskDetail(response.data)
+      await loadData(true)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setTaskDetailSaving(false)
+    }
+  }
+
+  async function removeTaskComment(taskId: string, commentId: string) {
+    setTaskDetailSaving(true)
+    try {
+      await api.delete(`/tasks/${taskId}/comments/${commentId}`)
+      const response = await api.get<Task>(`/tasks/${taskId}`)
+      setTaskDetail(response.data)
+    } catch (currentError) {
+      setError(readApiError(currentError))
+    } finally {
+      setTaskDetailSaving(false)
+    }
+  }
+
+  async function setTaskStatusFromDetail(status: 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED') {
+    if (!taskDetail) return
+    await saveRecord(async () => {
+      const response = await api.patch<Task>(`/tasks/${taskDetail.id}`, { status })
+      // El dialogo de detalle refleja el nuevo estado sin cerrarse.
+      setTaskDetail(response.data)
+    })
   }
 
   function openContractorForm(item?: Contractor) {
@@ -4262,6 +4395,9 @@ function App() {
                 // El desglose por sede es del alcance de empresa: SUPER_ADMIN (global) no lo ve.
                 siteKpis={isPlatformAdmin ? [] : dashboardSummary.siteKpis ?? []}
                 compliance={dashboardSummary.compliance}
+                // S15.3: widget de la bandeja de tareas del ciclo Actuar.
+                taskSummary={taskSummary}
+                onOpenTasks={() => selectView('tasks')}
                 onOpenSite={(siteId) => openSiteView('employees', siteId)}
                 onOpenSiteIncidents={(siteId) => openSiteView('incidents', siteId)}
                 onOpenSiteRisks={(siteId) => openSiteView('risks', siteId)}
@@ -4416,6 +4552,26 @@ function App() {
                 onCancel={confirmCancelAction}
                 advancingId={advancingActionId}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'tasks' && (
+              <TasksPage
+                tasks={tasks}
+                meta={taskMeta}
+                tableState={taskTable}
+                users={users}
+                findings={findings}
+                companies={companies}
+                canManage={canManageActions}
+                activeCompanyId={activeCompanyId}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+                onTableChange={setTaskTable}
+                onCreate={() => openTaskForm()}
+                onPreloadCreate={preloadTaskDialogs}
+                onEdit={openTaskForm}
+                onDelete={confirmDeleteTask}
+                onOpenDetail={(task) => { void openTaskDetail(task) }}
+                onQuickStatus={(task, status) => { void setTaskStatus(task, status) }}
               />
             )}
             {view === 'contractors' && (
@@ -5076,6 +5232,28 @@ function App() {
               onChange={setActionForm}
               onClose={() => setActionDialog({ open: false })}
               onSave={saveActionRequest}
+            />
+            <TaskDialog
+              open={taskDialog.open}
+              item={taskDialog.item ?? null}
+              values={taskForm}
+              users={users}
+              findings={findings}
+              companies={companies}
+              activeCompanyId={activeCompanyId}
+              onChange={setTaskForm}
+              onClose={() => setTaskDialog({ open: false })}
+              onSave={() => { void saveTaskRequest() }}
+            />
+            <TaskDetailDialog
+              detail={taskDetail}
+              detailSaving={taskDetailSaving}
+              error={error || undefined}
+              canManage={canManageActions}
+              onClose={() => setTaskDetail(null)}
+              onSetStatus={(status) => { void setTaskStatusFromDetail(status) }}
+              onAddComment={(body) => { if (taskDetail) void addTaskComment(taskDetail.id, body) }}
+              onRemoveComment={(commentId) => { if (taskDetail) void removeTaskComment(taskDetail.id, commentId) }}
             />
             <ContractorWorkerDialog
               open={contractorWorkerDialog.open}

@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'actions' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'actions' | 'tasks' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -707,6 +707,59 @@ export type ActionPlanFormValues = {
   expectedBenefit: string
   ownerId: string
   dueDate: string
+  companyId: string
+}
+
+// --- Bandeja de tareas (S15.3) -------------------------------------------------
+
+export type TaskSourceType = 'FINDING' | 'ACTION_PLAN' | 'CHANGE_REQUEST' | 'MANUAL'
+export type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED'
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+export type TaskComment = {
+  id: string
+  body: string
+  createdAt: string
+  authorId?: string | null
+  author?: Pick<SystemUser, 'id' | 'name'> | null
+}
+
+export type Task = {
+  id: string
+  title: string
+  description?: string | null
+  sourceType: TaskSourceType
+  sourceId?: string | null
+  findingSeverity?: FindingSeverity | null
+  ownerId?: string | null
+  owner?: Pick<SystemUser, 'id' | 'name' | 'email'> | null
+  dueDate?: string | null
+  priority: TaskPriority
+  status: TaskStatus
+  closedAt?: string | null
+  companyId: string
+  company?: Pick<Company, 'id' | 'name'>
+  comments?: TaskComment[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type TaskSummary = {
+  total: number
+  overdue: number
+  dueSoon: number
+  mine: number
+  mineOverdue: number
+}
+
+export type TaskFormValues = {
+  title: string
+  description: string
+  sourceType: TaskSourceType
+  sourceId: string
+  ownerId: string
+  dueDate: string
+  priority: TaskPriority
   companyId: string
 }
 

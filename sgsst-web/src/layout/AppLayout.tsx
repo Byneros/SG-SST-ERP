@@ -117,6 +117,7 @@ export function AppLayout({
         {canViewChangeRequests && <NavButton active={view === 'changeRequests'} icon={<ChangeCircle />} label="Gestión del cambio" onClick={() => onSelectView('changeRequests')} onPreload={() => onPreloadView('changeRequests')} />}
         {canViewFindings && <NavButton active={view === 'findings'} icon={<Troubleshoot />} label="Hallazgos" onClick={() => onSelectView('findings')} onPreload={() => onPreloadView('findings')} />}
         {canViewActions && <NavButton active={view === 'actions'} icon={<TaskAlt />} label="Acciones" onClick={() => onSelectView('actions')} onPreload={() => onPreloadView('actions')} />}
+        {canViewActions && <NavButton active={view === 'tasks'} icon={<Checklist />} label="Tareas" onClick={() => onSelectView('tasks')} onPreload={() => onPreloadView('tasks')} />}
         {canViewContractors && <NavButton active={view === 'contractors'} icon={<Handyman />} label="Contratistas" onClick={() => onSelectView('contractors')} onPreload={() => onPreloadView('contractors')} />}
         {canViewSites && <NavButton active={view === 'sites'} icon={<LocationCity />} label="Sedes" onClick={() => onSelectView('sites')} onPreload={() => onPreloadView('sites')} />}
         <NavButton active={view === 'employees'} icon={<People />} label="Empleados" onClick={() => onSelectView('employees')} onPreload={() => onPreloadView('employees')} />

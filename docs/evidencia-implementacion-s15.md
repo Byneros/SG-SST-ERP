@@ -87,8 +87,70 @@
   verificacion confirmada (fila "Verificada" + "Eficaz"), sin errores de
   consola. Captura: `scripts/qa-artifacts/s15-actions.png`.
 
-## Pendiente del sprint
+## S15.3 - Issue #42 (Bandeja de tareas: seguimiento unificado)
 
-- **S15.3 (issue #42):** bandeja de tareas con generacion automatica para
-  hallazgos MAJOR/CRITICAL y widget en dashboard.
-- Aceptacion formal de #40 y #41 en la matriz #43 tras revision humana.
+**Estado implementacion:** completa en backend y frontend (2026-10-06).
+
+- Modelos `Task` y `TaskComment` + enums `TaskSourceType`
+  (FINDING | ACTION_PLAN | CHANGE_REQUEST | MANUAL), `TaskStatus`
+  (OPEN | IN_PROGRESS | DONE | CANCELLED) y `TaskPriority`
+  (LOW | MEDIUM | HIGH | CRITICAL). Migracion `20261006140859_s15_tasks`
+  aplicada en BD dev con indices (companyId+status, ownerId+status,
+  sourceType+sourceId).
+- Origen trazable same-tenant: `FINDING`/`ACTION_PLAN`/`CHANGE_REQUEST`
+  exigen `sourceId` existente del tenant (400 sin sourceId, 404 ajeno o
+  inexistente); MANUAL no exige origen. `ownerId` validado contra el tenant.
+- Generacion automatica (idempotente): al crear o escalar a MAJOR/CRITICAL un
+  hallazgo se genera una tarea para su responsable (HIGH para MAJOR, CRITICAL
+  para CRITICAL; sin responsable queda sin asignar para la bandeja). El fallo
+  de la tarea no revierte el hallazgo; re-escalar no duplica tareas activas.
+- API `/api/v1/tasks`: listado paginado con filtros (search, sourceType,
+  status, priority, ownerId, `assignee=me`, `overdue=true`, `dueWithinDays`)
+  ordenado por vencimiento asc, prioridad desc y creacion desc; GET `/:id`,
+  POST, PATCH con sello de `closedAt` al cerrar/cancelar y limpieza al
+  reabrir, DELETE hard + AuditLog; `GET /tasks/summary` para el widget
+  (total, overdue, dueSoon, mine, mineOverdue); comentarios con
+  `POST /:id/comments` y `DELETE /:id/comments/:commentId` (rechazados sobre
+  tarea cerrada).
+- RBAC: lectura y comentarios ADMIN/SST/AUDITOR/EMPLOYEE; gestion (CRUD)
+  ADMIN/SST. Auditoria CREATE/UPDATE/DELETE por `Task` y `TaskComment`.
+- UI: vista "Tareas" con filtros de estado/prioridad, chip "Solo vencidas",
+  chips de vencimiento ("Vencida Nd" / "Vence en Nd"), origen, dialogo de
+  creacion/edicion (origen trazable, responsable, prioridad, fecha), dialogo
+  de detalle con acciones rapidas, comentarios en linea con autor y borrado,
+  navegacion con icono TaskAlt y precarga del chunk.
+- Dashboard: widget "Bandeja de tareas" con activas, vencidas, proximas 7
+  dias, tareas tuyas (y vencidas) y acceso directo a la bandeja.
+
+## Verificacion S15.3 (2026-10-06)
+
+- `npm run build` API y Web: OK (`tsc -b` limpio). `npm run lint` API: 0
+  errores.
+- Tests backend: **399/399** (50 suites, +13 nuevas de `tasks.service.spec.ts`
+  y +2 de integracion hallazgo-tarea en findings/action-plans).
+- Smoke HTTP (`scripts/smoke-s15-tasks.mjs` contra http://localhost:3002/api/v1):
+  **23/23 pasos OK** con limpieza `[SMOKE]`:
+  - Hallazgo MAJOR genera tarea automatica (sourceType=FINDING,
+    findingSeverity=MAJOR, prioridad HIGH).
+  - Origen sin `sourceId` rechazado (400); origen inexistente y `ownerId`
+    ajeno rechazados (404).
+  - Ciclo OPEN -> IN_PROGRESS -> DONE con sello `closedAt`; comentario sobre
+    tarea cerrada rechazado (400); reabrir limpia `closedAt`.
+  - Bandeja con filtros search/prioridad/estado, `overdue=true` y
+    `assignee=me`; detalle con comentario y autor; `/tasks/summary` completo;
+    401 sin token.
+- QA UI navegador frio (`scripts/qa-s15-tasks-ui.mjs` contra
+  http://localhost:5176, login seed admin): **pass: true**, sin errores de
+  consola: setup por API del hallazgo `[QA S15.3]`, tarea automatica en la
+  bandeja "Tareas", detalle con chips (Origen: Hallazgo / Alta / Abierta),
+  comentario desde el dialogo, "Completar" refresca el detalle a "Hecha" y
+  widget del dashboard presente. Captura: `scripts/qa-artifacts/s15-tasks.png`.
+  El QA detecto y corrigio un bug real: `setTaskStatusFromDetail` no
+  actualizaba `taskDetail`, por lo que el dialogo seguia mostrando el estado
+  anterior tras "Completar".
+- Limpieza de residuos QA con `scripts/cleanup-qa-s15.mjs` (0 restantes).
+
+## Cierre del sprint
+
+- Los tres sub-sprints quedan implementados y verificados (#40, #41, #42).
+- Aceptacion formal en la matriz #43 tras revision humana (pendiente).

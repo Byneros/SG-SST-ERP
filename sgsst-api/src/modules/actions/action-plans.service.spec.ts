@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { ActionPlansService } from './action-plans.service';
 

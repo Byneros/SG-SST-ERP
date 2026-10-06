@@ -16,6 +16,7 @@ import type {
   ChangeRequestFormValues,
   FindingFormValues,
   ActionPlanFormValues,
+  TaskFormValues,
   ContractorDocumentFormValues,
   ContractorFormValues,
   ContractorWorkerFormValues,
@@ -219,6 +220,17 @@ export const emptyActionPlan: ActionPlanFormValues = {
   expectedBenefit: '',
   ownerId: '',
   dueDate: '',
+  companyId: '',
+}
+
+export const emptyTask: TaskFormValues = {
+  title: '',
+  description: '',
+  sourceType: 'MANUAL',
+  sourceId: '',
+  ownerId: '',
+  dueDate: '',
+  priority: 'MEDIUM',
   companyId: '',
 }
 

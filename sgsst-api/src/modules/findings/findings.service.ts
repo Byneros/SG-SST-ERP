@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-request
 import { resolveCompanyScope } from '../../common/pipes/company-scope';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { TasksService } from '../tasks/tasks.service';
 import { FindingsRepository } from './findings.repository';
 import type {
   CreateFindingCauseDto,
@@ -26,6 +27,7 @@ export class FindingsService {
     private readonly repository: FindingsRepository,
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly tasksService: TasksService,
   ) {}
 
   private resolveCompanyId(
@@ -78,6 +80,9 @@ export class FindingsService {
       entityId: finding.id,
       after: finding,
     });
+    // S15.3: los hallazgos MAJOR/CRITICAL generan una tarea automatica para
+    // su gestion (idempotente; falla de tarea no revierte el hallazgo).
+    await this.tasksService.createForFinding(finding).catch(() => undefined);
     return finding;
   }
 
@@ -99,6 +104,8 @@ export class FindingsService {
     if (!updated) {
       throw new NotFoundException('Finding not found');
     }
+    // S15.3: escalar a MAJOR/CRITICAL tambien genera la tarea automatica.
+    await this.tasksService.createForFinding(updated).catch(() => undefined);
     await this.auditService.log({
       user: currentUser,
       action: 'UPDATE',

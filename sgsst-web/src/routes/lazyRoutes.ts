@@ -8,6 +8,7 @@ const pageLoaders = {
   changeRequests: () => import('../pages/change-requests/ChangeRequestsPage'),
   findings: () => import('../pages/findings/FindingsPage'),
   actions: () => import('../pages/actions/ActionsPage'),
+  tasks: () => import('../pages/tasks/TasksPage'),
   committees: () => import('../pages/committees/CommitteesPage'),
   emergency: () => import('../pages/emergency/EmergencyPage'),
   contractors: () => import('../pages/contractors/ContractorsPage'),
@@ -83,6 +84,15 @@ export const ActionsPage = lazy(() =>
 )
 export const ActionDialog = lazy(() =>
   pageLoaders.actions().then((module) => ({ default: module.ActionDialog })),
+)
+export const TasksPage = lazy(() =>
+  pageLoaders.tasks().then((module) => ({ default: module.TasksPage })),
+)
+export const TaskDialog = lazy(() =>
+  pageLoaders.tasks().then((module) => ({ default: module.TaskDialog })),
+)
+export const TaskDetailDialog = lazy(() =>
+  pageLoaders.tasks().then((module) => ({ default: module.TaskDetailDialog })),
 )
 export const CommitteesPage = lazy(() =>
   pageLoaders.committees().then((module) => ({ default: module.CommitteesPage })),
@@ -293,6 +303,10 @@ export function preloadFindingDialog() {
 
 export function preloadActionDialog() {
   void pageLoaders.actions()
+}
+
+export function preloadTaskDialogs() {
+  void pageLoaders.tasks()
 }
 
 export function preloadSiteDialog() {

@@ -39,6 +39,8 @@ model User {
   findingsOwned                    Finding[]                    @relation("FindingOwner")
   actionPlansOwned                 ActionPlan[]                 @relation("ActionPlanOwner")
   actionPlansVerified              ActionPlan[]                 @relation("ActionPlanVerifier")
+  tasksOwned                       Task[]                       @relation("TaskOwner")
+  taskComments                     TaskComment[]
   approvedChangeRequests           ChangeRequest[]              @relation("ChangeRequestApprover")
   company                          Company?                     @relation(fields: [companyId], references: [id])
 
@@ -116,6 +118,7 @@ model Company {
   changeRequests                ChangeRequest[]
   findings                      Finding[]
   actionPlans                   ActionPlan[]
+  tasks                         Task[]
 }
 
 model Site {
@@ -345,6 +348,68 @@ enum ActionEffectiveness {
   PENDING
   EFFECTIVE
   INEFFECTIVE
+}
+
+// Bandeja de tareas (S15.3, issue #42): seguimiento unificado del ciclo Actuar.
+// Origen trazable (finding/action/change request); las tareas de hallazgos
+// MAJOR/CRITICAL se generan automaticamente al crear el hallazgo.
+enum TaskSourceType {
+  FINDING
+  ACTION_PLAN
+  CHANGE_REQUEST
+  MANUAL
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Task {
+  id              String           @id @default(uuid())
+  title           String
+  description     String?
+  /// Origen trazable; MANUAL no exige sourceId.
+  sourceType      TaskSourceType   @default(MANUAL)
+  sourceId        String?
+  /// Tarea derivada de hallazgo: severidad del hallazgo que la genero.
+  findingSeverity FindingSeverity?
+  ownerId         String?
+  owner           User?            @relation("TaskOwner", fields: [ownerId], references: [id])
+  dueDate         DateTime?
+  priority        TaskPriority     @default(MEDIUM)
+  status          TaskStatus       @default(OPEN)
+  closedAt        DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id])
+  comments        TaskComment[]
+
+  @@index([companyId, status])
+  @@index([ownerId, status])
+  @@index([sourceType, sourceId])
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  body      String
+  createdAt DateTime @default(now())
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id])
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 model Risk {

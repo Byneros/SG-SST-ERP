@@ -1,9 +1,9 @@
-import { Assessment, AssignmentLate, FactCheck, TrendingDown } from '@mui/icons-material'
+import { Assessment, AssignmentLate, FactCheck, TaskAlt, TrendingDown } from '@mui/icons-material'
 import { Box, Button, Chip, Grid, LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
 import type { ReportFormat } from '../../api/client'
 import { ActiveCompanyBanner } from '../../components/TablePieces'
-import type { Company, ComplianceSummary, Employee, SiteKpi } from '../../types'
+import type { Company, ComplianceSummary, Employee, SiteKpi, TaskSummary } from '../../types'
 
 export function DashboardPage({
   stats,
@@ -11,6 +11,8 @@ export function DashboardPage({
   employees,
   siteKpis,
   compliance,
+  taskSummary,
+  onOpenTasks,
   activeCompanyName,
   canExport,
   onOpenSite,
@@ -27,6 +29,9 @@ export function DashboardPage({
   employees: Employee[]
   siteKpis: SiteKpi[]
   compliance?: ComplianceSummary
+  // S15.3: widget de la bandeja de tareas del ciclo Actuar.
+  taskSummary?: TaskSummary
+  onOpenTasks?: () => void
   activeCompanyName?: string
   canExport: boolean
   onOpenSite?: (siteId: string) => void
@@ -156,6 +161,36 @@ export function DashboardPage({
                   <Typography variant="caption" color="text.secondary">compromisos con fecha vencida</Typography>
                 </Box>
                 <Box className="kpi-icon"><AssignmentLate /></Box>
+              </Stack>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+      {taskSummary && (
+        <Grid container spacing={2} sx={{ mt: 0 }}>
+          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+            <Paper className="kpi-card" variant="outlined">
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary">Bandeja de tareas</Typography>
+                  <Typography variant="h5">{taskSummary.total} activas</Typography>
+                  <Typography
+                    variant="caption"
+                    color={taskSummary.overdue > 0 ? 'error' : 'text.secondary'}
+                    display="block"
+                  >
+                    {taskSummary.overdue} vencidas · {taskSummary.dueSoon} vencen en 7 días
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Tuyas: {taskSummary.mine} ({taskSummary.mineOverdue} vencidas)
+                  </Typography>
+                  {onOpenTasks && (
+                    <Button size="small" sx={{ mt: 1 }} onClick={onOpenTasks}>
+                      Ver bandeja
+                    </Button>
+                  )}
+                </Box>
+                <Box className="kpi-icon"><TaskAlt /></Box>
               </Stack>
             </Paper>
           </Grid>

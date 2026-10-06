@@ -12,7 +12,11 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export const ACTION_KINDS = ['CORRECTIVE', 'PREVENTIVE', 'IMPROVEMENT'] as const;
+export const ACTION_KINDS = [
+  'CORRECTIVE',
+  'PREVENTIVE',
+  'IMPROVEMENT',
+] as const;
 
 export const ACTION_STATUSES = [
   'OPEN',

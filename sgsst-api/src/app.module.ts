@@ -38,6 +38,7 @@ import { SitesModule } from './modules/sites/sites.module';
 import { SgsstAuditsModule } from './modules/sgsst-audits/sgsst-audits.module';
 import { SgsstEvaluationsModule } from './modules/sgsst-evaluations/sgsst-evaluations.module';
 import { SsoModule } from './modules/sso/sso.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 import { IndicatorsModule } from './modules/indicators/indicators.module';
 import { TrainingsModule } from './modules/trainings/trainings.module';
 import { UsersModule } from './modules/users/users.module';
@@ -55,6 +56,7 @@ import { UsersModule } from './modules/users/users.module';
     ContractorsModule,
     EmergencyModule,
     FindingsModule,
+    TasksModule,
     DeveloperModule,
     PlannedInspectionsModule,
     UnplannedInspectionsModule,

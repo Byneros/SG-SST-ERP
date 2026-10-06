@@ -26,11 +26,15 @@ describe('FindingsService - S15.1', () => {
     user: { findFirst: jest.fn() },
   };
   const auditService = { log: jest.fn() };
+  // S15.3: la generacion automatica de tareas es best-effort; el mock
+  // captura las llamadas para verificar el disparo con MAJOR/CRITICAL.
+  const tasksService = { createForFinding: jest.fn().mockResolvedValue(null) };
 
   const service = new FindingsService(
     repository as never,
     prisma,
     auditService as never,
+    tasksService as never,
   );
 
   const user: AuthenticatedUser = {
@@ -237,6 +241,44 @@ describe('FindingsService - S15.1', () => {
     expect(result.deleted).toBe(true);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'DELETE', entity: 'Finding' }),
+    );
+  });
+
+  // --- Generacion automatica de tareas (S15.3) --------------------------------
+
+  it('create dispara la tarea automatica para hallazgos MAJOR/CRITICAL', async () => {
+    prisma.unplannedInspection.findFirst.mockResolvedValue({ id: 'insp-1' });
+    repository.create.mockResolvedValue({
+      id: findingId,
+      severity: 'CRITICAL',
+      title: 'Fuga grave',
+    });
+
+    await service.create(user, {
+      title: 'Fuga grave',
+      description: 'Hallazgo critico de inspeccion reactiva',
+      sourceType: 'INSPECTION_UNPLANNED',
+      sourceId: 'insp-1',
+      severity: 'CRITICAL',
+    });
+
+    expect(tasksService.createForFinding).toHaveBeenCalledWith(
+      expect.objectContaining({ id: findingId, severity: 'CRITICAL' }),
+    );
+  });
+
+  it('update dispara la tarea automatica al escalar la severidad', async () => {
+    mockFinding({ severity: 'MINOR' });
+    repository.updateScoped.mockResolvedValue({
+      id: findingId,
+      severity: 'MAJOR',
+      title: 'Fuga en linea de aire',
+    });
+
+    await service.update(user, findingId, { severity: 'MAJOR' });
+
+    expect(tasksService.createForFinding).toHaveBeenCalledWith(
+      expect.objectContaining({ id: findingId, severity: 'MAJOR' }),
     );
   });
 });
