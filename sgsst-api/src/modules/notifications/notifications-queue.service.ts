@@ -10,10 +10,12 @@ import { env } from '../../config/env';
 import { NotificationsService } from './notifications.service';
 import { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { resolveCompanyScope } from '../../common/pipes/company-scope';
+import { PrismaService } from '../../database/prisma.service';
 
 const QUEUE_NAME = 'sgsst-notifications';
 const DUE_ALERTS_JOB = 'generate-due-alerts';
 const RETRY_EXTERNAL_DELIVERIES_JOB = 'retry-external-deliveries';
+const TASK_ESCALATION_JOB = 'task-escalation';
 type TenantJobData = { companyId?: string };
 
 @Injectable()
@@ -25,7 +27,10 @@ export class NotificationsQueueService
   private queue?: Queue;
   private worker?: Worker;
 
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly prismaService: PrismaService,
+  ) {}
 
   async onModuleInit() {
     if (!env.notificationsQueueEnabled) {
@@ -52,6 +57,7 @@ export class NotificationsQueueService
 
     await this.scheduleDueAlerts();
     await this.scheduleExternalDeliveryRetries();
+    await this.scheduleTaskEscalation();
   }
 
   async enqueueDueAlerts(user: AuthenticatedUser) {
@@ -82,6 +88,24 @@ export class NotificationsQueueService
 
     const job = await this.queue.add(
       RETRY_EXTERNAL_DELIVERIES_JOB,
+      { companyId } satisfies TenantJobData,
+      {
+        removeOnComplete: 50,
+        removeOnFail: 100,
+      },
+    );
+    return { success: true, queued: true, jobId: job.id };
+  }
+
+  /** S16.1: pasada manual de escalamiento de tareas para la empresa activa. */
+  async enqueueTaskEscalation(user: AuthenticatedUser) {
+    const companyId = resolveCompanyScope(user);
+    if (!this.queue) {
+      return this.notificationsService.escalateOverdueTasks(companyId);
+    }
+
+    const job = await this.queue.add(
+      TASK_ESCALATION_JOB,
       { companyId } satisfies TenantJobData,
       {
         removeOnComplete: 50,
@@ -141,6 +165,28 @@ export class NotificationsQueueService
     );
   }
 
+  private async scheduleTaskEscalation() {
+    if (!this.queue || !env.taskEscalationEnabled) {
+      return;
+    }
+
+    await this.queue.upsertJobScheduler(
+      `${TASK_ESCALATION_JOB}-cron`,
+      { pattern: env.taskEscalationCron },
+      {
+        name: TASK_ESCALATION_JOB,
+        data: {},
+        opts: {
+          removeOnComplete: 50,
+          removeOnFail: 100,
+        },
+      },
+    );
+    this.logger.log(
+      `Scheduled task escalation with cron: ${env.taskEscalationCron}`,
+    );
+  }
+
   private async process(job: Job) {
     if (job.name === DUE_ALERTS_JOB) {
       const { companyId } = job.data as TenantJobData;
@@ -155,7 +201,39 @@ export class NotificationsQueueService
         companyId,
       );
     }
+    if (job.name === TASK_ESCALATION_JOB) {
+      const { companyId } = job.data as TenantJobData;
+      return companyId
+        ? this.notificationsService.escalateOverdueTasks(companyId)
+        : this.escalateForAllCompanies();
+    }
     this.logger.warn(`Unknown notification job: ${job.name}`);
     return { ignored: true };
+  }
+
+  /** Cron global: la pasada corre por empresa para respetar el anti-duplicado scoping. */
+  private async escalateForAllCompanies() {
+    if (!env.taskEscalationEnabled) {
+      return {
+        success: false,
+        skipped: 'TASK_ESCALATION_ENABLED=false',
+        created: 0,
+      };
+    }
+    const companies = await this.prismaService.company.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    const results: Array<{ success: boolean; created: number }> = [];
+    for (const company of companies) {
+      results.push(
+        await this.notificationsService.escalateOverdueTasks(company.id),
+      );
+    }
+    return {
+      success: true,
+      companies: companies.length,
+      created: results.reduce((total, result) => total + result.created, 0),
+    };
   }
 }

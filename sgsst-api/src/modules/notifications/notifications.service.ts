@@ -495,6 +495,208 @@ export class NotificationsService {
     return this.generateDueAlertsForCompany(resolveCompanyScope(user));
   }
 
+  getTaskEscalationCapabilities() {
+    return {
+      enabled: env.taskEscalationEnabled,
+      cron: env.taskEscalationCron,
+      advanceDays: env.taskEscalationAdvanceDays,
+      dailyReminder: env.taskEscalationDaily,
+    };
+  }
+
+  // --- S16.1: escalamiento de tareas vencidas (plan-escalamiento-tareas-vencidas.md)
+
+  /**
+   * Escala tareas activas (OPEN/IN_PROGRESS) proximas a vencer o vencidas
+   * dentro de una empresa. Notificacion interna siempre; email y/o WhatsApp
+   * segun prioridad y canales configurados (via sendCompanyWhatsAppAlert y
+   * el email adjunto a las notificaciones HIGH/CRITICAL).
+   */
+  async escalateOverdueTasks(companyId: string) {
+    if (!env.taskEscalationEnabled) {
+      return {
+        success: false,
+        skipped: 'TASK_ESCALATION_ENABLED=false',
+        created: 0,
+      };
+    }
+
+    const now = new Date();
+    const advanceMs =
+      Math.max(env.taskEscalationAdvanceDays, 0) * 24 * 60 * 60 * 1000;
+    const advanceWindow = new Date(now.getTime() + advanceMs);
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        companyId,
+        status: { in: ['OPEN', 'IN_PROGRESS'] },
+        dueDate: { not: null, lte: advanceWindow },
+      },
+      select: {
+        id: true,
+        title: true,
+        dueDate: true,
+        priority: true,
+        sourceType: true,
+        findingSeverity: true,
+        ownerId: true,
+        owner: { select: { id: true, email: true, name: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 200,
+    });
+
+    const sstUsers = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: { in: [Role.ADMIN, Role.SST] },
+        companyId,
+      },
+      select: { id: true },
+    });
+
+    // Dia local del servidor: el anti-duplicado cuenta 1 alerta por
+    // tarea/hito/canal/dia consultando las Notification ya creadas.
+    const dayStart = new Date(now.getTime());
+    dayStart.setHours(0, 0, 0, 0);
+
+    let created = 0;
+    const escalatedTasks: Array<Record<string, unknown>> = [];
+
+    for (const task of tasks) {
+      const dueDate = task.dueDate as Date;
+      const overdueDays = Math.floor(
+        (now.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000),
+      );
+      const isOverdue = overdueDays > 0; // vencida: dueDate en el pasado
+      const isFindingCritical =
+        task.sourceType === 'FINDING' && task.findingSeverity === 'CRITICAL';
+      const dueLabel = dueDate.toISOString().slice(0, 10);
+
+      // Milestones segun la regla del plan:
+      const channels = isFindingCritical
+        ? ['internal', 'email', 'whatsapp']
+        : isOverdue && overdueDays > 3
+          ? ['internal', 'email', 'whatsapp']
+          : isOverdue
+            ? ['internal', 'email']
+            : ['internal'];
+      const priority = isFindingCritical
+        ? NotificationPriority.CRITICAL
+        : isOverdue
+          ? NotificationPriority.HIGH
+          : NotificationPriority.MEDIUM;
+      const title = isOverdue ? 'Tarea vencida' : 'Tarea por vencer';
+      const ownerName = task.owner?.name ?? 'sin responsable';
+      const message = isOverdue
+        ? `${task.title} (responsable: ${ownerName}) vencio el ${dueLabel}`
+        : `${task.title} (responsable: ${ownerName}) vence el ${dueLabel}`;
+
+      // Destinatarios: owner y, si esta vencida, los SST/ADMIN de la empresa.
+      const recipients = new Set<string>();
+      if (task.ownerId) {
+        recipients.add(task.ownerId);
+      } else {
+        for (const sst of sstUsers) recipients.add(sst.id);
+      }
+      if (isOverdue) {
+        for (const sst of sstUsers) recipients.add(sst.id);
+      }
+
+      // El canal email va adjunto a la notificacion interna de priority
+      // HIGH/CRITICAL (sendNotificationEmail); el canal WhatsApp es una
+      // entrega por tarea/dia (nivel empresa, no por destinatario).
+      const sendWhatsapp = channels.includes('whatsapp');
+      let taskCreated = 0;
+      for (const userId of recipients) {
+        // Anti-duplicado: consulta Notification del dia por tarea/hito.
+        const existing = await this.prisma.notification.findFirst({
+          where: {
+            userId,
+            entity: 'Task',
+            entityId: task.id,
+            title,
+            priority,
+            ...(env.taskEscalationDaily
+              ? {}
+              : { createdAt: { gte: dayStart } }),
+          },
+          select: { id: true },
+        });
+        if (existing) {
+          continue;
+        }
+        // create() incluye user con select(email,name) para el email adjunto.
+        const notification = (await this.create({
+          userId,
+          companyId,
+          title,
+          message,
+          type: NotificationType.TASK,
+          priority,
+          entity: 'Task',
+          entityId: task.id,
+        })) as Awaited<ReturnType<NotificationsService['create']>> & {
+          user?: { email: string; name: string };
+        };
+        if (notification.user) {
+          void this.sendNotificationEmail(
+            notification as unknown as Parameters<
+              NotificationsService['sendNotificationEmail']
+            >[0],
+          ).catch((error: unknown) => {
+            this.logger.warn(`Task escalation email failed: ${String(error)}`);
+          });
+        }
+        taskCreated += 1;
+      }
+      if (sendWhatsapp) {
+        // Anti-duplicado del canal WhatsApp: 1 entrega por tarea/marca/dia.
+        const existingDelivery = await this.prisma.externalDelivery.findFirst({
+          where: {
+            provider: ExternalDeliveryProvider.WHATSAPP,
+            entity: 'Task',
+            entityId: task.id,
+            subject: title,
+            ...(env.taskEscalationDaily
+              ? {}
+              : { createdAt: { gte: dayStart } }),
+          },
+          select: { id: true },
+        });
+        if (!existingDelivery) {
+          await this.sendCompanyWhatsAppAlert({
+            companyId,
+            title,
+            message,
+            priority,
+            entity: 'Task',
+            entityId: task.id,
+          });
+          taskCreated += 1;
+        }
+      }
+      if (taskCreated > 0) {
+        escalatedTasks.push({
+          taskId: task.id,
+          title: task.title,
+          state: isOverdue ? 'overdue' : 'due-soon',
+          priority,
+          channels,
+          recipients: [...recipients],
+        });
+        created += taskCreated;
+      }
+    }
+
+    return {
+      success: true,
+      scanned: tasks.length,
+      created,
+      escalatedTasks,
+    };
+  }
+
   async generateDueAlertsForAllCompanies() {
     const companies = await this.prisma.company.findMany({
       where: { isActive: true },

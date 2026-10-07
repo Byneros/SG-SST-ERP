@@ -52,6 +52,19 @@ export class NotificationsController {
     return this.notificationsQueueService.enqueueDueAlerts(user);
   }
 
+  @Get('task-escalation/capabilities')
+  @Roles('ADMIN', 'SST')
+  getTaskEscalationCapabilities() {
+    return this.notificationsService.getTaskEscalationCapabilities();
+  }
+
+  /** S16.1: pasada manual de escalamiento de tareas vencidas por empresa. */
+  @Post('task-escalation/run')
+  @Roles('ADMIN', 'SST')
+  runTaskEscalation(@CurrentUser() user: AuthenticatedUser) {
+    return this.notificationsQueueService.enqueueTaskEscalation(user);
+  }
+
   @Post('retry-external-deliveries')
   @Roles('ADMIN')
   retryExternalDeliveries(@CurrentUser() user: AuthenticatedUser) {

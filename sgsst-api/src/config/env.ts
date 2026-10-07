@@ -81,6 +81,15 @@ export const env = {
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
   externalDeliveryRetryCron:
     process.env.EXTERNAL_DELIVERY_RETRY_CRON ?? '*/10 * * * *',
+  // S16.1: escalamiento de tareas vencidas por email/WhatsApp.
+  taskEscalationEnabled:
+    (process.env.TASK_ESCALATION_ENABLED ?? 'false') === 'true',
+  taskEscalationCron: process.env.TASK_ESCALATION_CRON ?? '0 8 * * *',
+  taskEscalationAdvanceDays: Number(
+    process.env.TASK_ESCALATION_ADVANCE_DAYS ?? 3,
+  ),
+  taskEscalationDaily:
+    (process.env.TASK_ESCALATION_DAILY ?? 'false') === 'true',
   // Asistente inteligente (Sprint 16). Deshabilitado por defecto: sin API key
   // el endpoint responde 503 acotado y el ERP sigue funcionando.
   aiEnabled: (process.env.AI_ENABLED ?? 'false') === 'true',

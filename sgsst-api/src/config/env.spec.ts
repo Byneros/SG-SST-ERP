@@ -52,4 +52,15 @@ describe('assertProductionEnv', () => {
 
     expect(assertProductionEnv).not.toThrow();
   });
+
+  // S16.1: el escalamiento de tareas vencidas es opcional y no exige
+  // variables en produccion (degrada a solo notificacion interna).
+  it('S16.1: no exige variables de escalamiento de tareas en produccion', () => {
+    configureProductionEnv('a-unique-metrics-token-with-at-least-32-chars');
+    process.env.SEED_ADMIN_PASSWORD = 'una-contrasena-de-seed-rotada-unica';
+    delete process.env.TASK_ESCALATION_ENABLED;
+    delete process.env.TASK_ESCALATION_CRON;
+
+    expect(assertProductionEnv).not.toThrow();
+  });
 });

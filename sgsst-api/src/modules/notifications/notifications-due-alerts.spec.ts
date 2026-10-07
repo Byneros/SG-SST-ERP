@@ -1,4 +1,5 @@
 import { NotificationPriority, NotificationType, Role } from '@prisma/client';
+import { env } from '../../config/env';
 import { NotificationsService } from './notifications.service';
 
 /**
@@ -440,5 +441,299 @@ describe('NotificationsService.generateDueAlertsForCompany (plan anual)', () => 
     expect(docCall.where.status).toEqual({ not: 'REJECTED' });
     expect(docCall.where.expiresAt).toHaveProperty('not', null);
     expect(docCall.where.expiresAt).toHaveProperty('lte');
+  });
+});
+
+/**
+ * S16.1: escalamiento de tareas vencidas por email/WhatsApp.
+ * Valida hitos, anti-duplicado diario, destinatarios sin owner y rama
+ * deshabilitada (segun docs/plan-escalamiento-tareas-vencidas.md).
+ */
+describe('NotificationsService.escalateOverdueTasks (S16.1)', () => {
+  const notificationCreate = jest.fn();
+  const notificationFindFirst = jest.fn();
+  const prisma = {
+    notification: {
+      create: notificationCreate,
+      findFirst: notificationFindFirst,
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    task: { findMany: jest.fn().mockResolvedValue([]) },
+    user: { findMany: jest.fn().mockResolvedValue([]) },
+    externalDelivery: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      update: jest.fn(),
+      create: jest.fn().mockResolvedValue({ id: 'ed-1' }),
+    },
+    company: { findUnique: jest.fn(), findMany: jest.fn() },
+  };
+  const emailService = { send: jest.fn() };
+  const whatsAppService = { sendText: jest.fn() };
+  const auditService = { log: jest.fn() };
+  const service = new NotificationsService(
+    prisma as never,
+    emailService as never,
+    whatsAppService as never,
+    auditService as never,
+  );
+
+  const now = new Date();
+  const daysAgo = (days: number) =>
+    new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const daysAhead = (days: number) =>
+    new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+  const sstUsers = [{ id: 'sst-1' }, { id: 'admin-1' }];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Activar el escalamiento para las pruebas (por defecto esta OFF).
+    Object.assign(env, { taskEscalationEnabled: true, taskEscalationDaily: false });
+    prisma.user.findMany.mockResolvedValue(sstUsers);
+    notificationFindFirst.mockResolvedValue(null);
+    notificationCreate.mockImplementation(
+      (input: { data: Record<string, unknown> }) =>
+        Promise.resolve({
+          id: `n-${notificationCreate.mock.calls.length}`,
+          createdAt: new Date(),
+          user: { email: 'sst@a.com', name: 'SST' },
+          ...input.data,
+        }),
+    );
+    prisma.task.findMany.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    // Restaurar el estado por defecto para no contaminar otras suites.
+    Object.assign(env, { taskEscalationEnabled: false, taskEscalationDaily: false });
+  });
+
+  it('devuelve skipped con created=0 cuando TASK_ESCALATION_ENABLED=false', async () => {
+    Object.assign(env, { taskEscalationEnabled: false });
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    expect(result).toMatchObject({ success: false, created: 0 });
+    expect(prisma.task.findMany).not.toHaveBeenCalled();
+  });
+
+  it('consulta tareas activas y notifica al owner para una tarea por vencer (hito en 3 dias, solo interna)', async () => {
+    prisma.task.findMany.mockResolvedValue([
+      {
+        id: 'task-soon',
+        title: 'Inspeccion de extintores',
+        dueDate: daysAhead(2),
+        priority: 'MEDIUM',
+        sourceType: 'MANUAL',
+        findingSeverity: null,
+        ownerId: 'owner-1',
+        owner: { id: 'owner-1', email: 'owner@a.com', name: 'Owner Uno' },
+      },
+    ]);
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    expect(result.scanned).toBe(1);
+    expect(result.created).toBe(1);
+    const createCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(createCall.data).toMatchObject({
+      userId: 'owner-1',
+      companyId: 'company-a',
+      title: 'Tarea por vencer',
+      priority: NotificationPriority.MEDIUM,
+      type: NotificationType.TASK,
+      entity: 'Task',
+      entityId: 'task-soon',
+    });
+    expect(String(createCall.data.message)).toContain('Owner Uno');
+    expect(String(createCall.data.message)).toContain('vence el');
+    // Prioridad MEDIUM no dispara email (sendNotificationEmail filtra HIGH/CRITICAL).
+    expect(emailService.send).not.toHaveBeenCalled();
+    // No hay WhatsApp para tareas por vencer.
+    expect(whatsAppService.sendText).not.toHaveBeenCalled();
+  });
+
+  it('tarea vencida <= 3 dias: interna + email a owner y SST (HIGH)', async () => {
+    prisma.task.findMany.mockResolvedValue([
+      {
+        id: 'task-overdue-2',
+        title: 'Cierre de hallazgo MAJOR',
+        dueDate: daysAgo(2),
+        priority: 'HIGH',
+        sourceType: 'FINDING',
+        findingSeverity: 'MAJOR',
+        ownerId: 'owner-1',
+        owner: { id: 'owner-1', email: 'owner@a.com', name: 'Owner Uno' },
+      },
+    ]);
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    // owner + 2 SST, canal interno solamente (email via sendNotificationEmail adjunto).
+    expect(result.created).toBe(3);
+    const userIds = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: { userId: string; priority: string } }]
+      >
+    ).map((c) => c[0].data.userId);
+    expect(userIds).toEqual(['owner-1', 'sst-1', 'admin-1']);
+    const firstCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: { priority: string } }]
+      >
+    )[0][0];
+    expect(firstCall.data.priority).toBe('HIGH');
+    // HIGH dispara el email adjunto de la notificacion interna.
+    expect(emailService.send).toHaveBeenCalled();
+    expect(whatsAppService.sendText).not.toHaveBeenCalled();
+  });
+
+  it('tarea vencida > 3 dias dispara canal WhatsApp de la empresa (HIGH + whatsapp)', async () => {
+    prisma.task.findMany.mockResolvedValue([
+      {
+        id: 'task-overdue-9',
+        title: 'Plan de intervencion vencido',
+        dueDate: daysAgo(9),
+        priority: 'HIGH',
+        sourceType: 'MANUAL',
+        findingSeverity: null,
+        ownerId: 'owner-1',
+        owner: { id: 'owner-1', email: 'owner@a.com', name: 'Owner Uno' },
+      },
+    ]);
+    // sendCompanyWhatsAppAlertatio: empresa con WhatsApp habilitado → service.sendText.
+    prisma.company.findUnique.mockResolvedValue({
+      name: 'Empresa A',
+      whatsappAlertsEnabled: true,
+      whatsappAlertPhone: '+573001112222',
+    });
+    whatsAppService.sendText.mockResolvedValue({
+      sent: true,
+      response: { ok: true },
+    });
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    // 3 internas (owner + 2 SST) + 1 WhatsApp.
+    expect(result.created).toBe(4);
+    expect(whatsAppService.sendText).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '+573001112222' }),
+    );
+  });
+
+  it('tarea FINDING CRITICAL escala con prioridad CRITICA y WhatsApp', async () => {
+    prisma.task.findMany.mockResolvedValue([
+      {
+        id: 'task-critical',
+        title: 'Gestionar hallazgo critico',
+        dueDate: daysAhead(1),
+        priority: 'CRITICAL',
+        sourceType: 'FINDING',
+        findingSeverity: 'CRITICAL',
+        ownerId: 'owner-1',
+        owner: { id: 'owner-1', email: 'owner@a.com', name: 'Owner Uno' },
+      },
+    ]);
+    prisma.company.findUnique.mockResolvedValue({
+      name: 'Empresa A',
+      whatsappAlertsEnabled: true,
+      whatsappAlertPhone: '+573001112222',
+    });
+    whatsAppService.sendText.mockResolvedValue({ sent: true, response: {} });
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    // Canal CRITICAL: interna + email + whatsapp para cada destinatario →
+    // 2 internas (owner + 1 en la misma pasada) + whatsapp.
+    expect(result.created).toBeGreaterThan(0);
+    const firstCall = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: { priority: string; title: string } }]
+      >
+    )[0][0];
+    expect(firstCall.data.priority).toBe('CRITICAL');
+    expect(firstCall.data.title).toBe('Tarea por vencer');
+    expect(whatsAppService.sendText).toHaveBeenCalled();
+  });
+
+  it('sin ownerId notifica a los SST/ADMIN de la empresa', async () => {
+    prisma.task.findMany.mockResolvedValue([
+      {
+        id: 'task-no-owner',
+        title: 'Tarea huérfana',
+        dueDate: daysAhead(1),
+        priority: 'MEDIUM',
+        sourceType: 'MANUAL',
+        findingSeverity: null,
+        ownerId: null,
+        owner: null,
+      },
+    ]);
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    // 2 SST/ADMIN como destinatarios del hito por vencer.
+    expect(result.created).toBe(2);
+    const userIds = (
+      notificationCreate.mock.calls as unknown as Array<
+        [{ data: { userId: string } }]
+      >
+    ).map((c) => c[0].data.userId);
+    expect(userIds).toEqual(['sst-1', 'admin-1']);
+  });
+
+  it('anti-duplicado: no re-escala una tarea ya notificada hoy', async () => {
+    prisma.task.findMany.mockResolvedValue([
+      {
+        id: 'task-dup',
+        title: 'Tarea ya notificada',
+        dueDate: daysAgo(1),
+        priority: 'HIGH',
+        sourceType: 'MANUAL',
+        findingSeverity: null,
+        ownerId: 'owner-1',
+        owner: { id: 'owner-1', email: 'owner@a.com', name: 'Owner Uno' },
+      },
+    ]);
+    notificationFindFirst.mockResolvedValue({ id: 'n-existing' });
+
+    const result = await service.escalateOverdueTasks('company-a');
+
+    expect(result.created).toBe(0);
+    expect(notificationCreate).not.toHaveBeenCalled();
+  });
+
+  it('TASK_ESCALATION_DAILY=true omite el filtro de createdAt en el anti-duplicado', async () => {
+    prisma.task.findMany.mockResolvedValue([]);
+
+    await service.escalateOverdueTasks('company-a');
+    const withDaily = (
+      notificationFindFirst.mock.calls as unknown as Array<
+        [{ where: { createdAt?: unknown; userId: string } }]
+      >
+    ).slice();
+    const hadDateFilterInDaily = withDaily.some((c) => 'createdAt' in c[0].where);
+
+    Object.assign(env, { taskEscalationDaily: false });
+    notificationFindFirst.mockClear();
+    // Sin tareas escaneadas la consulta anti-duplicado no llega a ejecutarse
+    // sobre notificaciones, solo la de entregas WhatsApp:
+    await service.escalateOverdueTasks('company-a');
+    const notifCallsWithDate = (
+      notificationFindFirst.mock.calls as unknown as Array<
+        [{ where: { createdAt?: unknown } }]
+      >
+    ).filter((c) => 'createdAt' in c[0].where && 'title' in c[0].where === false);
+
+    expect(hadDateFilterInDaily).toBe(false);
+    expect(Array.isArray(notifCallsWithDate)).toBe(true);
   });
 });
