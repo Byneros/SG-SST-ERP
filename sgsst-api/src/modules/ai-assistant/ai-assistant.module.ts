@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { CompaniesRepository } from '../companies/companies.repository';
 import { EmployeesRepository } from '../employees/employees.repository';
 import { IncidentsRepository } from '../incidents/incidents.repository';
+import { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
+import { FindingsRepository } from '../findings/findings.repository';
+import { ActionPlansRepository } from '../actions/action-plans.repository';
 import { RisksRepository } from '../risks/risks.repository';
 import { SitesRepository } from '../sites/sites.repository';
 import { TrainingsRepository } from '../trainings/trainings.repository';
@@ -25,6 +28,9 @@ import { AiProviderClient } from './ai-provider.client';
     EmployeesRepository,
     RisksRepository,
     IncidentsRepository,
+    UnsafeReportsRepository,
+    FindingsRepository,
+    ActionPlansRepository,
     TrainingsRepository,
   ],
   exports: [AiAssistantService],

@@ -11,6 +11,14 @@ import {
 } from './ai-assistant.framework';
 import { AiAssistantTools } from './ai-assistant.tools';
 import { createCentralAssistant } from './assistants/central.assistant';
+import { createRisksAssistant } from './assistants/risks.assistant';
+import { createIncidentsAssistant } from './assistants/incidents.assistant';
+import { createFindingsAssistant } from './assistants/findings.assistant';
+import type { RisksRepository } from '../risks/risks.repository';
+import type { IncidentsRepository } from '../incidents/incidents.repository';
+import type { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
+import type { FindingsRepository } from '../findings/findings.repository';
+import type { ActionPlansRepository } from '../actions/action-plans.repository';
 
 /**
  * Registro de asistentes + orquestador minimo (Fase C).
@@ -25,8 +33,38 @@ import { createCentralAssistant } from './assistants/central.assistant';
 export class AssistantRegistry {
   private readonly registry: AssistantDefinition[];
 
-  constructor(private readonly legacyTools: AiAssistantTools) {
-    this.registry = [createCentralAssistant(legacyTools)];
+  constructor(
+    private readonly legacyTools: AiAssistantTools,
+    private readonly risksRepository?: RisksRepository,
+    private readonly incidentsRepository?: IncidentsRepository,
+    private readonly unsafeReportsRepository?: UnsafeReportsRepository,
+    private readonly findingsRepository?: FindingsRepository,
+    private readonly actionPlansRepository?: ActionPlansRepository,
+  ) {
+    this.registry = [
+      createCentralAssistant(legacyTools),
+      // Fase E: asistente especializado de riesgos (opcional para no romper
+      // los tests que construyen el registro solo con las tools legacy).
+      ...(risksRepository ? [createRisksAssistant(risksRepository)] : []),
+      // Fase F: asistente de incidentes y reportes inseguros.
+      ...(incidentsRepository && unsafeReportsRepository
+        ? [
+            createIncidentsAssistant(
+              incidentsRepository,
+              unsafeReportsRepository,
+            ),
+          ]
+        : []),
+      // Fase G: asistente de hallazgos unificados y planes de accion.
+      ...(findingsRepository && actionPlansRepository
+        ? [
+            createFindingsAssistant(
+              findingsRepository,
+              actionPlansRepository,
+            ),
+          ]
+        : []),
+    ];
   }
 
   all(): AssistantDefinition[] {

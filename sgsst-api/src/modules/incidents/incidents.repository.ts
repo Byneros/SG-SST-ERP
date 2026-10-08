@@ -125,4 +125,21 @@ export class IncidentsRepository {
   remove(id: string) {
     return this.prisma.incident.delete({ where: { id } });
   }
+
+  /**
+   * Asistente IA (fase F): todos los incidentes de la empresa (solo campos
+   * agregables). Solo lectura y siempre scoped por companyId.
+   */
+  findAllForAssistant(companyId: string) {
+    return this.prisma.incident.findMany({
+      where: { companyId },
+      select: {
+        title: true,
+        description: true,
+        date: true,
+        status: true,
+      },
+      orderBy: { date: 'desc' },
+    });
+  }
 }

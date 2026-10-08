@@ -132,6 +132,75 @@ export class ActionPlansRepository {
     await this.prisma.actionPlan.delete({ where: { id } });
     return before;
   }
+
+  /**
+   * Asistente IA (fase G): acciones vencidas sin cerrar, la mas antigua
+   * primero. Solo lectura y siempre scoped por companyId.
+   */
+  /**
+   * Asistente IA (fase G): acciones abiertas/vencidas derivadas de
+   * hallazgos (sourceType=FINDING), agrupadas por hallazgo. Solo lectura y
+   * siempre scoped por companyId.
+   */
+  async countForFindingsAsistente(companyId: string, findingIds: string[]) {
+    if (findingIds.length === 0) {
+      return { findings: [] as Array<{ findingId: string; actions: Array<{
+        status: string;
+        dueDate: Date;
+      }> }> };
+    }
+    const actions = await this.prisma.actionPlan.findMany({
+      where: {
+        companyId,
+        sourceType: 'FINDING',
+        sourceId: { in: findingIds },
+        status: { in: ['OPEN', 'IN_PROGRESS'] },
+      },
+      select: {
+        id: true,
+        sourceId: true,
+        status: true,
+        dueDate: true,
+      },
+    });
+    const byFinding = new Map<
+      string,
+      Array<{ status: string; dueDate: Date }>
+    >();
+    for (const action of actions) {
+      if (!action.sourceId) continue;
+      const list = byFinding.get(action.sourceId) ?? [];
+      list.push({ status: action.status, dueDate: action.dueDate });
+      byFinding.set(action.sourceId, list);
+    }
+    return {
+      findings: Array.from(byFinding.entries()).map(
+        ([findingId, actionsOfFinding]) => ({ findingId, actions: actionsOfFinding }),
+      ),
+    };
+  }
+
+  findOverdueForAssistant(companyId: string, take: number) {
+    return this.prisma.actionPlan.findMany({
+      where: {
+        companyId,
+        status: { in: ['OPEN', 'IN_PROGRESS'] },
+        dueDate: { lt: new Date() },
+      },
+      select: {
+        id: true,
+        title: true,
+        kind: true,
+        status: true,
+        dueDate: true,
+        sourceType: true,
+        sourceId: true,
+        owner: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+      take,
+    });
+  }
 }
 
 export type { AdvanceActionPlanDto, VerifyActionPlanDto };

@@ -137,4 +137,45 @@ export class FindingsRepository {
   removeCause(causeId: string) {
     return this.prisma.findingCause.delete({ where: { id: causeId } });
   }
+
+  /**
+   * Asistente IA (fase G): hallazgos abiertos (solo campos agregables).
+   * Solo lectura y siempre scoped por companyId.
+   */
+  findOpenForAssistant(companyId: string) {
+    return this.prisma.finding.findMany({
+      where: { companyId, status: { not: 'CLOSED' } },
+      select: {
+        id: true,
+        title: true,
+        severity: true,
+        type: true,
+        sourceType: true,
+        status: true,
+        ownerId: true,
+        createdAt: true,
+      },
+      orderBy: [{ severity: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /**
+   * Asistente IA (fase G): participantes reincidentes de hallazgos ya
+   * cerrados repetidos en el mismo modulo/cargo (para patrones). Agrupa a
+   * nivel de hallazgo (owner). Solo lectura y siempre scoped.
+   */
+  findRepeatOwners(companyId: string, minCount: number) {
+    return this.prisma.finding.groupBy({
+      by: ['ownerId'],
+      where: {
+        companyId,
+        ownerId: { not: null },
+      },
+      _count: { _all: true },
+      having: {
+        ownerId: { _count: { gte: minCount } },
+      },
+      orderBy: { _count: { ownerId: 'desc' } },
+    });
+  }
 }

@@ -88,4 +88,50 @@ export class RisksRepository {
   remove(id: string) {
     return this.prisma.risk.delete({ where: { id } });
   }
+
+  /**
+   * Asistente IA (fase E): riesgos altos/criticos con hallazgos de
+   * inspeccion sin accion correctiva asociada. Solo lectura y siempre
+   * scoped por companyId.
+   */
+  findWithoutCorrectiveAction(companyId: string) {
+    return this.prisma.risk.findMany({
+      where: {
+        companyId,
+        level: { in: ['HIGH', 'CRITICAL'] },
+        inspectionFindings: { some: { actionId: null } },
+      },
+      include: {
+        site: { select: { id: true, name: true, code: true } },
+        inspectionFindings: {
+          where: { actionId: null },
+          select: {
+            id: true,
+            description: true,
+            severity: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [{ level: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /**
+   * Asistente IA (fase E): riesgos mas antiguos registrados (candidatos a
+   * revision). Solo lectura y siempre scoped por companyId.
+   */
+  findOldest(companyId: string, take: number) {
+    return this.prisma.risk.findMany({
+      where: { companyId },
+      include: {
+        site: { select: { id: true, name: true, code: true } },
+        inspectionFindings: {
+          select: { status: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take,
+    });
+  }
 }
