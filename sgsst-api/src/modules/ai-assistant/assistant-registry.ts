@@ -17,6 +17,9 @@ import { createFindingsAssistant } from './assistants/findings.assistant';
 import { createTrainingsAssistant } from './assistants/trainings.assistant';
 import { createMedicalAssistant } from './assistants/medical.assistant';
 import { createPpeAssistant } from './assistants/ppe.assistant';
+import { createContractorsAssistant } from './assistants/contractors.assistant';
+import { createCommitteesAssistant } from './assistants/committees.assistant';
+import { createEmergencyAssistant } from './assistants/emergency.assistant';
 import type { RisksRepository } from '../risks/risks.repository';
 import type { IncidentsRepository } from '../incidents/incidents.repository';
 import type { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
@@ -25,6 +28,9 @@ import type { ActionPlansRepository } from '../actions/action-plans.repository';
 import type { TrainingsRepository } from '../trainings/trainings.repository';
 import type { MedicalAssistantRepository } from '../medical/medical.repository';
 import type { PpeRepository } from '../ppe/ppe.repository';
+import type { ContractorsRepository } from '../contractors/contractors.repository';
+import type { CommitteesRepository } from '../committees/committees.repository';
+import type { EmergencyRepository } from '../emergency/emergency.repository';
 
 /**
  * Registro de asistentes + orquestador minimo (Fase C).
@@ -49,6 +55,9 @@ export class AssistantRegistry {
     private readonly trainingsRepository?: TrainingsRepository,
     private readonly medicalAssistantRepository?: MedicalAssistantRepository,
     private readonly ppeRepository?: PpeRepository,
+    private readonly contractorsRepository?: ContractorsRepository,
+    private readonly committeesRepository?: CommitteesRepository,
+    private readonly emergencyRepository?: EmergencyRepository,
   ) {
     this.registry = [
       createCentralAssistant(legacyTools),
@@ -78,6 +87,18 @@ export class AssistantRegistry {
         : []),
       // Fase H3: asistente de EPP (inventario y reposiciones).
       ...(ppeRepository ? [createPpeAssistant(ppeRepository)] : []),
+      // Fase I1: asistente de contratistas (documentos y flujo de ingreso).
+      ...(contractorsRepository
+        ? [createContractorsAssistant(contractorsRepository)]
+        : []),
+      // Fase I2: asistente de comites (COPASST/Convivencia y compromisos).
+      ...(committeesRepository
+        ? [createCommitteesAssistant(committeesRepository)]
+        : []),
+      // Fase I3: asistente de emergencias (brigadas y simulacros).
+      ...(emergencyRepository
+        ? [createEmergencyAssistant(emergencyRepository)]
+        : []),
     ];
   }
 

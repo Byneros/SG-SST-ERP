@@ -26,7 +26,9 @@ export default async function run(page, ui) {
     }
     if (!emailRef || !passRef) return { error: 'no aparecio el form de login', snap };
     await ui.fill(emailRef, 'admin@sgsst.com');
-    await ui.fill(passRef, 'Admin12345');
+    // H-4: la contrasena del seed es configurable (QA_PASS); el default solo
+    // aplica si el entorno sigue con la contrasena publica de desarrollo.
+    await ui.fill(passRef, process.env.QA_PASS ?? 'Admin12345');
     snap = await ui.snapshot();
     const loginRef =
       refOf(snap, /@(e\d+) button "Iniciar sesion"(?!\s*\[disabled\])/) ||

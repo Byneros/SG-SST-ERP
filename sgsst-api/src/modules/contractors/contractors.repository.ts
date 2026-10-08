@@ -276,6 +276,42 @@ export class ContractorsRepository {
   }
 
   /**
+   * Asistente IA (fase I1): documentos de contratistas vencidos o proximos
+   * (30 dias). Solo lectura y siempre scoped por companyId.
+   */
+  findExpiringDocumentsForAssistant(companyId: string, take: number) {
+    return this.prisma.contractorDocument.findMany({
+      where: {
+        companyId,
+        expiresAt: {
+          not: null,
+          lte: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+        },
+      },
+      select: {
+        documentType: true,
+        status: true,
+        expiresAt: true,
+        contractor: { select: { name: true } },
+      },
+      orderBy: { expiresAt: 'asc' },
+      take,
+    });
+  }
+
+  /**
+   * Asistente IA (fase I1): contratistas con etapa del flujo de ingreso y
+   * estado. Solo lectura y siempre scoped por companyId.
+   */
+  findEntryFlowForAssistant(companyId: string) {
+    return this.prisma.contractor.findMany({
+      where: { companyId },
+      select: { entryStatus: true, status: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /**
    * Agregado de autorizacion de ingreso: cuentas por estado de documento y
    * workers activos/inductados. Todo scoped por companyId (regla: no se
    * autoriza ingreso con documentos criticos vencidos o rechazados).

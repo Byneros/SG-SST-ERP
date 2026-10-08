@@ -352,6 +352,53 @@ export class CommitteesRepository {
     return before;
   }
 
+  /**
+   * Asistente IA (fase I2): resumen de comites por tipo y estado, con
+   * integrantes y reuniones agregadas. Solo lectura, scoped por companyId.
+   */
+  findSummaryForAssistant(companyId: string) {
+    return this.prisma.committee.findMany({
+      where: { companyId },
+      select: {
+        name: true,
+        type: true,
+        status: true,
+        periodStart: true,
+        periodEnd: true,
+        _count: { select: { members: true, meetings: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Asistente IA (fase I2): compromisos pendientes (sin completedAt) de todo
+   * el tenant, los mas urgentes primero (tope 20). Solo lectura, scoped.
+   */
+  findOpenCommitmentsForAssistant(companyId: string, take: number) {
+    return this.prisma.committeeCommitment.findMany({
+      where: {
+        companyId,
+        completedAt: null,
+      },
+      select: {
+        description: true,
+        dueDate: true,
+        meeting: {
+          select: {
+            number: true,
+            committee: { select: { name: true, type: true } },
+          },
+        },
+        responsible: {
+          select: { firstName: true, lastName: true, position: true },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+      take,
+    });
+  }
+
   /** Compromisos vencidos (pendientes con fecha pasada) de todo el tenant. */
   findOverdueCommitments(companyId: string, now: Date) {
     return this.prisma.committeeCommitment.findMany({

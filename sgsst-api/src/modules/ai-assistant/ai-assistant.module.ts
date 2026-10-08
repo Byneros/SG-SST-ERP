@@ -8,6 +8,9 @@ import { ActionPlansRepository } from '../actions/action-plans.repository';
 import { TrainingsRepository } from '../trainings/trainings.repository';
 import { MedicalAssistantRepository } from '../medical/medical.repository';
 import { PpeRepository } from '../ppe/ppe.repository';
+import { ContractorsRepository } from '../contractors/contractors.repository';
+import { CommitteesRepository } from '../committees/committees.repository';
+import { EmergencyRepository } from '../emergency/emergency.repository';
 import { RisksRepository } from '../risks/risks.repository';
 import { SitesRepository } from '../sites/sites.repository';
 import { AiAssistantController } from './ai-assistant.controller';
@@ -36,6 +39,9 @@ import { AiProviderClient } from './ai-provider.client';
     TrainingsRepository,
     MedicalAssistantRepository,
     PpeRepository,
+    ContractorsRepository,
+    CommitteesRepository,
+    EmergencyRepository,
   ],
   exports: [AiAssistantService],
 })

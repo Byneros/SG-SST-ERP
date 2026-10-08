@@ -514,6 +514,46 @@ export class EmergencyRepository {
     });
   }
 
+  /**
+   * Asistente IA (fase I3): brigadas con integrantes y vigencia de formacion
+   * (vencida = recertificar). Solo lectura y siempre scoped por companyId.
+   */
+  findBrigadesForAssistant(companyId: string) {
+    return this.prisma.emergencyBrigade.findMany({
+      where: { companyId },
+      select: {
+        name: true,
+        site: { select: { name: true } },
+        members: {
+          select: { role: true, validUntil: true, formationCompletedAt: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Asistente IA (fase I3): simulacros con hallazgos abiertos (sin cierre).
+   * Solo lectura y siempre scoped por companyId.
+   */
+  findDrillsForAssistant(companyId: string) {
+    return this.prisma.emergencyDrill.findMany({
+      where: { companyId },
+      select: {
+        name: true,
+        plannedAt: true,
+        executedAt: true,
+        status: true,
+        plan: { select: { name: true, site: { select: { name: true } } } },
+        findings: {
+          where: { closedAt: null },
+          select: { severity: true, description: true },
+        },
+      },
+      orderBy: { plannedAt: 'desc' },
+      take: 20,
+    });
+  }
   async updateFindingScoped(
     id: string,
     companyId: string,
