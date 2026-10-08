@@ -492,7 +492,10 @@ describe('NotificationsService.escalateOverdueTasks (S16.1)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Activar el escalamiento para las pruebas (por defecto esta OFF).
-    Object.assign(env, { taskEscalationEnabled: true, taskEscalationDaily: false });
+    Object.assign(env, {
+      taskEscalationEnabled: true,
+      taskEscalationDaily: false,
+    });
     prisma.user.findMany.mockResolvedValue(sstUsers);
     notificationFindFirst.mockResolvedValue(null);
     notificationCreate.mockImplementation(
@@ -509,7 +512,10 @@ describe('NotificationsService.escalateOverdueTasks (S16.1)', () => {
 
   afterEach(() => {
     // Restaurar el estado por defecto para no contaminar otras suites.
-    Object.assign(env, { taskEscalationEnabled: false, taskEscalationDaily: false });
+    Object.assign(env, {
+      taskEscalationEnabled: false,
+      taskEscalationDaily: false,
+    });
   });
 
   it('devuelve skipped con created=0 cuando TASK_ESCALATION_ENABLED=false', async () => {
@@ -720,7 +726,9 @@ describe('NotificationsService.escalateOverdueTasks (S16.1)', () => {
         [{ where: { createdAt?: unknown; userId: string } }]
       >
     ).slice();
-    const hadDateFilterInDaily = withDaily.some((c) => 'createdAt' in c[0].where);
+    const hadDateFilterInDaily = withDaily.some(
+      (c) => 'createdAt' in c[0].where,
+    );
 
     Object.assign(env, { taskEscalationDaily: false });
     notificationFindFirst.mockClear();
@@ -731,7 +739,9 @@ describe('NotificationsService.escalateOverdueTasks (S16.1)', () => {
       notificationFindFirst.mock.calls as unknown as Array<
         [{ where: { createdAt?: unknown } }]
       >
-    ).filter((c) => 'createdAt' in c[0].where && 'title' in c[0].where === false);
+    ).filter(
+      (c) => 'createdAt' in c[0].where && 'title' in c[0].where === false,
+    );
 
     expect(hadDateFilterInDaily).toBe(false);
     expect(Array.isArray(notifCallsWithDate)).toBe(true);

@@ -144,10 +144,15 @@ export class ActionPlansRepository {
    */
   async countForFindingsAsistente(companyId: string, findingIds: string[]) {
     if (findingIds.length === 0) {
-      return { findings: [] as Array<{ findingId: string; actions: Array<{
-        status: string;
-        dueDate: Date;
-      }> }> };
+      return {
+        findings: [] as Array<{
+          findingId: string;
+          actions: Array<{
+            status: string;
+            dueDate: Date;
+          }>;
+        }>,
+      };
     }
     const actions = await this.prisma.actionPlan.findMany({
       where: {
@@ -175,7 +180,10 @@ export class ActionPlansRepository {
     }
     return {
       findings: Array.from(byFinding.entries()).map(
-        ([findingId, actionsOfFinding]) => ({ findingId, actions: actionsOfFinding }),
+        ([findingId, actionsOfFinding]) => ({
+          findingId,
+          actions: actionsOfFinding,
+        }),
       ),
     };
   }

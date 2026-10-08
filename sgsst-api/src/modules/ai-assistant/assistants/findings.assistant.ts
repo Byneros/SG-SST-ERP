@@ -71,7 +71,7 @@ export function createFindingsAssistant(
           let findingsWithoutAction = 0;
           let overdueActions = 0;
           const top: Array<Record<string, unknown>> = [];
-          const findable = (finding) =>
+          const findable = (finding: { severity: string }) =>
             finding.severity === 'MAJOR' || finding.severity === 'CRITICAL';
           for (const finding of findings) {
             bySeverity[finding.severity] =
@@ -86,7 +86,7 @@ export function createFindingsAssistant(
               status: finding.status,
             });
           }
-          // Las acciones de un hallazgo no tienen relacion directa: se 
+          // Las acciones de un hallazgo no tienen relacion directa: se
           // rastrean por origen (sourceType=FINDING, sourceId=id).
           const actionCounts =
             await actionPlansRepository.countForFindingsAsistente(
@@ -103,7 +103,10 @@ export function createFindingsAssistant(
                 (action) => new Date(action.dueDate).getTime() < now,
               );
               overdueActions += overdue.length;
-              return [row.findingId, { open: open.length, overdue: overdue.length }];
+              return [
+                row.findingId,
+                { open: open.length, overdue: overdue.length },
+              ];
             }),
           );
           for (const finding of findings) {

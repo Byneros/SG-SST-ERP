@@ -15,6 +15,10 @@ import {
 import { AiProviderClient } from './ai-provider.client';
 import { AssistantRegistry } from './assistant-registry';
 import {
+  AiAssistantOrchestrator,
+  routeAssistants,
+} from './ai-assistant.orchestrator';
+import {
   ASSISTANT_ALLOWED_ROLES,
   ASSISTANT_CAPABILITIES,
   AssistantResult,
@@ -47,6 +51,11 @@ export class AiAssistantService {
     @Optional() private readonly registry?: AssistantRegistry,
   ) {}
 
+  /** Orquestador Fase K (depende del registry; null si no hay registry). */
+  private get orchestrator(): AiAssistantOrchestrator | null {
+    return this.registry ? new AiAssistantOrchestrator(this.registry) : null;
+  }
+
   async ask(
     user: AuthenticatedUser,
     dto: AssistantQueryDto,
@@ -59,6 +68,15 @@ export class AiAssistantService {
     // Fase 1: consulta de datos explicita con @datos <herramienta|modulo>.
     if (message.startsWith(TOOL_TRIGGER_PREFIX)) {
       return this.runDataTool(user, message, dto);
+    }
+
+    // Fase K: si el router determinista detecta dominios concretos, se usa
+    // la orquestacion multi-asistente (sin cambiar @datos ni la ayuda).
+    if (this.orchestrator) {
+      const routed = routeAssistants(message, this.registry!, user);
+      if (routed.chosen.length > 0) {
+        return this.orchestrateAndSynthesize(user, dto, message);
+      }
     }
 
     // Ayuda conversacional estandar, con contexto curado del modulo preguntado
@@ -166,6 +184,65 @@ export class AiAssistantService {
       usedTool: `${assistantId}:${tool.name}`,
       sources: undefined,
     };
+  }
+
+  /** Fase K: orquesta asistentes por dominio y sintetiza con el LLM. */
+  private async orchestrateAndSynthesize(
+    user: AuthenticatedUser,
+    dto: AssistantQueryDto,
+    message: string,
+  ): Promise<AssistantResult> {
+    const orchestrator = this.orchestrator;
+    if (!orchestrator) {
+      return this.askConversational(dto);
+    }
+    const outcome = await orchestrator.orchestrate(
+      user,
+      dto,
+      this.auditService,
+    );
+    if (outcome.kind === 'NO_MATCH') {
+      return this.askConversational(dto);
+    }
+
+    await this.auditService.log({
+      user,
+      action: 'AI_ASSISTANT_ORCHESTRATED',
+      entity: 'AiAssistant',
+      entityId: outcome.routedTools
+        .map((tool) => `${tool.assistantId}:${tool.toolName}`)
+        .join(','),
+    });
+
+    const result = await this.providerClient.complete({
+      systemPrompt: `${this.buildSystemPrompt(message)}\n\n${outcome.dataPrompt}`,
+      messages: this.buildMessages(dto),
+    });
+    return {
+      ...result,
+      usedTools: outcome.routedTools.map((tool) => ({
+        assistant: tool.assistantId,
+        tool: tool.toolName,
+      })),
+      ...(outcome.omitted.length > 0
+        ? { omittedAssistants: outcome.omitted }
+        : {}),
+      sources: undefined,
+    };
+  }
+
+  /** Ayuda conversacional clasica (fase 1), extraida para reutilizar. */
+  private async askConversational(
+    dto: AssistantQueryDto,
+  ): Promise<AssistantResult> {
+    const result = await this.providerClient.complete({
+      systemPrompt: this.buildSystemPrompt(dto.message),
+      messages: this.buildMessages(dto),
+    });
+    const sources = findNormSources(dto.message)
+      .filter((norm) => norm.status === 'vigente')
+      .map((norm) => norm.name);
+    return sources.length > 0 ? { ...result, sources } : result;
   }
 
   private async runDataTool(

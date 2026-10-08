@@ -66,9 +66,9 @@ describe('NotificationsQueueService', () => {
 
     const result = await service.enqueueTaskEscalation(user);
 
-    expect(
-      notificationsService.escalateOverdueTasks,
-    ).toHaveBeenCalledWith('company-a');
+    expect(notificationsService.escalateOverdueTasks).toHaveBeenCalledWith(
+      'company-a',
+    );
     expect(result).toEqual({ success: true, created: 2 });
   });
 
@@ -87,24 +87,29 @@ describe('NotificationsQueueService', () => {
       notificationsService as never,
       prismaService as never,
     );
-    // Acceso al metodo privado para probar la rama del cron global.
     const processFn = (
       service as unknown as {
-        process: (job: { name: string; data: Record<string, unknown> }) => Promise<unknown>;
+        process: (job: {
+          name: string;
+          data: Record<string, unknown>;
+        }) => Promise<unknown>;
       }
-    ).process.bind(service);
+    ).process.bind(service) as (job: {
+      name: string;
+      data: Record<string, unknown>;
+    }) => Promise<unknown>;
 
     const result = (await processFn({ name: 'task-escalation', data: {} })) as {
       companies: number;
       created: number;
     };
 
-    expect(
-      notificationsService.escalateOverdueTasks,
-    ).toHaveBeenCalledWith('company-a');
-    expect(
-      notificationsService.escalateOverdueTasks,
-    ).toHaveBeenCalledWith('company-b');
+    expect(notificationsService.escalateOverdueTasks).toHaveBeenCalledWith(
+      'company-a',
+    );
+    expect(notificationsService.escalateOverdueTasks).toHaveBeenCalledWith(
+      'company-b',
+    );
     expect(result).toEqual({ success: true, companies: 2, created: 2 });
 
     Object.assign(env, { taskEscalationEnabled: false });

@@ -153,7 +153,7 @@ describe('FindingsAssistant (Fase G)', () => {
       findingsWithAction: 1,
       findingsWithoutAction: 1,
       overdueActions: 1,
-      top: expect.any(Array),
+      top: expect.any(Array) as unknown[],
     });
   });
 

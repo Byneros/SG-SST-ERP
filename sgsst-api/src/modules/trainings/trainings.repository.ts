@@ -89,4 +89,21 @@ export class TrainingsRepository {
   remove(id: string) {
     return this.prisma.training.delete({ where: { id } });
   }
+
+  /**
+   * Asistente IA (fase H1): todas las capacitaciones con datos agregables
+   * (titulo, anio, sede). Solo lectura y siempre scoped por companyId.
+   */
+  findAllForAssistant(companyId: string) {
+    return this.prisma.training.findMany({
+      where: { companyId },
+      select: {
+        title: true,
+        description: true,
+        date: true,
+        siteId: true,
+      },
+      orderBy: { date: 'desc' },
+    });
+  }
 }

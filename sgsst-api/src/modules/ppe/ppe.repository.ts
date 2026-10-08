@@ -212,4 +212,51 @@ export class PpeRepository {
       orderBy: { deliveredAt: 'desc' },
     });
   }
+
+  /**
+   * Asistente IA (fase H3): catalogo activo con stock y estado frente al
+   * minimo. Solo lectura y siempre scoped por companyId.
+   */
+  findStockSummary(companyId: string) {
+    return this.prisma.ppeItem.findMany({
+      where: { companyId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        size: true,
+        stock: true,
+        stockMin: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /**
+   * Asistente IA (fase H3): entregas con reposicion vencida o proxima (30
+   * dias). Solo lectura y siempre scoped por companyId.
+   */
+  findExpiringDeliveries(companyId: string, take: number) {
+    return this.prisma.ppeDelivery.findMany({
+      where: {
+        companyId,
+        dueReplacementAt: {
+          not: null,
+          lte: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+        },
+      },
+      select: {
+        id: true,
+        quantity: true,
+        deliveredAt: true,
+        dueReplacementAt: true,
+        item: { select: { name: true, type: true } },
+        employee: {
+          select: { firstName: true, lastName: true, position: true },
+        },
+      },
+      orderBy: { dueReplacementAt: 'asc' },
+      take,
+    });
+  }
 }

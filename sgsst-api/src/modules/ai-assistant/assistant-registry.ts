@@ -14,11 +14,17 @@ import { createCentralAssistant } from './assistants/central.assistant';
 import { createRisksAssistant } from './assistants/risks.assistant';
 import { createIncidentsAssistant } from './assistants/incidents.assistant';
 import { createFindingsAssistant } from './assistants/findings.assistant';
+import { createTrainingsAssistant } from './assistants/trainings.assistant';
+import { createMedicalAssistant } from './assistants/medical.assistant';
+import { createPpeAssistant } from './assistants/ppe.assistant';
 import type { RisksRepository } from '../risks/risks.repository';
 import type { IncidentsRepository } from '../incidents/incidents.repository';
 import type { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
 import type { FindingsRepository } from '../findings/findings.repository';
 import type { ActionPlansRepository } from '../actions/action-plans.repository';
+import type { TrainingsRepository } from '../trainings/trainings.repository';
+import type { MedicalAssistantRepository } from '../medical/medical.repository';
+import type { PpeRepository } from '../ppe/ppe.repository';
 
 /**
  * Registro de asistentes + orquestador minimo (Fase C).
@@ -40,6 +46,9 @@ export class AssistantRegistry {
     private readonly unsafeReportsRepository?: UnsafeReportsRepository,
     private readonly findingsRepository?: FindingsRepository,
     private readonly actionPlansRepository?: ActionPlansRepository,
+    private readonly trainingsRepository?: TrainingsRepository,
+    private readonly medicalAssistantRepository?: MedicalAssistantRepository,
+    private readonly ppeRepository?: PpeRepository,
   ) {
     this.registry = [
       createCentralAssistant(legacyTools),
@@ -57,13 +66,18 @@ export class AssistantRegistry {
         : []),
       // Fase G: asistente de hallazgos unificados y planes de accion.
       ...(findingsRepository && actionPlansRepository
-        ? [
-            createFindingsAssistant(
-              findingsRepository,
-              actionPlansRepository,
-            ),
-          ]
+        ? [createFindingsAssistant(findingsRepository, actionPlansRepository)]
         : []),
+      // Fase H1: asistente de capacitaciones.
+      ...(trainingsRepository
+        ? [createTrainingsAssistant(trainingsRepository)]
+        : []),
+      // Fase H2: asistente de medicina laboral (solo agregaciones).
+      ...(medicalAssistantRepository
+        ? [createMedicalAssistant(medicalAssistantRepository)]
+        : []),
+      // Fase H3: asistente de EPP (inventario y reposiciones).
+      ...(ppeRepository ? [createPpeAssistant(ppeRepository)] : []),
     ];
   }
 

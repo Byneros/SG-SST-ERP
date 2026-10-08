@@ -4,6 +4,10 @@ export type AssistantResult = {
   sources?: string[];
   /** Modulo consultado mediante herramientas autorizadas, si aplica. */
   usedTool?: string;
+  /** Fase K: herramientas ejecutadas por asistentes elegidos por el router. */
+  usedTools?: Array<{ assistant: string; tool: string }>;
+  /** Fase K: asistentes con match de keywords pero sin permiso para el rol. */
+  omittedAssistants?: string[];
 };
 
 export const ASSISTANT_CAPABILITIES = [
