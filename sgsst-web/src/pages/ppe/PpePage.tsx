@@ -2,7 +2,8 @@ import { Delete, Edit, LocalShipping } from '@mui/icons-material'
 import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Typography } from '@mui/material'
 import { useState } from 'react'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
-import type { PageMeta, PpeDelivery, PpeItem, TableState } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { PageMeta, PpeDelivery, PpeItem, TableState, View } from '../../types'
 
 export function PpePage(props: {
   items: PpeItem[]
@@ -18,6 +19,7 @@ export function PpePage(props: {
   onDeleteItem: (id: string) => void
   onNewDelivery: () => void
   onEmployeeExpediente: (employeeId: string) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   const [tab, setTab] = useState(0)
@@ -38,7 +40,13 @@ export function PpePage(props: {
       </Stack>
       {tab === 0 && (
         <>
-          <TableHeader title="Catalogo EPP" canCreate={props.canManage} onCreate={props.onCreateItem} onPreloadCreate={props.onPreloadCreateItem} />
+          <TableHeader
+            title="Catalogo EPP"
+            canCreate={props.canManage}
+            onCreate={props.onCreateItem}
+            onPreloadCreate={props.onPreloadCreateItem}
+            assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="ppe" onOpen={props.onOpenAssistant} />}
+          />
           <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por nombre o tipo" />
           <TableContainer>
             <Table>

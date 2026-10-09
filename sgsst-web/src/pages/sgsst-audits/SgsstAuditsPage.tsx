@@ -2,7 +2,8 @@ import { AddTask, Delete, Edit, TaskAlt } from '@mui/icons-material'
 import { Button, Chip, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { PageMeta, SgsstAudit, TableState } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { PageMeta, SgsstAudit, TableState, View } from '../../types'
 
 export function SgsstAuditsPage(props: {
   audits: SgsstAudit[]
@@ -20,12 +21,19 @@ export function SgsstAuditsPage(props: {
   onCloseAudit: (item: SgsstAudit) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
-      <TableHeader title="Auditorias SG-SST" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Auditorias SG-SST"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="audit" onOpen={props.onOpenAssistant} />}
+      />
       {props.canExport && (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" sx={{ mb: 2 }}>
           <Button variant="outlined" onClick={() => props.onDownloadReport('pdf')}>

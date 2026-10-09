@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Add, Delete, Edit, TroubleshootOutlined } from '@mui/icons-material'
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { Company, Finding, FindingCause, FindingSeverity, FindingStatus, FindingType, FindingFormValues, FindingSourceType, PageMeta, TableState, SystemUser } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { Company, Finding, FindingCause, FindingSeverity, FindingStatus, FindingType, FindingFormValues, FindingSourceType, PageMeta, TableState, SystemUser, View } from '../../types'
 
 const severityLabel: Record<FindingSeverity, string> = {
   MINOR: 'Menor',
@@ -60,6 +61,7 @@ export function FindingsPage(props: {
   onRemoveCause: (findingId: string, causeId: string) => void
   onSetStatus: (findingId: string, status: FindingStatus) => void
   detailSaving: boolean
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   const [statusFilter, setStatusFilter] = useState<'all' | FindingStatus>('all')
@@ -75,7 +77,13 @@ export function FindingsPage(props: {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
-      <TableHeader title="Hallazgos" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Hallazgos"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="findings" onOpen={props.onOpenAssistant} />}
+      />
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
         <Box sx={{ flex: 1 }}>
           <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por título o descripción" />

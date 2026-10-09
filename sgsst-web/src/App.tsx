@@ -4484,6 +4484,7 @@ function App() {
                 onEdit={openCommitteeForm}
                 onDelete={confirmDeleteCommittee}
                 onOpenDetail={openCommitteeDetail}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4516,6 +4517,7 @@ function App() {
                 onEditDrill={openEmergencyDrillForm}
                 onDeleteDrill={confirmDeleteEmergencyDrill}
                 onOpenDrillDetail={openEmergencyDrillDetail}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4558,6 +4560,7 @@ function App() {
                 onRemoveCause={removeFindingCause}
                 onSetStatus={setFindingStatus}
                 detailSaving={findingDetailSaving}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4617,6 +4620,7 @@ function App() {
                 onCloseEntryAuth={() => setContractorEntryAuth(null)}
                 onAdvanceEntry={advanceContractorEntry}
                 advancingEntry={contractorAdvancing}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4764,6 +4768,7 @@ function App() {
                 onDownload={handleDownloadDocument}
                 onDownloadReport={(format) => handleDownloadReport('expired-documents', format)}
                 onScheduleReport={(format) => handleScheduleReport('expired-documents', format)}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4789,6 +4794,7 @@ function App() {
                 onCloseAudit={(item) => confirmCloseSgsstAudit(item)}
                 onDownloadReport={(format) => handleDownloadReport('audits', format)}
                 onScheduleReport={(format) => handleScheduleReport('audits', format)}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4827,6 +4833,7 @@ function App() {
                     confirmDeleteIndicator(indicator)
                   }
                 }}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4943,6 +4950,7 @@ function App() {
                 }}
                 onNewDelivery={openPpeDeliveryForm}
                 onEmployeeExpediente={() => undefined}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4985,6 +4993,7 @@ function App() {
                 onDeletePveCase={(id) => { void removePveCase(id) }}
                 onAdvancePveCaseStatus={(item) => { void advancePveCaseStatus(item) }}
                 onManagePveDiagnoses={openPveDiagnosisForm}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}

@@ -87,3 +87,63 @@ modulos exponen entry points contextuales con `?assistant=`.
 - Extender entry points al resto del mapa de modulos (extension mecanica).
 - Linea futura del plan: escritura con confirmacion (section 7) y sus
   dialogos de doble confirmacion en UI.
+
+---
+
+# Anexo S16.6.1 — Entry points completos + e2e-db del asistente
+
+Fecha: **2026-10-09** · Sesion posterior al commit `b3089eb` (S16.6).
+
+## 1. Entry points en TODO el mapa de modulos (Fase L completa)
+
+Extension mecanica del patron `ModuleAssistantButton` a las 9 paginas
+restantes con asistente en el registro del backend:
+
+| Pagina | assistantId |
+|---|---|
+| FindingsPage | `findings` |
+| ContractorsPage | `contractors` |
+| CommitteesPage | `committees` |
+| EmergencyPage (tab Brigadas) | `emergency` |
+| SgsstAuditsPage | `audit` |
+| IndicatorsPage | `indicators` |
+| DocumentsPage | `documents` |
+| MedicalPage (tab Profesiograma) | `medical` |
+| PpePage (tab Catalogo) | `ppe` |
+
+`App.tsx` pasa `onOpenAssistant={openAssistant}` a los 12 modulos con
+entry point (los 3 previos + estos 9). Los asistentes quedan asi disponibles
+en todos los modulos del mapa E–J del plan, cada uno con el id estable del
+registro (`assistant-registry.ts`), y la capa de seguridad no cambia:
+`capabilities.assistants` filtrado por rol + 403 del backend como autoridad.
+
+## 2. e2e-db del asistente (section 11 del plan, PostgreSQL real)
+
+Cinco casos nuevos en `sgsst-api/test/prisma-integration.db-e2e-spec.ts`:
+
+1. `risks:matrix_summary` auditada con `AI_ASSISTANT_DATA_QUERY` para el
+   actor de la empresa A (503 acotado sin proveedor es valido).
+2. Empresa B invoca el asistente especializado: toda query queda asociada a
+   actores de la empresa B; verifico en BD que ningun actor de A aparece
+   (el companyId lo resuelve `resolveCompanyScope` en el ToolContext).
+3. EMPLOYEE 403 por asistente y por herramienta (el guard del controlador
+   lo bloquea antes de llegar al registro).
+4. `critical_without_actions` contra el asistente `central` => 403
+   (whitelist cerrada: la herramienta pertenece al asistente de riesgos).
+5. `assistantId: 'fantasma'` => 400.
+
+### Verificacion del anexo
+
+- `npm run test:e2e:db -- --testPathPatterns=prisma-integration` =>
+  **12/12 PASS** (Postgres 16 efimero + migraciones deployadas).
+- `npm test` (unidad, API) => **65 suites, 514 tests PASS**.
+- `npm run lint` => **0 errores** (78 warnings pre-existentes).
+- `sgsst-web`: `npm run build` => **OK, exit 0**.
+
+## 5. Pendiente (siguientes fases)
+
+- Smoke HTTP de `capabilities` por rol con los 13 asistentes del registro.
+- Fase 2 del router elegible: `escalationLevel` en Task (P3 del plan,
+  solo si el volumen lo exige).
+- Linea futura del plan: escritura con confirmacion (section 7) y sus
+  dialogos de doble confirmacion en UI.

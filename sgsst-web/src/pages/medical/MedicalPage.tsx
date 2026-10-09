@@ -2,8 +2,9 @@ import { Delete, Edit, Gavel } from '@mui/icons-material'
 import { Button, Chip, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { ActiveCompanyBanner, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
 import type { MedicalExam, MedicalProfile, MedicalRestriction, MedicalSurveillanceProgram, PveCase, PveDiagnosis } from '../../types'
-import type { TableState } from '../../types'
+import type { TableState, View } from '../../types'
 import { MedicalDerivationPanel, MedicalSurveillancePanel, PveCasesSection } from './MedicalPanels'
 
 const conceptLabels: Record<string, { label: string; color: 'default' | 'success' | 'warning' | 'error' }> = {
@@ -46,6 +47,7 @@ export function MedicalPage(props: {
   onDeletePveCase: (id: string) => void
   onAdvancePveCaseStatus: (item: PveCase) => void
   onManagePveDiagnoses: () => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   const [tab, setTab] = useState(0)
@@ -67,7 +69,12 @@ export function MedicalPage(props: {
       </Stack>
       {tab === 0 && (
         <>
-          <TableHeader title="Profesiograma por cargo" canCreate={props.canManage} onCreate={props.onNewProfile} />
+          <TableHeader
+            title="Profesiograma por cargo"
+            canCreate={props.canManage}
+            onCreate={props.onNewProfile}
+            assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="medical" onOpen={props.onOpenAssistant} />}
+          />
           <TableContainer>
             <Table size="small">
               <TableHead>

@@ -1,7 +1,8 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Box, Chip, IconButton, Paper, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Typography } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { EmergencyBrigade, EmergencyDrill, EmergencyDrillStatus, EmergencyPlan, PageMeta, TableState } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { EmergencyBrigade, EmergencyDrill, EmergencyDrillStatus, EmergencyPlan, PageMeta, TableState, View } from '../../types'
 
 const drillStatusLabel: Record<EmergencyDrillStatus, string> = {
   PLANNED: 'Programado',
@@ -52,6 +53,7 @@ export function EmergencyPage(props: {
   onEditDrill: (item: EmergencyDrill) => void
   onDeleteDrill: (item: EmergencyDrill) => void
   onOpenDrillDetail: (item: EmergencyDrill) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
@@ -71,6 +73,7 @@ export function EmergencyPage(props: {
             title="Brigadas de emergencia"
             canCreate={props.canManage}
             onCreate={props.onCreateBrigade}
+            assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="emergency" onOpen={props.onOpenAssistant} />}
           />
           <TableControls state={props.brigadeTable} onChange={props.onBrigadeTableChange} placeholder="Buscar brigada" />
           <TableContainer>

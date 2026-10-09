@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Delete, Edit, VerifiedUser } from '@mui/icons-material'
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { Contractor, ContractorEntryAuthorization, ContractorEntryStatus, ContractorStatus, PageMeta, TableState } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { Contractor, ContractorEntryAuthorization, ContractorEntryStatus, ContractorStatus, PageMeta, TableState, View } from '../../types'
 
 const statusColor: Record<ContractorStatus, 'success' | 'warning' | 'error'> = {
   ACTIVE: 'success',
@@ -44,6 +45,7 @@ export function ContractorsPage(props: {
   onCloseEntryAuth: () => void
   onAdvanceEntry: (contractorId: string, target: ContractorEntryStatus) => void
   advancingEntry: boolean
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   const [statusFilter, setStatusFilter] = useState<'all' | ContractorStatus>('all')
@@ -53,7 +55,13 @@ export function ContractorsPage(props: {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
-      <TableHeader title="Contratistas" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Contratistas"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="contractors" onOpen={props.onOpenAssistant} />}
+      />
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
         <Box sx={{ flex: 1 }}>
           <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por nombre o NIT" />

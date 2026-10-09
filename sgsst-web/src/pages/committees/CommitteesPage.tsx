@@ -1,7 +1,8 @@
 import { Delete, Edit, TrackChanges } from '@mui/icons-material'
 import { Box, Chip, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { Committee, CommitteeType, PageMeta, TableState } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { Committee, CommitteeType, PageMeta, TableState, View } from '../../types'
 
 const typeLabel: Record<CommitteeType, string> = {
   COPASST: 'COPASST',
@@ -24,12 +25,19 @@ export function CommitteesPage(props: {
   onEdit: (item: Committee) => void
   onDelete: (item: Committee) => void
   onOpenDetail: (item: Committee) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
-      <TableHeader title="Comités (COPASST y Convivencia)" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Comités (COPASST y Convivencia)"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="committees" onOpen={props.onOpenAssistant} />}
+      />
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar por nombre" />
       <TableContainer>
         <Table>

@@ -17,8 +17,9 @@ import {
 } from '@mui/material'
 import type { ReportFormat } from '../../api/client'
 import { ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
 import { documentCategoryLabels, documentStatusLabels } from '../../constants/catalogs'
-import type { PageMeta, SgsstDocument, Site, TableState } from '../../types'
+import type { PageMeta, SgsstDocument, Site, TableState, View } from '../../types'
 
 export function DocumentsPage(props: {
   documents: SgsstDocument[]
@@ -37,13 +38,20 @@ export function DocumentsPage(props: {
   onDownload: (document: SgsstDocument) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <ViewBreadcrumb view="Documentos" />
-      <TableHeader title="Documentos y evidencias" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Documentos y evidencias"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="documents" onOpen={props.onOpenAssistant} />}
+      />
       {props.siteFilter !== 'all' && (
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
           <ActiveSiteFilterChip

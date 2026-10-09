@@ -1,7 +1,8 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Chip, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import { ActiveCompanyBanner, Pager, TableControls, TableHeader } from '../../components/TablePieces'
-import type { Indicator, PageMeta, TableState } from '../../types'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
+import type { Indicator, PageMeta, TableState, View } from '../../types'
 
 /** Verifica el periodo contra la meta correspondiente y colore el chip segun direction. */
 export function indicatorCompliance(indicator: Indicator, period: string): 'success' | 'warning' | 'error' | null {
@@ -27,12 +28,19 @@ export function IndicatorsPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: Indicator) => void
   onDelete: (id: string) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
-      <TableHeader title="Indicadores SG-SST" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Indicadores SG-SST"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="indicators" onOpen={props.onOpenAssistant} />}
+      />
       <TableControls state={props.tableState} onChange={props.onTableChange} placeholder="Buscar indicador, codigo o formula" />
       <TableContainer>
         <Table>
