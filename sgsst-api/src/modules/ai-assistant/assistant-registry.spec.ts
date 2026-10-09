@@ -13,6 +13,10 @@ import { PpeRepository } from '../ppe/ppe.repository';
 import { ContractorsRepository } from '../contractors/contractors.repository';
 import { CommitteesRepository } from '../committees/committees.repository';
 import { EmergencyRepository } from '../emergency/emergency.repository';
+import { SgsstAuditsRepository } from '../sgsst-audits/sgsst-audits.repository';
+import { AnnualWorkPlansRepository } from '../annual-work-plans/annual-work-plans.repository';
+import { AnnualPlanActivitiesRepository } from '../annual-work-plans/annual-plan-activities.repository';
+import { PrismaService } from '../../database/prisma.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 
 /**
@@ -83,6 +87,10 @@ describe('AssistantRegistry (framework Fase C)', () => {
       ContractorsRepository,
       CommitteesRepository,
       EmergencyRepository,
+      SgsstAuditsRepository,
+      AnnualWorkPlansRepository,
+      AnnualPlanActivitiesRepository,
+      PrismaService,
     ]);
   });
 

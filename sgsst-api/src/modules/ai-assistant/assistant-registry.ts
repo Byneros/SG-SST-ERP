@@ -20,6 +20,9 @@ import { createPpeAssistant } from './assistants/ppe.assistant';
 import { createContractorsAssistant } from './assistants/contractors.assistant';
 import { createCommitteesAssistant } from './assistants/committees.assistant';
 import { createEmergencyAssistant } from './assistants/emergency.assistant';
+import { createAuditAssistant } from './assistants/audit.assistant';
+import { createIndicatorsAssistant } from './assistants/indicators.assistant';
+import { createDocumentsAssistant } from './assistants/documents.assistant';
 // Import de VALOR (no `import type`): Nest emite design:paramtypes desde los
 // metadatos de compilacion y `import type` se borra, dejando `Object` en el
 // indice y rompiendo la resolucion de dependencias al arrancar la app.
@@ -34,6 +37,10 @@ import { PpeRepository } from '../ppe/ppe.repository';
 import { ContractorsRepository } from '../contractors/contractors.repository';
 import { CommitteesRepository } from '../committees/committees.repository';
 import { EmergencyRepository } from '../emergency/emergency.repository';
+import { SgsstAuditsRepository } from '../sgsst-audits/sgsst-audits.repository';
+import { AnnualWorkPlansRepository } from '../annual-work-plans/annual-work-plans.repository';
+import { AnnualPlanActivitiesRepository } from '../annual-work-plans/annual-plan-activities.repository';
+import { PrismaService } from '../../database/prisma.service';
 
 /**
  * Registro de asistentes + orquestador minimo (Fase C).
@@ -61,6 +68,10 @@ export class AssistantRegistry {
     private readonly contractorsRepository?: ContractorsRepository,
     private readonly committeesRepository?: CommitteesRepository,
     private readonly emergencyRepository?: EmergencyRepository,
+    private readonly sgsstAuditsRepository?: SgsstAuditsRepository,
+    private readonly annualWorkPlansRepository?: AnnualWorkPlansRepository,
+    private readonly annualPlanActivitiesRepository?: AnnualPlanActivitiesRepository,
+    private readonly prisma?: PrismaService,
   ) {
     this.registry = [
       createCentralAssistant(legacyTools),
@@ -102,6 +113,22 @@ export class AssistantRegistry {
       ...(emergencyRepository
         ? [createEmergencyAssistant(emergencyRepository)]
         : []),
+      // Fase J1: asistente de auditorías SG-SST (resumen y hallazgos abiertos).
+      ...(sgsstAuditsRepository
+        ? [createAuditAssistant(sgsstAuditsRepository)]
+        : []),
+      // Fase J2: asistente de indicadores y Plan Anual de Trabajo.
+      ...(annualWorkPlansRepository && annualPlanActivitiesRepository && prisma
+        ? [
+            createIndicatorsAssistant(
+              annualWorkPlansRepository,
+              annualPlanActivitiesRepository,
+              prisma,
+            ),
+          ]
+        : []),
+      // Fase J3: asistente de documentos (solo metadata autorizada).
+      ...(prisma ? [createDocumentsAssistant(prisma)] : []),
     ];
   }
 

@@ -261,6 +261,85 @@ export class SgsstAuditsRepository {
     return this.prisma.auditChecklistItem.update({ where: { id }, data: dto });
   }
 
+  // ----- FASE J1 (S16): agregaciones READ para el asistente de auditorías -----
+
+  /** Resumen de auditorías por estado, con hallazgos abiertos por auditoría. */
+  async summaryForAssistant(
+    companyId: string,
+    take = 10,
+  ): Promise<{
+    total: number;
+    byStatus: Record<string, number>;
+    openFindings: number;
+    audits: Array<{
+      id: string;
+      title: string;
+      status: string;
+      scheduledAt: Date;
+      auditorName: string | null;
+      findings: number;
+      openActions: number;
+    }>;
+  }> {
+    const takeCapped = Math.max(1, Math.min(Math.floor(take) || 10, 20));
+    const [total, grouped, audits] = await Promise.all([
+      this.prisma.audit.count({ where: { companyId } }),
+      this.prisma.audit.groupBy({
+        by: ['status'],
+        where: { companyId },
+        _count: { _all: true },
+      }),
+      this.prisma.audit.findMany({
+        where: { companyId },
+        orderBy: { scheduledAt: 'desc' },
+        take: takeCapped,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          scheduledAt: true,
+          auditorName: true,
+          findings: {
+            select: {
+              id: true,
+              status: true,
+              actions: { select: { status: true } },
+            },
+          },
+        },
+      }),
+    ]);
+    const byStatus: Record<string, number> = {};
+    for (const row of grouped) {
+      byStatus[row.status] = row._count._all;
+    }
+    const openFindings = audits.reduce(
+      (acc, audit) =>
+        acc + audit.findings.filter((f) => f.status !== 'CLOSED').length,
+      0,
+    );
+    return {
+      total,
+      byStatus,
+      openFindings,
+      audits: audits.map((audit) => ({
+        id: audit.id,
+        title: audit.title,
+        status: audit.status,
+        scheduledAt: audit.scheduledAt,
+        auditorName: audit.auditorName,
+        findings: audit.findings.length,
+        openActions: audit.findings.reduce(
+          (acc, finding) =>
+            acc +
+            finding.actions.filter((action) => action.status !== 'COMPLETED')
+              .length,
+          0,
+        ),
+      })),
+    };
+  }
+
   private toAuditData(dto: CreateSgsstAuditDto | UpdateSgsstAuditDto) {
     const closedAt = 'closedAt' in dto ? dto.closedAt : undefined;
     return {
