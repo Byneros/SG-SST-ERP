@@ -310,7 +310,7 @@ const ALL_VIEWS: View[] = [
   'audit',
 ]
 
-function readHashLocation(): { view: View; site: string } {
+function readHashLocation(): { view: View; site: string; assistant?: string } {
   const hash = window.location.hash.replace(/^#\/?/, '')
   const [path, query] = hash.split('?')
   const candidate = path ?? ''
@@ -318,7 +318,11 @@ function readHashLocation(): { view: View; site: string } {
   const rawSite = new URLSearchParams(query ?? '').get('site') ?? 'all'
   // Valor invalido -> 'all' (el backend responderia 404 a una sede inexistente).
   const site = rawSite === 'none' || rawSite === 'all' || UUID_PATTERN.test(rawSite) ? rawSite : 'all'
-  return { view, site }
+  // Fase L: asistente especializado ?assistant=<id estable del registro>;
+  // un valor invalido degrada al asistente central (el backend valida roles).
+  const rawAssistant = new URLSearchParams(query ?? '').get('assistant') ?? ''
+  const assistant = /^[a-z][a-z0-9]{1,31}$/.test(rawAssistant) ? rawAssistant : undefined
+  return { view, site, assistant }
 }
 
 // Tokens que el callback SSO entrega en el fragmento (#access_token=...).
@@ -352,6 +356,8 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(() => getStoredSession().user)
   const [initialHash] = useState(() => readHashLocation())
   const [view, setView] = useState<View>(initialHash.view)
+  // Fase L: asistente especializado activo (?assistant= en el hash).
+  const [assistantId, setAssistantId] = useState<string | undefined>(initialHash.assistant)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   // S11 Comites: COPASST y Convivencia (listado + detalle con sub-recursos).
@@ -779,12 +785,15 @@ function App() {
         params.set('site', siteFilter)
       }
     }
+    if (view === 'aiAssistant' && assistantId) {
+      params.set('assistant', assistantId)
+    }
     const query = params.toString()
     const nextHash = `#/${view}${query ? `?${query}` : ''}`
     if (window.location.hash !== nextHash) {
       window.history.replaceState(null, '', nextHash)
     }
-  }, [view, employeeSiteFilter, incidentSiteFilter, riskSiteFilter, trainingSiteFilter, documentSiteFilter, plannedInspectionSiteFilter])
+  }, [view, assistantId, employeeSiteFilter, incidentSiteFilter, riskSiteFilter, trainingSiteFilter, documentSiteFilter, plannedInspectionSiteFilter])
 
   async function loadData(refreshDashboard = false) {
     setLoading(true)
@@ -4235,7 +4244,23 @@ function App() {
     if (isEmployee && employeeBlocked.includes(nextView)) {
       return
     }
+    if (nextView === 'aiAssistant') {
+      // Entrada por el menu lateral: asistente central (sin ?assistant).
+      setAssistantId(undefined)
+    }
     setView(nextView)
+    setMobileOpen(false)
+  }
+
+  // Entry point contextual de un modulo (Fase L): abre el asistente
+  // especializado con ?assistant=<id>. La autoridad final de roles/compania
+  // sigue siendo el backend; aqui solo evitamos 403 para EMPLOYEE.
+  function openAssistant(targetView: View, assistant: string) {
+    if (isEmployee || !canUseAssistant) {
+      return
+    }
+    setAssistantId(assistant)
+    setView(targetView)
     setMobileOpen(false)
   }
 
@@ -4666,6 +4691,7 @@ function App() {
                     confirmDeleteIncident(incident)
                   }
                 }}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4688,6 +4714,7 @@ function App() {
                     confirmDeleteRisk(risk)
                   }
                 }}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -4710,6 +4737,7 @@ function App() {
                     confirmDeleteTraining(training)
                   }
                 }}
+                onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
               />
             )}
@@ -5023,7 +5051,12 @@ function App() {
                 onRefresh={() => { void loadDeveloperPanel() }}
               />
             )}
-            {view === 'aiAssistant' && <AssistantChatPage />}
+            {view === 'aiAssistant' && (
+              <AssistantChatPage
+                assistantId={assistantId}
+                onClearAssistant={() => setAssistantId(undefined)}
+              />
+            )}
             {view === 'externalDeliveries' && canRetryDeliveries && (
               <ExternalDeliveriesPage
                 deliveries={externalDeliveries}

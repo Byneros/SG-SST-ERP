@@ -1,7 +1,8 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
 import { ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
-import type { PageMeta, Site, TableState, Training } from '../../types'
+import type { PageMeta, Site, TableState, Training, View } from '../../types'
 
 export function TrainingsPage(props: {
   trainings: Training[]
@@ -16,13 +17,20 @@ export function TrainingsPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: Training) => void
   onDelete: (id: string) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <ViewBreadcrumb view="Capacitaciones" />
-      <TableHeader title="Capacitaciones" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Capacitaciones"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="trainings" onOpen={props.onOpenAssistant} />}
+      />
       {props.siteFilter !== 'all' && (
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
           <ActiveSiteFilterChip

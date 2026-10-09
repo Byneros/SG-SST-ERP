@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import type { ReactNode } from 'react'
 import type { PageMeta, TableState } from '../types'
 
 export function TableHeader({
@@ -17,11 +18,14 @@ export function TableHeader({
   canCreate,
   onCreate,
   onPreloadCreate,
+  assistant,
 }: {
   title: string
   canCreate: boolean
   onCreate: () => void
   onPreloadCreate?: () => void
+  /** Entry point contextual del asistente del modulo (Fase L, S16). */
+  assistant?: ReactNode
 }) {
   return (
     <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
@@ -29,16 +33,19 @@ export function TableHeader({
         <Typography variant="h6">{title}</Typography>
         <Typography color="text.secondary">Operaciones protegidas por JWT y permisos de rol.</Typography>
       </Box>
-      <Button
-        startIcon={<Add />}
-        variant="contained"
-        disabled={!canCreate}
-        onClick={onCreate}
-        onFocus={onPreloadCreate}
-        onMouseEnter={onPreloadCreate}
-      >
-        Nuevo
-      </Button>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        {assistant}
+        <Button
+          startIcon={<Add />}
+          variant="contained"
+          disabled={!canCreate}
+          onClick={onCreate}
+          onFocus={onPreloadCreate}
+          onMouseEnter={onPreloadCreate}
+        >
+          Nuevo
+        </Button>
+      </Stack>
     </Stack>
   )
 }

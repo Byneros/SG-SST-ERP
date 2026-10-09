@@ -1,8 +1,9 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Chip, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
 import { ActiveChip, ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
 import { incidentStatusLabels } from '../../constants/catalogs'
-import type { Incident, PageMeta, Site, TableState } from '../../types'
+import type { Incident, PageMeta, Site, TableState, View } from '../../types'
 
 export function IncidentsPage(props: {
   incidents: Incident[]
@@ -18,13 +19,20 @@ export function IncidentsPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: Incident) => void
   onDelete: (id: string) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   return (
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <ViewBreadcrumb view="Incidentes" />
-      <TableHeader title="Incidentes" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Incidentes"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="incidents" onOpen={props.onOpenAssistant} />}
+      />
       {props.siteFilter !== 'all' && (
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
           <ActiveSiteFilterChip

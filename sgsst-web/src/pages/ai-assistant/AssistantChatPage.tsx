@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, readApiError } from '../../api/client'
 
 /**
@@ -25,6 +25,8 @@ import { api, readApiError } from '../../api/client'
  *   peticion; el backend lo sanea y recorta (ver AssistantQueryDto).
  * - Consultas de datos con el prefijo @datos: el backend resuelve el alcance
  *   de empresa; la UI nunca envia companyId.
+ * - Fase L: `assistantId` (query param ?assistant=) activa un asistente
+ *   especializado del registro; solo se ofrecen los permitidos por rol.
  */
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -42,6 +44,12 @@ type AssistantCapabilities = {
   roles: string[]
   dataTools: string[]
   capabilities: string[]
+  assistants?: Array<{
+    id: string
+    name: string
+    module: string
+    description: string
+  }>
   limits: {
     maxMessageLength: number
     historyMessages: number
@@ -66,7 +74,29 @@ const WELCOME: ChatMessage = {
     'Si un dato no esta disponible te lo dire claramente.',
 }
 
-export function AssistantChatPage() {
+/** Mensaje de bienvenida con el asistente especializado activo (Fase L). */
+function welcomeFor(assistant?: { name: string; description: string }): ChatMessage {
+  if (!assistant) {
+    return WELCOME
+  }
+  return {
+    role: 'assistant',
+    content:
+      `Hola. Estás hablando con el ${assistant.name}. ${assistant.description} ` +
+      'Pregunta con tus propias palabras: eligiré las herramientas de este ' +
+      'módulo y solo responderé con los datos de tu empresa.',
+  }
+}
+
+export function AssistantChatPage({
+  assistantId,
+  onClearAssistant,
+}: {
+  /** Asistente especializado activo, del query param ?assistant= (Fase L). */
+  assistantId?: string
+  /** Pide volver al asistente central (Limpiar / asistente no disponible). */
+  onClearAssistant?: () => void
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -89,6 +119,36 @@ export function AssistantChatPage() {
       active = false
     }
   }, [])
+
+  const activeAssistant = useMemo(
+    () =>
+      assistantId && capabilities
+        ? (capabilities.assistants?.find((entry) => entry.id === assistantId) ?? null)
+        : null,
+    [assistantId, capabilities],
+  )
+
+  // El asistente activo solo puede ser uno del registro permitido para el
+  // rol (capabilities ya viene filtrado por el backend). Un id invalido o no
+  // permitido degrada al asistente central sin error de transporte.
+  useEffect(() => {
+    if (assistantId && capabilities && !activeAssistant) {
+      onClearAssistant?.()
+      return
+    }
+    if (assistantId && capabilitiesError) {
+      onClearAssistant?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assistantId, capabilities, activeAssistant, capabilitiesError])
+
+  // Nuevo asistente activo => conversacion nueva (contexto distinto).
+  useEffect(() => {
+    conversationIdRef.current = crypto.randomUUID()
+    setMessages([welcomeFor(activeAssistant ?? undefined)])
+    setInput('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assistantId])
 
   // El panel siempre muestra el ultimo mensaje (comportamiento de chat).
   useEffect(() => {
@@ -114,6 +174,31 @@ export function AssistantChatPage() {
     setInput('')
     setSending(true)
     try {
+      if (activeAssistant) {
+        // Fase L: consulta al asistente especializado (orquestador del
+        // backend elige herramientas READ del registro por keywords).
+        const response = await api.post<{
+          content: string
+          usedTools?: Array<{ assistant: string; tool: string }>
+          omittedAssistants?: string[]
+        }>('/ai-assistant/ask', {
+          message,
+          conversationId: conversationIdRef.current,
+          history: historyPayload(current),
+          assistantId: activeAssistant.id,
+        })
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: response.data.content,
+            usedTool: response.data.usedTools
+              ?.map((entry) => `${entry.assistant}:${entry.tool}`)
+              .join(', '),
+          },
+        ])
+        return
+      }
       const response = await api.post<{
         content: string
         usedTool?: string
@@ -144,12 +229,27 @@ export function AssistantChatPage() {
   }
 
   function clearConversation() {
+    if (activeAssistant) {
+      onClearAssistant?.()
+      return
+    }
     conversationIdRef.current = crypto.randomUUID()
     setMessages([WELCOME])
     setInput('')
   }
 
   const maxLength = capabilities?.limits.maxMessageLength ?? 4000
+  const headerTitle = activeAssistant ? activeAssistant.name : 'Asistente inteligente'
+  const headerSubtitle = activeAssistant
+    ? activeAssistant.description
+    : 'Ayuda del ERP y consulta de datos de tu empresa con @datos'
+  const prompts = activeAssistant
+    ? [
+        `Resumen de ${activeAssistant.module === 'risks' ? 'la matriz de riesgos' : activeAssistant.module}`,
+        '¿Que datos tienes de mi empresa?',
+        '¿Que herramientas usas?',
+      ]
+    : QUICK_PROMPTS
 
   return (
     <Container maxWidth="md" disableGutters sx={{ width: '100%' }}>
@@ -157,9 +257,9 @@ export function AssistantChatPage() {
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
           <SmartToy color="primary" />
           <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="subtitle1">Asistente inteligente</Typography>
+            <Typography variant="subtitle1">{headerTitle}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Ayuda del ERP y consulta de datos de tu empresa con @datos
+              {headerSubtitle}
             </Typography>
           </Box>
           <Button size="small" startIcon={<DeleteOutline />} onClick={clearConversation}>
@@ -191,7 +291,7 @@ export function AssistantChatPage() {
 
         <Box sx={{ px: 2, pb: 1 }}>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-            {QUICK_PROMPTS.map((prompt) => (
+            {prompts.map((prompt) => (
               <Chip
                 key={prompt}
                 label={prompt}
@@ -209,7 +309,11 @@ export function AssistantChatPage() {
             fullWidth
             multiline
             maxRows={4}
-            placeholder="Escribe tu consulta... usa @datos para datos de tu empresa"
+            placeholder={
+              activeAssistant
+                ? `Pregunta al ${activeAssistant.name}...`
+                : 'Escribe tu consulta... usa @datos para datos de tu empresa'
+            }
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {

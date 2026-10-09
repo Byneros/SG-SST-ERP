@@ -1,8 +1,9 @@
 import { Delete, Edit } from '@mui/icons-material'
 import { Chip, IconButton, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material'
+import { ModuleAssistantButton } from '../../components/ModuleAssistantButton'
 import { ActiveCompanyBanner, ActiveSiteFilterChip, Pager, TableControls, TableHeader, ViewBreadcrumb } from '../../components/TablePieces'
 import { riskLevelLabels } from '../../constants/catalogs'
-import type { PageMeta, Risk, Site, TableState } from '../../types'
+import type { PageMeta, Risk, Site, TableState, View } from '../../types'
 
 export function RisksPage(props: {
   risks: Risk[]
@@ -17,6 +18,7 @@ export function RisksPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: Risk) => void
   onDelete: (id: string) => void
+  onOpenAssistant?: (view: View, assistantId: string) => void
   activeCompanyName?: string
 }) {
   const levelColor = (level: Risk['level']) =>
@@ -26,7 +28,13 @@ export function RisksPage(props: {
     <Paper className="panel" variant="outlined">
       <ActiveCompanyBanner name={props.activeCompanyName} />
       <ViewBreadcrumb view="Riesgos" />
-      <TableHeader title="Matriz de riesgos" canCreate={props.canManage} onCreate={props.onCreate} onPreloadCreate={props.onPreloadCreate} />
+      <TableHeader
+        title="Matriz de riesgos"
+        canCreate={props.canManage}
+        onCreate={props.onCreate}
+        onPreloadCreate={props.onPreloadCreate}
+        assistant={props.onOpenAssistant && <ModuleAssistantButton assistantId="risks" onOpen={props.onOpenAssistant} />}
+      />
       {props.siteFilter !== 'all' && (
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
           <ActiveSiteFilterChip
