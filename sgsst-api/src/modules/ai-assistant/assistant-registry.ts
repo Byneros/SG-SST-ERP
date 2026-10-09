@@ -20,17 +20,20 @@ import { createPpeAssistant } from './assistants/ppe.assistant';
 import { createContractorsAssistant } from './assistants/contractors.assistant';
 import { createCommitteesAssistant } from './assistants/committees.assistant';
 import { createEmergencyAssistant } from './assistants/emergency.assistant';
-import type { RisksRepository } from '../risks/risks.repository';
-import type { IncidentsRepository } from '../incidents/incidents.repository';
-import type { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
-import type { FindingsRepository } from '../findings/findings.repository';
-import type { ActionPlansRepository } from '../actions/action-plans.repository';
-import type { TrainingsRepository } from '../trainings/trainings.repository';
-import type { MedicalAssistantRepository } from '../medical/medical.repository';
-import type { PpeRepository } from '../ppe/ppe.repository';
-import type { ContractorsRepository } from '../contractors/contractors.repository';
-import type { CommitteesRepository } from '../committees/committees.repository';
-import type { EmergencyRepository } from '../emergency/emergency.repository';
+// Import de VALOR (no `import type`): Nest emite design:paramtypes desde los
+// metadatos de compilacion y `import type` se borra, dejando `Object` en el
+// indice y rompiendo la resolucion de dependencias al arrancar la app.
+import { RisksRepository } from '../risks/risks.repository';
+import { IncidentsRepository } from '../incidents/incidents.repository';
+import { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
+import { FindingsRepository } from '../findings/findings.repository';
+import { ActionPlansRepository } from '../actions/action-plans.repository';
+import { TrainingsRepository } from '../trainings/trainings.repository';
+import { MedicalAssistantRepository } from '../medical/medical.repository';
+import { PpeRepository } from '../ppe/ppe.repository';
+import { ContractorsRepository } from '../contractors/contractors.repository';
+import { CommitteesRepository } from '../committees/committees.repository';
+import { EmergencyRepository } from '../emergency/emergency.repository';
 
 /**
  * Registro de asistentes + orquestador minimo (Fase C).

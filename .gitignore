@@ -24,6 +24,7 @@
 !**/.vscode/launch.json
 !**/.vscode/extensions.json
 scripts/qa-artifacts/
+caps-check.json
 
 # Claves privadas locales (age, etc.)
 secrets/

@@ -2,6 +2,17 @@ import { ForbiddenException } from '@nestjs/common';
 import { AssistantRegistry } from './assistant-registry';
 import { canInvokeTool, canUseAssistant } from './ai-assistant.framework';
 import { AiAssistantTools } from './ai-assistant.tools';
+import { RisksRepository } from '../risks/risks.repository';
+import { IncidentsRepository } from '../incidents/incidents.repository';
+import { UnsafeReportsRepository } from '../unsafe-reports/unsafe-reports.repository';
+import { FindingsRepository } from '../findings/findings.repository';
+import { ActionPlansRepository } from '../actions/action-plans.repository';
+import { TrainingsRepository } from '../trainings/trainings.repository';
+import { MedicalAssistantRepository } from '../medical/medical.repository';
+import { PpeRepository } from '../ppe/ppe.repository';
+import { ContractorsRepository } from '../contractors/contractors.repository';
+import { CommitteesRepository } from '../committees/committees.repository';
+import { EmergencyRepository } from '../emergency/emergency.repository';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 
 /**
@@ -51,6 +62,28 @@ describe('AssistantRegistry (framework Fase C)', () => {
     registry = new AssistantRegistry(
       legacyTools as unknown as AiAssistantTools,
     );
+  });
+
+  it('conserva clases de repositorio en la metadata DI de Nest', () => {
+    const parameterTypes = Reflect.getMetadata(
+      'design:paramtypes',
+      AssistantRegistry,
+    ) as unknown[];
+
+    expect(parameterTypes).toEqual([
+      AiAssistantTools,
+      RisksRepository,
+      IncidentsRepository,
+      UnsafeReportsRepository,
+      FindingsRepository,
+      ActionPlansRepository,
+      TrainingsRepository,
+      MedicalAssistantRepository,
+      PpeRepository,
+      ContractorsRepository,
+      CommitteesRepository,
+      EmergencyRepository,
+    ]);
   });
 
   it('el registro expone el asistente central con sus 6 herramientas', () => {
