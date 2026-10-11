@@ -124,6 +124,15 @@ export type SgsstDocumentVersion = {
   createdAt: string
 }
 
+export type DocumentApproval = {
+  id: string
+  status: 'APPROVED'
+  comments?: string
+  approvedAt: string
+  version: number
+  approver?: Pick<SystemUser, 'id' | 'name' | 'email'>
+}
+
 export type SgsstDocument = {
   id: string
   name: string
@@ -140,6 +149,7 @@ export type SgsstDocument = {
   company?: Pick<Company, 'id' | 'name' | 'nit'>
   site?: Pick<Site, 'id' | 'name' | 'code'>
   versions?: SgsstDocumentVersion[]
+  approvals?: DocumentApproval[]
 }
 
 export type AuditLog = {
@@ -1034,7 +1044,6 @@ export type DocumentFormValues = {
   name: string
   description: string
   category: DocumentCategory
-  status: DocumentStatus
   fileUrl: string
   fileName: string
   mimeType: string

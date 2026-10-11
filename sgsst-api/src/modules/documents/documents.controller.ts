@@ -22,6 +22,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { resolveCompanyScope } from '../../common/pipes/company-scope';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { ApproveDocumentDto } from './dto/approve-document.dto';
 import { CreateDocumentVersionDto } from './dto/create-document-version.dto';
 import { DocumentListQueryDto } from './dto/document-list-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
@@ -128,6 +129,34 @@ export class DocumentsController {
     @Body() dto: CreateDocumentVersionDto,
   ) {
     return this.documentsService.createVersion(id, dto, user);
+  }
+
+  @Post(':id/approve')
+  @Roles('ADMIN')
+  approve(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveDocumentDto,
+  ) {
+    return this.documentsService.approve(id, dto, user);
+  }
+
+  @Post(':id/expire')
+  @Roles('ADMIN', 'SST')
+  expire(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.documentsService.expire(id, user);
+  }
+
+  @Post(':id/archive')
+  @Roles('ADMIN', 'SST')
+  archive(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.documentsService.archive(id, user);
   }
 
   @Delete(':id')

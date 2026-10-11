@@ -1,4 +1,4 @@
-import { Delete, Edit, OpenInNew } from '@mui/icons-material'
+import { Archive, Delete, Edit, EventBusy, OpenInNew, Publish } from '@mui/icons-material'
 import {
   Chip,
   Button,
@@ -26,6 +26,7 @@ export function DocumentsPage(props: {
   meta: PageMeta
   tableState: TableState
   canManage: boolean
+  canApprove: boolean
   canExport: boolean
   sites: Site[]
   siteFilter: string
@@ -35,6 +36,9 @@ export function DocumentsPage(props: {
   onPreloadCreate?: () => void
   onEdit: (item: SgsstDocument) => void
   onDelete: (id: string) => void
+  onApprove: (document: SgsstDocument) => void
+  onExpire: (document: SgsstDocument) => void
+  onArchive: (document: SgsstDocument) => void
   onDownload: (document: SgsstDocument) => void
   onDownloadReport: (format: ReportFormat) => void
   onScheduleReport: (format: ReportFormat) => void
@@ -119,7 +123,14 @@ export function DocumentsPage(props: {
                 <TableCell>v{document.version}</TableCell>
                 <TableCell>{document.expiresAt ? document.expiresAt.slice(0, 10) : '-'}</TableCell>
                 <TableCell>
-                  <Chip size="small" label={documentStatusLabels[document.status]} variant="outlined" />
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Chip size="small" label={documentStatusLabels[document.status]} variant="outlined" />
+                    {document.approvals?.[0] && (
+                      <Tooltip title={`Aprobado por ${document.approvals[0].approver?.name ?? 'administrador'} en v${document.approvals[0].version}`}>
+                        <Chip size="small" color="success" label="Aprobado" />
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Abrir archivo">
@@ -129,6 +140,27 @@ export function DocumentsPage(props: {
                       </IconButton>
                     </span>
                   </Tooltip>
+                  {props.canApprove && document.status === 'DRAFT' && (
+                    <Tooltip title="Aprobar y publicar">
+                      <IconButton color="success" onClick={() => props.onApprove(document)}>
+                        <Publish />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {props.canManage && document.status === 'PUBLISHED' && document.expiresAt && new Date(document.expiresAt) <= new Date() && (
+                    <Tooltip title="Marcar vencido">
+                      <IconButton color="warning" onClick={() => props.onExpire(document)}>
+                        <EventBusy />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {props.canManage && document.status !== 'ARCHIVED' && (
+                    <Tooltip title="Archivar documento">
+                      <IconButton onClick={() => props.onArchive(document)}>
+                        <Archive />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   <IconButton disabled={!props.canManage} onClick={() => props.onEdit(document)}>
                     <Edit />
                   </IconButton>

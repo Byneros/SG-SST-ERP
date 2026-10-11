@@ -29,10 +29,6 @@ export class UpdateDocumentDto {
   category?: string;
 
   @IsOptional()
-  @IsIn(['DRAFT', 'PUBLISHED', 'EXPIRED', 'ARCHIVED'])
-  status?: string;
-
-  @IsOptional()
   @IsString()
   fileUrl?: string;
 

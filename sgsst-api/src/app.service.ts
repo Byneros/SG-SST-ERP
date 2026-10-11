@@ -33,20 +33,26 @@ export class AppService {
   }
 
   async getReadiness(): Promise<ReadinessResponse> {
-    const [database, redis] = await Promise.all([
-      this.checkDatabase(),
-      this.checkRedis(),
-    ]);
+    const dependencies = await this.getDependencyHealth();
     const response: ReadinessResponse = {
       ...this.getHealth(),
-      dependencies: { database, redis },
+      dependencies,
     };
 
-    if (database === 'error' || redis === 'error') {
+    if (dependencies.database === 'error' || dependencies.redis === 'error') {
       throw new ServiceUnavailableException(response);
     }
 
     return response;
+  }
+
+  /** Estado individual para paneles operativos; no lanza si una dependencia falla. */
+  async getDependencyHealth(): Promise<ReadinessResponse['dependencies']> {
+    const [database, redis] = await Promise.all([
+      this.checkDatabase(),
+      this.checkRedis(),
+    ]);
+    return { database, redis };
   }
 
   protected createRedisHealthClient(): RedisHealthClient {
@@ -60,12 +66,20 @@ export class AppService {
   }
 
   private async checkDatabase(): Promise<'ok' | 'error'> {
-    try {
-      await this.prisma.$queryRawUnsafe('SELECT 1');
-      return 'ok';
-    } catch {
-      return 'error';
+    // PrismaPg puede rechazar una consulta de health aislada si el cliente PG
+    // acaba de recibir otra consulta durante el arranque. Un reintento corto
+    // evita reportar una dependencia sana como caida sin ocultar un fallo real.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await this.prisma.$queryRawUnsafe('SELECT 1');
+        return 'ok';
+      } catch {
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+      }
     }
+    return 'error';
   }
 
   private async checkRedis(): Promise<'ok' | 'error'> {

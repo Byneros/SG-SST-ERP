@@ -31,6 +31,7 @@ model User {
   notifications                    Notification[]
   reportExports                    ReportExport[]
   approvedAnnualWorkPlans          AnnualWorkPlan[]             @relation("AnnualWorkPlanApprover")
+  documentApprovals                DocumentApproval[]          @relation("DocumentApprovalApprover")
   ownedAnnualPlanActivities        AnnualPlanActivity[]         @relation("AnnualPlanActivityOwner")
   medicalSurveillanceProgramsOwned MedicalSurveillanceProgram[] @relation("MedicalSurveillanceOwner")
   plannedInspectionsAsInspector    PlannedInspection[]          @relation("PlannedInspectionInspector")
@@ -1083,6 +1084,7 @@ model Document {
   siteId                String?
   site                  Site?                @relation(fields: [siteId], references: [id])
   versions              DocumentVersion[]
+  approvals             DocumentApproval[]
   annualPlanActivities  AnnualPlanActivity[]
   contractorDocuments   ContractorDocument[]
   committeeMinutes      CommitteeMeeting[]
@@ -1100,6 +1102,21 @@ model DocumentVersion {
   createdAt  DateTime @default(now())
   documentId String
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model DocumentApproval {
+  id         String                 @id @default(uuid())
+  status     DocumentApprovalStatus @default(APPROVED)
+  comments   String?
+  approvedAt DateTime               @default(now())
+  version    Int
+  documentId String
+  document   Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  approverId String
+  approver   User                   @relation("DocumentApprovalApprover", fields: [approverId], references: [id])
+
+  @@unique([documentId, version])
+  @@index([approverId])
 }
 
 model Indicator {
@@ -1473,6 +1490,10 @@ enum DocumentStatus {
   PUBLISHED
   EXPIRED
   ARCHIVED
+}
+
+enum DocumentApprovalStatus {
+  APPROVED
 }
 
 enum NotificationType {

@@ -142,6 +142,7 @@ describe('Prisma integration (e2e, PostgreSQL real)', () => {
     // Limpieza por tenant (orden por dependencias FK).
     for (const companyId of [companyAId, companyBId]) {
       if (!companyId) continue;
+      await prisma.document.deleteMany({ where: { companyId } });
       await prisma.risk.deleteMany({ where: { companyId } });
       await prisma.employee.deleteMany({ where: { companyId } });
       await prisma.site.deleteMany({ where: { companyId } });
@@ -210,6 +211,83 @@ describe('Prisma integration (e2e, PostgreSQL real)', () => {
       where: { name: 'Sede Intrusa' },
     });
     expect(intruder).toBeNull();
+  });
+
+  it('document workflow requires approval, resets on a new version, and stays tenant scoped', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/documents')
+      .set(auth(tokenA))
+      .send({
+        name: 'Documento de aprobacion',
+        fileUrl: 'storage://documents/workflow.pdf',
+        fileName: 'workflow.pdf',
+        expiresAt: '2020-01-01T00:00:00.000Z',
+        companyId: companyAId,
+      })
+      .expect(201);
+    const documentId = (created.body as { id: string }).id;
+    expect((created.body as { status: string }).status).toBe('DRAFT');
+
+    // status no es un campo editable: publicar exige una aprobacion registrada.
+    await request(app.getHttpServer())
+      .patch(`/api/v1/documents/${documentId}`)
+      .set(auth(tokenA))
+      .send({ status: 'PUBLISHED' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/documents/${documentId}/approve`)
+      .set(auth(tokenB))
+      .send({ comments: 'Intento ajeno' })
+      .expect(404);
+
+    const approved = await request(app.getHttpServer())
+      .post(`/api/v1/documents/${documentId}/approve`)
+      .set(auth(tokenA))
+      .send({ comments: 'Aprobado para publicacion' })
+      .expect(201);
+    expect((approved.body as { status: string }).status).toBe('PUBLISHED');
+    expect(
+      (approved.body as { approvals: Array<{ version: number }> }).approvals[0]
+        ?.version,
+    ).toBe(1);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/documents/${documentId}`)
+      .set(auth(tokenA))
+      .send({ fileUrl: 'storage://documents/replaced-without-version.pdf' })
+      .expect(400);
+
+    const versioned = await request(app.getHttpServer())
+      .post(`/api/v1/documents/${documentId}/versions`)
+      .set(auth(tokenA))
+      .send({ fileUrl: 'storage://documents/workflow-v2.pdf' })
+      .expect(201);
+    expect((versioned.body as { status: string }).status).toBe('DRAFT');
+    expect((versioned.body as { version: number }).version).toBe(2);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/documents/${documentId}/approve`)
+      .set(auth(tokenA))
+      .send({})
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/documents/${documentId}/expire`)
+      .set(auth(tokenA))
+      .expect(201);
+
+    const archived = await request(app.getHttpServer())
+      .post(`/api/v1/documents/${documentId}/archive`)
+      .set(auth(tokenA))
+      .expect(201);
+    expect((archived.body as { status: string }).status).toBe('ARCHIVED');
+
+    const approvals = await prisma.documentApproval.findMany({
+      where: { documentId },
+      orderBy: { version: 'asc' },
+    });
+    expect(approvals.map((approval) => approval.version)).toEqual([1, 2]);
   });
 
   it('ai-assistant @datos: audita la consulta y falla acotado sin proveedor', async () => {

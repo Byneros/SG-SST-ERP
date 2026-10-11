@@ -28,10 +28,7 @@ export class DeveloperService {
   /** Resumen: estado API + PostgreSQL + Redis (reusa el health existente). */
   async getOverview() {
     const health = this.appService.getHealth();
-    const dependencies = await this.appService
-      .getReadiness()
-      .then((r) => r.dependencies)
-      .catch(() => ({ database: 'error' as const, redis: 'error' as const }));
+    const dependencies = await this.appService.getDependencyHealth();
 
     return {
       ...health,

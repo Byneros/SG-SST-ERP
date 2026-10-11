@@ -671,6 +671,7 @@ function App() {
   const canExportReports = canViewReports
   const canViewReportHistory = isPlatformAdmin
   const canManageDocuments = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
+  const canApproveDocuments = isPlatformAdmin || user?.role === 'ADMIN'
   const canDeleteEmployees = isPlatformAdmin || user?.role === 'ADMIN'
   const canViewUsers = isPlatformAdmin || user?.role === 'ADMIN' || user?.role === 'SST'
   const canManageUsers = isPlatformAdmin || user?.role === 'ADMIN'
@@ -2837,7 +2838,6 @@ function App() {
             name: item.name,
             description: item.description ?? '',
             category: item.category,
-            status: item.status,
             fileUrl: item.fileUrl,
             fileName: item.fileName ?? '',
             mimeType: item.mimeType ?? '',
@@ -3039,6 +3039,18 @@ function App() {
         }
       }
       if (documentDialog.item) {
+        const fileChanged = documentForm.fileUrl !== documentDialog.item.fileUrl
+        if (fileChanged) {
+          await api.post(`/documents/${documentDialog.item.id}/versions`, {
+            fileUrl: documentForm.fileUrl,
+            fileName: documentForm.fileName || undefined,
+            mimeType: documentForm.mimeType || undefined,
+            notes: 'Nueva version cargada desde gestion documental',
+          })
+          delete payload.fileUrl
+          delete payload.fileName
+          delete payload.mimeType
+        }
         await api.patch(`/documents/${documentDialog.item.id}`, payload)
       } else {
         await api.post('/documents', payload)
@@ -3231,6 +3243,48 @@ function App() {
 
   async function removeDocument(id: string) {
     await saveRecord(() => api.delete(`/documents/${id}`).then())
+  }
+
+  function confirmApproveDocument(documentItem: SgsstDocument) {
+    openConfirmDialog(
+      'Aprobar documento',
+      `El documento ${documentItem.name} se publicará en la versión ${documentItem.version}.`,
+      'Aprobar y publicar',
+      'success',
+      () => { void approveDocument(documentItem.id) },
+    )
+  }
+
+  async function approveDocument(id: string) {
+    await saveRecord(() => api.post(`/documents/${id}/approve`, {}).then())
+  }
+
+  function confirmExpireDocument(documentItem: SgsstDocument) {
+    openConfirmDialog(
+      'Marcar documento vencido',
+      `El documento ${documentItem.name} quedará marcado como vencido.`,
+      'Marcar vencido',
+      'primary',
+      () => { void expireDocument(documentItem.id) },
+    )
+  }
+
+  async function expireDocument(id: string) {
+    await saveRecord(() => api.post(`/documents/${id}/expire`, {}).then())
+  }
+
+  function confirmArchiveDocument(documentItem: SgsstDocument) {
+    openConfirmDialog(
+      'Archivar documento',
+      `El documento ${documentItem.name} dejará de estar vigente.`,
+      'Archivar',
+      'primary',
+      () => { void archiveDocument(documentItem.id) },
+    )
+  }
+
+  async function archiveDocument(id: string) {
+    await saveRecord(() => api.post(`/documents/${id}/archive`, {}).then())
   }
 
   function openSgsstEvaluationForm(item?: SgsstEvaluation) {
@@ -4751,6 +4805,7 @@ function App() {
                 meta={documentMeta}
                 tableState={documentTable}
                 canManage={canManageDocuments}
+                canApprove={canApproveDocuments}
                 canExport={canExportReports}
                 sites={sites}
                 siteFilter={documentSiteFilter}
@@ -4765,6 +4820,9 @@ function App() {
                     confirmDeleteDocument(documentItem)
                   }
                 }}
+                onApprove={confirmApproveDocument}
+                onExpire={confirmExpireDocument}
+                onArchive={confirmArchiveDocument}
                 onDownload={handleDownloadDocument}
                 onDownloadReport={(format) => handleDownloadReport('expired-documents', format)}
                 onScheduleReport={(format) => handleScheduleReport('expired-documents', format)}

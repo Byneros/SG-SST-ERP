@@ -9,6 +9,10 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 const documentInclude = {
   company: { select: { id: true, name: true, nit: true } },
   site: { select: { id: true, name: true, code: true } },
+  approvals: {
+    orderBy: { approvedAt: 'desc' as const },
+    include: { approver: { select: { id: true, name: true, email: true } } },
+  },
 };
 
 @Injectable()
@@ -116,6 +120,7 @@ export class DocumentsRepository {
         fileUrl: dto.fileUrl,
         fileName: dto.fileName,
         mimeType: dto.mimeType,
+        status: 'DRAFT',
         versions: {
           create: {
             version: nextVersion,
@@ -145,6 +150,7 @@ export class DocumentsRepository {
     return this.prisma.document.create({
       data: {
         ...(this.toPrismaData(dto) as Prisma.DocumentUncheckedCreateInput),
+        status: 'DRAFT',
         versions: {
           create: {
             version: 1,
@@ -186,6 +192,7 @@ export class DocumentsRepository {
         fileUrl: dto.fileUrl,
         fileName: dto.fileName,
         mimeType: dto.mimeType,
+        status: 'DRAFT',
         versions: {
           create: {
             version: nextVersion,
@@ -208,11 +215,55 @@ export class DocumentsRepository {
     return this.prisma.document.delete({ where: { id } });
   }
 
+  async approveScoped(
+    id: string,
+    companyId: string,
+    approverId: string,
+    comments?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const document = await tx.document.findFirst({
+        where: { id, companyId, status: 'DRAFT' },
+        select: { id: true, version: true },
+      });
+      if (!document) return null;
+
+      await tx.documentApproval.create({
+        data: {
+          documentId: document.id,
+          version: document.version,
+          approverId,
+          comments,
+        },
+      });
+      return tx.document.update({
+        where: { id },
+        data: { status: 'PUBLISHED' },
+        include: {
+          ...documentInclude,
+          versions: { orderBy: { version: 'desc' } },
+        },
+      });
+    });
+  }
+
+  async transitionStatusScoped(
+    id: string,
+    companyId: string,
+    status: 'EXPIRED' | 'ARCHIVED',
+  ) {
+    const result = await this.prisma.document.updateMany({
+      where: { id, companyId },
+      data: { status },
+    });
+    if (result.count === 0) return null;
+    return this.findByIdScoped(id, companyId);
+  }
+
   private toPrismaData(dto: CreateDocumentDto | UpdateDocumentDto) {
     return {
       ...dto,
       category: dto.category as never,
-      status: dto.status as never,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
     };
   }

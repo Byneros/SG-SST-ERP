@@ -277,7 +277,6 @@ export const emptyDocument: DocumentFormValues = {
   name: '',
   description: '',
   category: 'OTHER',
-  status: 'DRAFT',
   fileUrl: '',
   fileName: '',
   mimeType: '',

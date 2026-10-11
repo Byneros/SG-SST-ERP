@@ -3,10 +3,8 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, ListItemText
 import {
   documentCategoryLabels,
   documentCategoryOptions,
-  documentStatusLabels,
-  documentStatusOptions,
 } from '../../constants/catalogs'
-import type { Company, DocumentCategory, DocumentFormValues, DocumentStatus, Site } from '../../types'
+import type { Company, DocumentCategory, DocumentFormValues, Site } from '../../types'
 
 export function DocumentDialog(props: {
   open: boolean
@@ -34,13 +32,6 @@ export function DocumentDialog(props: {
             {documentCategoryOptions.map((option) => (
               <MenuItem key={option} value={option}>
                 {documentCategoryLabels[option]}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField select label="Estado documental" value={props.values.status} onChange={(event) => props.onChange({ ...props.values, status: event.target.value as DocumentStatus })}>
-            {documentStatusOptions.map((option) => (
-              <MenuItem key={option} value={option}>
-                {documentStatusLabels[option]}
               </MenuItem>
             ))}
           </TextField>

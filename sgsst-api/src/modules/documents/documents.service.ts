@@ -14,6 +14,7 @@ import { SitesRepository } from '../sites/sites.repository';
 import { DocumentsRepository } from './documents.repository';
 import { DocumentsStorageService } from './documents-storage.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { ApproveDocumentDto } from './dto/approve-document.dto';
 import { CreateDocumentVersionDto } from './dto/create-document-version.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 
@@ -89,6 +90,19 @@ export class DocumentsService {
 
   async update(id: string, dto: UpdateDocumentDto, user?: AuthenticatedUser) {
     const before = await this.findOne(id, user);
+    if (before.status === 'ARCHIVED') {
+      throw new BadRequestException('Archived documents cannot be edited');
+    }
+    if (
+      before.status === 'PUBLISHED' &&
+      (dto.fileUrl !== undefined ||
+        dto.fileName !== undefined ||
+        dto.mimeType !== undefined)
+    ) {
+      throw new BadRequestException(
+        'Create a new version before replacing a published document file',
+      );
+    }
     if (user && dto.companyId) {
       assertCompanyScope(user, dto.companyId);
     }
@@ -121,6 +135,11 @@ export class DocumentsService {
     user?: AuthenticatedUser,
   ) {
     const before = await this.findOne(id, user);
+    if (before.status === 'ARCHIVED') {
+      throw new BadRequestException(
+        'Archived documents cannot receive versions',
+      );
+    }
     const updated =
       user && user.companyId
         ? await this.documentsRepository.createVersionScoped(
@@ -138,6 +157,52 @@ export class DocumentsService {
       after: updated,
     });
     return updated;
+  }
+
+  async approve(id: string, dto: ApproveDocumentDto, user: AuthenticatedUser) {
+    const before = await this.findOne(id, user);
+    if (before.status !== 'DRAFT') {
+      throw new BadRequestException('Only draft documents can be approved');
+    }
+    const updated = await this.documentsRepository.approveScoped(
+      id,
+      resolveCompanyScope(user),
+      user.sub,
+      dto.comments,
+    );
+    if (!updated) {
+      throw new NotFoundException('Document not found');
+    }
+    await this.auditService.log({
+      user,
+      action: 'APPROVE',
+      entity: 'Document',
+      entityId: id,
+      before,
+      after: updated,
+    });
+    return updated;
+  }
+
+  async expire(id: string, user: AuthenticatedUser) {
+    const before = await this.findOne(id, user);
+    if (before.status !== 'PUBLISHED') {
+      throw new BadRequestException('Only published documents can expire');
+    }
+    if (!before.expiresAt || before.expiresAt > new Date()) {
+      throw new BadRequestException(
+        'Document expiration date has not been reached',
+      );
+    }
+    return this.transitionStatus(id, 'EXPIRED', before, user);
+  }
+
+  async archive(id: string, user: AuthenticatedUser) {
+    const before = await this.findOne(id, user);
+    if (before.status === 'ARCHIVED') {
+      throw new BadRequestException('Document is already archived');
+    }
+    return this.transitionStatus(id, 'ARCHIVED', before, user);
   }
 
   async remove(id: string, user?: AuthenticatedUser) {
@@ -181,5 +246,30 @@ export class DocumentsService {
       return;
     }
     assertCompanyScope(user, companyId);
+  }
+
+  private async transitionStatus(
+    id: string,
+    status: 'EXPIRED' | 'ARCHIVED',
+    before: Awaited<ReturnType<DocumentsService['findOne']>>,
+    user: AuthenticatedUser,
+  ) {
+    const updated = await this.documentsRepository.transitionStatusScoped(
+      id,
+      resolveCompanyScope(user),
+      status,
+    );
+    if (!updated) {
+      throw new NotFoundException('Document not found');
+    }
+    await this.auditService.log({
+      user,
+      action: status === 'EXPIRED' ? 'EXPIRE' : 'ARCHIVE',
+      entity: 'Document',
+      entityId: id,
+      before,
+      after: updated,
+    });
+    return updated;
   }
 }

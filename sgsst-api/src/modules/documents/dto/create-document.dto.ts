@@ -27,10 +27,6 @@ export class CreateDocumentDto {
   ])
   category?: string;
 
-  @IsOptional()
-  @IsIn(['DRAFT', 'PUBLISHED', 'EXPIRED', 'ARCHIVED'])
-  status?: string;
-
   @IsString()
   fileUrl!: string;
 
