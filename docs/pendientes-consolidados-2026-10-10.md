@@ -13,7 +13,7 @@ Fuentes: issues #43 (matriz) y #5–#54 verificados vía `gh` · CI en verde (ú
 |---|---|---|---|---|
 | S2 | auth-usuarios-rbac | 1/1 | **100%** | 0% |
 | S3 | empresas-empleados-sedes | 2/2 | **100%** (cerrado 2026-10-07) | 0% |
-| S4 | documentos-notificaciones | 0/2 | **~25%** | 75% |
+| S4 | documentos-notificaciones | 2/2 | **100%** formal (QA de aceptación ejecutado el 2026-10-13: ciclo documental desde la UI + entregas externas 17/17 e2e; `docs/evidencia-qa-s4-ciclo-documental.md`) | 0% (solo pendiente operativa: entregas con proveedor real en staging) |
 | S5 | riesgos-gtc45 | 0/2 | **0%** (QA no ejecutado) | 100% |
 | S6 | incidentes-capacitacion | 0/3 | **0%** (QA no ejecutado) | 100% |
 | S7 | seguridad-hardening | 2/2 | **100%** (cerrado 2026-10-07) | 0% |
@@ -22,7 +22,8 @@ Fuentes: issues #43 (matriz) y #5–#54 verificados vía `gh` · CI en verde (ú
 | S15 | auditoria-indicadores-reportes | 1/3 | **~46%** (1 de 3 issues cerrado formalmente; #40 y #41 abiertos) | ~54% |
 | S16 | asistente IA (fuera de matriz original, ahora con issues #46–#54) | 9/9 cerrados (#46–#54; #46 con criterios marcados y smoke en ambos modos) | **100%** formal | 0% (bonus P3 fuera del alcance: escritura con confirmación §7, escalationLevel) |
 
-- **Formal S2–S15 (auditado issue por issue vía `gh` el 2026-10-13):** **29/38 ≈ 76%** — corrige el `26/38` de este análisis y el `33/38` del plan maestro, que no corresponden a una cuenta de estados reales. La matriz #43 **no tiene checkboxes** (es solo índice de issues), así que el % no es derivable de checkboxes sino del estado de los issues.
+- **Formal S2–S15 (auditado issue por issue vía `gh` el 2026-10-13, actualizado tras el cierre de #8/#9):** **31/38 ≈ 82%**. La matriz #43 **no tiene checkboxes** (es solo índice de issues), así que el % se deriva del estado de los issues.
+- **Cierre S4 (2026-10-13)**: #8 y #9 cerrados con QA de aceptación completo — ciclo documental desde la UI (create/upload → aprobar/publicar → vencer → archivar, AuditLog con las 4 acciones) y entregas externas 17/17 e2e-db; SKIPPED documentado en vivo. Pendiente operativa: entregas con proveedor real en staging.
 - **Formal S16 (auditado el 2026-10-13):** **9/9 = 100%** — el smoke `capabilities` 16/16, el QA UI del entry point 6/6 y la aceptación de #46 (smoke escalamiento 10/10 habilitado + 9/9 deshabilitado) sustentan el cierre por comentario; el cuerpo de #46 quedó con sus 4 criterios marcados.
 - **Global derivable de la #43:** 38/47 ≈ **81%**.
 - **Funcional verificado:** ≈ **83%** (se mantiene la estimación previa: S4–S6 son la brecha principal de QA, no de implementación).
@@ -37,7 +38,10 @@ Fuentes: issues #43 (matriz) y #5–#54 verificados vía `gh` · CI en verde (ú
 
 ## 2. Sprints S4–S6 — QA funcional pendiente (P1, mayor brecha)
 
-La implementación existe; lo pendiente es **QA funcional con datos demo desde la UI** (criterios de los issues #8–#14, sin dependencias técnicas entre sí salvo compartir sesión de QA y datos demo).
+**S4 cerrado (2026-10-13)** — ver `docs/evidencia-qa-s4-ciclo-documental.md`. La
+implementación de S5–S6 existe; lo pendiente es **QA funcional con datos demo
+desde la UI** (criterios de los issues #10–#14, sin dependencias técnicas entre
+sí salvo compartir sesión de QA y datos demo).
 
 ### S4 — Documentos y notificaciones (75% restante)
 
@@ -112,7 +116,7 @@ se contabilizan en el cierre de S16):
 
 | # | Acción | Prioridad | Estimación | Bloquea |
 |---|---|---|---|---|
-| 1 | **Sesión de QA funcional S4–S6** (#8–#14): ciclo documental, entregas externas, GTC-45, incidentes, capacitación, indicadores con datos demo | P1 | 1–2 días | Despliegue a producción |
+| 1 | **Sesión de QA funcional S4–S6** (#8–#14): ciclo documental, entregas externas, GTC-45, incidentes, capacitación, indicadores con datos demo | P1 | ✅ **S4 ejecutado 2026-10-13** (#8/#9 cerrados; `docs/evidencia-qa-s4-ciclo-documental.md`) — restante S5–S6 (#10–#14) | ~~Despliegue~~ S5–S6 |
 | 2 | **Gobernanza S15:** resolver solapamiento #40/#41 vs #55/#56 | P1 | 30 min | Cierre S15 |
 | 3 | **Cierre en bloque S16:** comentar evidencia en #47–#51, #53, #54 y cerrar (el trabajo técnico ya está hecho y verificado, incluido e2e-db 12/12 en `b0a07cb`); pendiente técnico único: smoke de `capabilities` por rol | P1 | ~~2–4 h~~ ✅ **Ejecutado 2026-10-13**: smoke 16/16 (`docs/evidencia-smoke-s16-capabilities.md`), QA UI entry point 6/6 y 7 issues cerrados | S16 pasa de 3/9 a **8/9** |
 | 3b | **Aceptación formal de #46 (S16.1):** correr `scripts/smoke-tasks-escalation.mjs` (notificación, canales/SKIPPED, anti-duplicado, flag off), adjuntar evidencia, marcar los 4 criterios y cerrar | P1 | ~~1–2 h~~ ✅ **Ejecutado 2026-10-13**: 10/10 habilitado + 9/9 deshabilitado (`docs/evidencia-smoke-s16-1-escalamiento.md`); #46 cerrado con criterios marcados | S16 9/9 |
