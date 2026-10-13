@@ -20,11 +20,14 @@ Fuentes: issues #43 (matriz) y #5–#54 verificados vía `gh` · CI en verde (ú
 | S8–S13 | evaluaciones → contratistas | 21/21 | **100%** | 0% |
 | S14 | gestion-del-cambio | 2/2 | **100%** (cerrado 2026-10-07) | 0% |
 | S15 | auditoria-indicadores-reportes | 1/3 | **~46%** (1 de 3 issues cerrado formalmente; #40 y #41 abiertos) | ~54% |
-| S16 | asistente IA (fuera de matriz original, ahora con issues #46–#54) | 9/9 cerrados (#46–#54) | **100%** (cierre formal en bloque 2026-10-13, incluido el smoke de `capabilities` por rol 16/16 y el QA UI del entry point 6/6) | 0% (bonus P3 pendiente: escritura con confirmación §7) |
+| S16 | asistente IA (fuera de matriz original, ahora con issues #46–#54) | 8/9 cerrados (#47–#54; **#46 sigue abierto**) | **≈88,9%** formal (cierre en bloque 2026-10-13 verificó smoke de `capabilities` por rol 16/16 y QA UI del entry point 6/6) | 11%: aceptación formal de #46 (P1) + bonus P3 |
 
-- **Formal (issues cerrados / total de la matriz #43):** 33/38 ≈ **87%** (S4–S6 y el alcance original de S15 quedan fuera).
-- **Funcional verificado:** ≈ **90%** (S4–S6 siguen siendo la brecha principal de QA, no de implementación).
-- **Actualización 2026-10-13:** el cierre formal en bloque de S16 elevó el formal desde 26/38; quedan abiertos #8–#14 (S4–S6), #40/#41/#55/#56 (S15) y #43 (matriz, S1).
+- **Formal S2–S15 (auditado issue por issue vía `gh` el 2026-10-13):** **29/38 ≈ 76%** — corrige el `26/38` de este análisis y el `33/38` del plan maestro, que no corresponden a una cuenta de estados reales. La matriz #43 **no tiene checkboxes** (es solo índice de issues), así que el % no es derivable de checkboxes sino del estado de los issues.
+- **Formal S16 (auditado el 2026-10-13):** **8/9 ≈ 88,9%** — el issue **#46 sigue OPEN con sus 4 criterios sin marcar** (su implementación, commit `e70a819`, está verificada técnicamente, pero falta la corrida de aceptación `scripts/smoke-tasks-escalation.mjs`).
+- **Global derivable de la #43:** 37/47 ≈ **79%**.
+- **Funcional verificado:** ≈ **83%** (se mantiene la estimación previa: S4–S6 son la brecha principal de QA, no de implementación).
+- **Actualización 2026-10-13:** el cierre en bloque de S16 cerró 7 de 8 issues abiertos; quedan abiertos **#46 (S16.1)**, #8–#14 (S4–S6), #40/#55 (S15; #41/#56 equivalen por solapamiento pendiente de resolver) y #43 (matriz, S1).
+- **Corrección de trazabilidad (2026-10-13):** una versión anterior de este doc afirmaba “S16 9/9 cerrado” sin verificar #46; el plan maestro de cierre (feedback del día) lo detectó y se corrigió con verificación en vivo.
 
 **Nota importante de revalidación:** los sprints S2, S7, S14 y S8–S13 aparecen cerrados formalmente, pero eso no significa que cada módulo haya sido revalidado después de todos los cambios recientes (S15 hallazgos/acciones/bandeja + S16 framework/asistentes tocaron repositorios y módulos transversales). Los reads/queries de esos módulos fueron adaptados para asistentes (trainings, ppe, medical), pero no hay una corrida de humo formal post-S16 para todo el ciclo.
 
@@ -78,14 +81,26 @@ La implementación existe; lo pendiente es **QA funcional con datos demo desde l
 
 ---
 
-## 4. S16 — Asistente inteligente (✅ cerrado formalmente el 2026-10-13)
+## 4. S16 — Asistente inteligente (≈88,9% formal; cierre en bloque 2026-10-13 con #46 pendiente)
 
 Cierre en bloque ejecutado el 2026-10-13: los issues #47–#51, #53 y #54 se
 cerraron con evidencia (suite 519/519 + 67/67 e2e-db, e2e-db del asistente
 12/12 en `b0a07cb`, smoke de `capabilities` por rol 16/16 y QA UI del entry
-point 6/6 — ver `docs/evidencia-smoke-s16-capabilities.md`). Con #46 y #52
-ya cerrados, **S16 queda 9/9 cerrado formalmente (~70% técnico original pasó
-a 100% formal)**. Sigue abierto solo el roadmap P3 declarado en el plan:
+point 6/6 — ver `docs/evidencia-smoke-s16-capabilities.md`). Con #52 ya
+cerrado, **S16 queda 8/9 formal (~88,9%)**: el único abierto es #46.
+
+**#46 (S16.1, escalamiento de tareas vencidas) — abierto, P1:**
+implementado en `e70a819` y verificado técnicamente en su momento, pero sus
+4 criterios de aceptación quedaron sin marcar y el issue nunca se cerró.
+Pendiente (Paso 6 del plan maestro):
+1. Ejecutar `scripts/smoke-tasks-escalation.mjs` con tarea vencida de prueba (notificación interna + canales).
+2. Verificar `ExternalDelivery` con canales habilitados y SKIPPED con deshabilitados.
+3. Comprobar anti-duplicado por tarea/canal/día e hito.
+4. Correr con `TASK_ESCALATION_ENABLED=false` (comportamiento previo sin fallos).
+5. Adjuntar evidencia en el issue, marcar criterios y cerrar.
+
+Restan del roadmap P3 declarado en el plan (fuera del alcance aprobado, no
+se contabilizan en el cierre de S16):
 
 1. Escalation/diagnóstico bonus (P3): `escalationLevel` en Task para escalar a jefatura tras N hitos (solo si el volumen lo exige).
 2. Escritura con confirmación (§7 del plan): proposals con doble confirmación en UI. P3 posterior.
@@ -110,7 +125,9 @@ a 100% formal)**. Sigue abierto solo el roadmap P3 declarado en el plan:
 |---|---|---|---|---|
 | 1 | **Sesión de QA funcional S4–S6** (#8–#14): ciclo documental, entregas externas, GTC-45, incidentes, capacitación, indicadores con datos demo | P1 | 1–2 días | Despliegue a producción |
 | 2 | **Gobernanza S15:** resolver solapamiento #40/#41 vs #55/#56 | P1 | 30 min | Cierre S15 |
-| 3 | **Cierre en bloque S16:** comentar evidencia en #47–#51, #53, #54 y cerrar (el trabajo técnico ya está hecho y verificado, incluido e2e-db 12/12 en `b0a07cb`); pendiente técnico único: smoke de `capabilities` por rol | P1 | ~~2–4 h~~ ✅ **Ejecutado 2026-10-13**: smoke 16/16 (`docs/evidencia-smoke-s16-capabilities.md`), QA UI entry point 6/6 y 7 issues cerrados | ~~Porcentaje formal de S16~~ S16 100% formal |
+| 3 | **Cierre en bloque S16:** comentar evidencia en #47–#51, #53, #54 y cerrar (el trabajo técnico ya está hecho y verificado, incluido e2e-db 12/12 en `b0a07cb`); pendiente técnico único: smoke de `capabilities` por rol | P1 | ~~2–4 h~~ ✅ **Ejecutado 2026-10-13**: smoke 16/16 (`docs/evidencia-smoke-s16-capabilities.md`), QA UI entry point 6/6 y 7 issues cerrados | S16 pasa de 3/9 a **8/9** |
+| 3b | **Aceptación formal de #46 (S16.1):** correr `scripts/smoke-tasks-escalation.mjs` (notificación, canales/SKIPPED, anti-duplicado, flag off), adjuntar evidencia, marcar los 4 criterios y cerrar | P1 | 1–2 h | S16 9/9 |
+| 3c | **Reconciliar el 3/9→8/9 del Sprint 16** para el informe y los issues | P1 | 15 min | Coherencia documental del cierre S16 |
 | 4 | **QA S15.4/S15.5 (#55/#56):** reportes/exportaciones + ciclo de auditoría con datos demo | P2 | ½–1 día | Cierre S15 |
 | 5 | **Fase 2 de borrado (#42 residual / #4):** migración `Site.code` unique parcial + drop columnas vestigiales | P2 | ½ día | Cierre total de #42 |
 | 6 | **Higiene de matriz:** checkboxes en cuerpos de #17–#28 y cuerpos de issues S16 | P2 | 1–2 h | Derivabilidad de % |
