@@ -78,7 +78,8 @@ async function main() {
 
   const me = await call('GET', '/auth/me', undefined, 200);
   const companyId = me.companyId ?? me.user?.companyId;
-  record('S0 auth/me', Boolean(companyId), `company=${companyId}`);
+  const userId = me.sub ?? me.id ?? me.user?.id;
+  record('S0 auth/me', Boolean(companyId && userId), `company=${companyId} userId=${userId ? 'presente' : 'ausente'}`);
 
   // ===== Capabilities del escalamiento =====
   const capabilities = await call('GET', '/notifications/task-escalation/capabilities', undefined, 200);
@@ -102,6 +103,7 @@ async function main() {
     sourceType: 'MANUAL',
     priority: 'HIGH',
     dueDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+    ownerId: userId,
     companyId,
   });
   record('S16.1 tarea vencida creada', task?.status === 'OPEN', `id=${task?.id}`);
