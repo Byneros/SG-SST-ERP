@@ -3,10 +3,10 @@ import { IndicatorsService } from './indicators.service';
 /**
  * Pruebas del hard delete de indicadores y del filtro de listado:
  * - DELETE /indicators/:id borra la fila fisicamente (la cascada del esquema
- *   elimina metas y mediciones) y ya no hace soft delete.
- * - Los registros legacy con soft delete no existen para el actor (404).
- * - El listado excluye los borrados por defecto (isActive ?? true), sin
- *   perder el escape explicito isActive=false.
+ *   elimina metas y mediciones) con traza AuditLog accion DELETE (fase 1 ADR).
+ * - El listado filtra solo por empresa/sede/busqueda: las columnas de baja
+ *   logica fueron retiradas por la migracion de fase 2 del ADR
+ *   (20260924190000_adr_fase2_site_unique_and_drop_soft_delete).
  */
 describe('IndicatorsService (hard delete y listado)', () => {
   const prisma = {
@@ -32,8 +32,6 @@ describe('IndicatorsService (hard delete y listado)', () => {
     id: 'ind-1',
     name: 'Indice de accidentalidad',
     companyId: 'company-a',
-    isActive: true,
-    deletedAt: null as Date | null,
   };
 
   const adminA = {
