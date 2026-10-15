@@ -203,7 +203,6 @@ async function main() {
     name: `${MARK} evidencia smoke S14`,
     fileUrl: '/smoke/s14-evidencia.pdf',
     category: 'OTHER',
-    status: 'PUBLISHED',
     companyId,
   });
   record('S14.2 documento de evidencia creado', Boolean(document?.id), `doc=${document?.id}`);
