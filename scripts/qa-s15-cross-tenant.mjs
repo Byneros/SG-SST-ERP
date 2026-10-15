@@ -1,0 +1,13 @@
+const API = 'http://localhost:3002/api/v1';
+const loginA = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'admin@sgsst.com', password: process.argv[2] }) })).json();
+const loginB = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'admin-b@demo.com', password: 'Admin12345' }) })).json();
+const h = { Authorization: `Bearer ${loginA.accessToken}` };
+const listA = await (await fetch(`${API}/reports/exports?pageSize=5`, { headers: h })).json();
+const rows = Array.isArray(listA) ? listA : listA.data ?? listA.items;
+console.log('exports de A:', rows.map((r) => r.id), 'total:', listA.total ?? listA.meta?.total);
+const id = rows[0].id;
+const dl = await fetch(`${API}/reports/exports/${id}/download`, { headers: { Authorization: `Bearer ${loginB.accessToken}` } });
+console.log('B descarga export de A:', dl.status);
+const histB = await (await fetch(`${API}/reports/exports`, { headers: { Authorization: `Bearer ${loginB.accessToken}` } })).json();
+const rowsB = Array.isArray(histB) ? histB : histB.data ?? histB.items;
+console.log('historial de B:', rowsB.length, 'registros (esperado solo propios)');
