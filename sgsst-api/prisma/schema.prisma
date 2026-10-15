@@ -31,7 +31,7 @@ model User {
   notifications                    Notification[]
   reportExports                    ReportExport[]
   approvedAnnualWorkPlans          AnnualWorkPlan[]             @relation("AnnualWorkPlanApprover")
-  documentApprovals                DocumentApproval[]          @relation("DocumentApprovalApprover")
+  documentApprovals                DocumentApproval[]           @relation("DocumentApprovalApprover")
   ownedAnnualPlanActivities        AnnualPlanActivity[]         @relation("AnnualPlanActivityOwner")
   medicalSurveillanceProgramsOwned MedicalSurveillanceProgram[] @relation("MedicalSurveillanceOwner")
   plannedInspectionsAsInspector    PlannedInspection[]          @relation("PlannedInspectionInspector")
@@ -97,6 +97,7 @@ model Company {
   sgsstEvaluations              SgsstEvaluation[]
   reportMetricSnapshots         ReportExportMetricSnapshot[]
   risks                         Risk[]
+  riskProcesses                 RiskProcess[]
   sites                         Site[]
   trainings                     Training[]
   users                         User[]
@@ -431,8 +432,110 @@ model Risk {
   cohortsForRisk      MedicalSurveillanceCohort[] @relation("MedicalSurveillanceCohortRisk")
   requirementsDerived MedicalExamRequirement[]    @relation("MedicalRequirementOrigin")
   changeRequests      ChangeRequest[]
+  /// Peligro de la matriz GTC-45 estructurada (#57) del que este riesgo es el
+  /// resultado final trazable (proceso → actividad → peligro → riesgo).
+  hazardId            String?                     @unique
+  hazard              RiskHazard?                 @relation("RiskHazardResult", fields: [hazardId], references: [id], onDelete: SetNull)
 
   @@index([companyId, position])
+}
+
+/// Matriz de riesgos GTC-45 estructurada (#57): jerarquía Proceso → Actividad →
+/// Peligro → Valoración/Controles. El alcance multi-tenant vive en RiskProcess;
+/// los hijos se acotan por la cadena de padres (patrón InspectionItem).
+model RiskProcess {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id])
+  activities  RiskActivity[]
+
+  @@index([companyId])
+}
+
+model RiskActivity {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  processId   String
+  process     RiskProcess  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  hazards     RiskHazard[]
+
+  @@index([processId])
+}
+
+model RiskHazard {
+  id          String           @id @default(uuid())
+  name        String
+  hazardType  HazardType       @default(FISICO)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  activityId  String           @unique
+  activity    RiskActivity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  valorations RiskValoracion[]
+  controls    HazardControl[]
+  risk        Risk?            @relation("RiskHazardResult")
+
+  @@index([activityId])
+}
+
+/// Valoración GTC-45: probabilidad × severidad → nivel I–IV (derivado en el
+/// servicio; RiskLevel de Risk es el resultado final).
+model RiskValoracion {
+  id          String       @id @default(uuid())
+  probability Int
+  severity    Int
+  riskLevel   RiskGtcLevel
+  hazardId    String       @unique
+  hazard      RiskHazard   @relation(fields: [hazardId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+
+  @@index([hazardId])
+}
+
+model HazardControl {
+  id            String              @id @default(uuid())
+  source        HazardControlSource
+  type          String?
+  effectiveness String?
+  hazardId      String
+  hazard        RiskHazard          @relation(fields: [hazardId], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+
+  @@index([hazardId])
+}
+
+/// Numeral 3 de la GTC-45: clasificación del peligro generador.
+enum HazardType {
+  FISICO
+  QUIMICO
+  BIOLOGICO
+  BIOMECANICO
+  PSICOSOCIAL
+  LOCATIVO
+  TECNOLOGICO
+  FENOMENOS_NATURALES
+}
+
+/// Numeral 5 de la GTC-45: fuente del control existente.
+enum HazardControlSource {
+  ADMINISTRATIVO
+  OPERACIONAL
+  COMPORTAMIENTO
+  EPP
+}
+
+/// Nivel de resultado de la valoración GTC-45 (I trivial ... IV crítico).
+enum RiskGtcLevel {
+  I
+  II
+  III
+  IV
 }
 
 model Incident {

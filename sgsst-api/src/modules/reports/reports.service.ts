@@ -21,7 +21,8 @@ export type ReportKind =
   | 'audits'
   | 'summary'
   | 'annual-plan'
-  | 'surveillance';
+  | 'surveillance'
+  | 'risks-matrix';
 export type ReportFormat = 'csv' | 'pdf';
 type ExportWhereBuildOptions = {
   includeSearch?: boolean;
@@ -35,6 +36,7 @@ const reportKinds: ReportKind[] = [
   'summary',
   'annual-plan',
   'surveillance',
+  'risks-matrix',
 ];
 const reportFormats: ReportFormat[] = ['csv', 'pdf'];
 
@@ -867,6 +869,77 @@ export class ReportsService {
       return rowLists.flat();
     }
 
+    // #57/#11: matriz de riesgos GTC-45 estructurada con trazabilidad completa
+    // (empresa → proceso → actividad → peligro → valoración → controles →
+    // riesgo/nivel). Una fila por peligro; los controles van unidos por ';'.
+    if (kind === 'risks-matrix') {
+      const processes = await this.prisma.riskProcess.findMany({
+        where: { ...companyScope },
+        include: {
+          company: { select: { name: true, nit: true } },
+          activities: {
+            orderBy: { createdAt: 'asc' },
+            include: {
+              hazards: {
+                orderBy: { createdAt: 'asc' },
+                include: {
+                  valorations: true,
+                  controls: true,
+                  risk: { select: { title: true, level: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      return processes.flatMap((process): Array<Record<string, unknown>> =>
+        process.activities.flatMap((activity): Array<Record<string, unknown>> => {
+          if (activity.hazards.length === 0) {
+            return [
+              {
+                empresa: process.company.name,
+                nit: process.company.nit,
+                proceso: process.name,
+                actividad: activity.name,
+                peligro: 'Sin peligros identificados para la actividad',
+                tipoPeligro: '',
+                probabilidad: '',
+                severidad: '',
+                nivelGtc: '',
+                controles: '',
+                riesgo: '',
+                nivelRiesgo: '',
+              },
+            ];
+          }
+          return activity.hazards.map((hazard): Record<string, unknown> => {
+            const valoracion = hazard.valorations[0] ?? null;
+            return {
+              empresa: process.company.name,
+              nit: process.company.nit,
+              proceso: process.name,
+              actividad: activity.name,
+              peligro: hazard.name,
+              tipoPeligro: String(hazard.hazardType),
+              probabilidad: valoracion ? String(valoracion.probability) : '',
+              severidad: valoracion ? String(valoracion.severity) : '',
+              nivelGtc: valoracion ? String(valoracion.riskLevel) : '',
+              controles: hazard.controls
+                .map((control) =>
+                  control.effectiveness
+                    ? `${control.source} (${control.effectiveness})`
+                    : control.source,
+                )
+                .join('; '),
+              riesgo: hazard.risk?.title ?? '',
+              nivelRiesgo: hazard.risk ? String(hazard.risk.level) : '',
+            };
+          });
+        }),
+      );
+    }
+
     // S10.4 (Issue #28) + #44: indicadores de vigilancia epidemiologica por
     // programa, con casos por estado y ausentismo por cohorte.
     if (kind === 'surveillance') {
@@ -1245,6 +1318,7 @@ export class ReportsService {
       summary: 'Resumen ejecutivo SG-SST',
       'annual-plan': 'Reporte de Plan Anual de Trabajo SG-SST',
       surveillance: 'Reporte de vigilancia epidemiologica (PVE)',
+      'risks-matrix': 'Reporte de Matriz de Riesgos GTC-45',
     };
     return titles[kind];
   }
