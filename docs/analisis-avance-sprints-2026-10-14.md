@@ -24,6 +24,14 @@ Sesión QA S15 ejecutada con el stack dev local (5 contenedores, API 3.002/BullM
 
 **Higiene residual (P3, no bloquea):** los datos demo `[QA-S56]`/`[QA-S56-AUD]`/`[QA-S15]` siguen en la base dev (auditorías CERRADAS y plan 2026); ejecutar limpieza (`scripts/cleanup-qa-s56.mjs` cubre `[QA-S56]`; los `[QA-S56-AUD]` auditorías CERRADAS y `[QA-S15]` del plan anual pueden dejarse o borrarse a mano en la próxima limpieza general.
 
+## Corte 2026-10-15 (b) — deudas transversales #2 y #3 cerradas
+
+1. **Smoke de revalidación post-S16 (deuda #3) — HECHO:** 8/8 scripts `smoke-*.mjs` verdes (148/148 pasos) sobre el stack dev, más barrido de suites el mismo corte: unitaria 519/519, build exit 0, e2e 67/67 y e2e-db 41/41. Dos scripts de humo obsoletos frente al DTO endurecido de documentos (`smoke-s14`, `smoke-s15-actions` enviaban campo `status`) corregidos — no fue bug de producto. Resultado formal en `docs/smoke-revalidacion-post-s16-2026-10-15.md`; ejecutar `npm run test:e2e` (security/sso/e external-deliveries) fue parte del barrido, no del CI de db.
+2. **Higiene de matriz (deuda #2) — HECHO:** marcadas por checkbox todos los cuerpos de #17–#28 (S8–S10), #41 y #42 (S15) y #47–#51/#53/#54 (S16), con la evidencia de cierre ya existente en los comentarios de cada issue. Único criterio sin marcar en la matriz: el de reporte de matriz de riesgos en #11 (re-scoped a #57). Comentario de registro en #43.
+3. **Validación de los commits del día:** `npm run test` 519/519 (exit 0) y `npm run build` (exit 0) en `sgsst-api` tras los commits `4d947a6`/`4ebe57a`/`cb87ff6`.
+
+**Estado formal resultante (matriz #43):** S2–S15 38/38 con checkboxes 100% derivables; deudas transversales del plan de acción: #1 pendiente (decisión negocio, P2), #2 y #3 resueltas, #5–#9 sin cambios (P2/P3). Abiertos solo #57 y #58 como features nuevas.
+
 Scripts de esta sesión (convención `scripts/qa-s15-*`): `qa-s15-reports-acceptance.mjs` (+ ruta de schedule corregida a `POST /reports/:kind.:format/schedule` y polling por historial), `qa-s15-audits-acceptance.mjs`, `qa-s15-audits-guards-negative.mjs`, `qa-s15-indicators-dashboard.mjs`, `qa-s15-demo-plan.mjs`, `qa-s15-cross-tenant.mjs`.
 
 ---
