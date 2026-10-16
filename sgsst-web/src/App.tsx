@@ -142,6 +142,7 @@ import {
   ReportExportsPage,
   RiskDialog,
   RisksPage,
+  RiskMatrixPage,
   SgsstAuditDialog,
   SgsstEvaluationDialog,
   SgsstEvaluationsPage,
@@ -292,6 +293,7 @@ const ALL_VIEWS: View[] = [
   'employees',
   'incidents',
   'risks',
+  'riskMatrix',
   'trainings',
   'documents',
   'sgsstAudits',
@@ -2808,6 +2810,8 @@ function App() {
             date: item.date.slice(0, 10),
             companyId: item.companyId,
             siteId: item.siteId ?? '',
+            instructor: item.instructor ?? '',
+            validityMonths: item.validityMonths,
           }
         : { ...emptyTraining, companyId: activeCompanyId ?? companies[0]?.id ?? '' },
     )
@@ -2999,7 +3003,9 @@ function App() {
   async function saveTraining() {
     await saveRecord(async () => {
       // siteId '' = sin sede; el backend interpreta null como desasignacion.
-      const payload = sanitize(trainingForm) as Record<string, unknown>
+      // #58: validityMonths es number y instructor opcional; el cast deja pasar
+      // cualquier campo adicional sin romper el signature de sanitize.
+      const payload = sanitize(trainingForm as never) as Record<string, unknown>
       if (trainingDialog.item && !trainingForm.siteId) {
         const current = trainings.find((item) => item.id === trainingDialog.item?.id)
         if (current?.siteId) {
@@ -4782,6 +4788,7 @@ function App() {
                 meta={trainingMeta}
                 tableState={trainingTable}
                 canManage={canManageOperations}
+                canUseEmployees={canManageOperations}
                 sites={sites}
                 siteFilter={trainingSiteFilter}
                 onSiteFilterChange={(siteId) => applySiteFilter('trainings', siteId)}
@@ -4797,6 +4804,15 @@ function App() {
                 }}
                 onOpenAssistant={openAssistant}
                 activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+              />
+            )}
+            {view === 'riskMatrix' && (
+              <RiskMatrixPage
+                canManage={canManageOperations}
+                sites={sites}
+                activeCompanyId={activeCompanyId}
+                activeCompanyName={companies.find((company) => company.id === activeCompanyId)?.name}
+                onOpenAssistant={openAssistant}
               />
             )}
             {view === 'documents' && (

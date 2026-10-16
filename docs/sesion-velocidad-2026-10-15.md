@@ -3,6 +3,14 @@
 Doc de handoff de la sesión del **2026-10-15**. Complementa `docs/analisis-avance-sprints-2026-10-14.md`
 (corte convertido al 15) y `docs/smoke-revalidacion-post-s16-2026-10-15.md`.
 
+> **ANEXO 2026-10-16:** #57 quedó implementado, corregido y con smoke 16/16
+> (`354c4eb`) y #58 quedó implementado con smoke 15/15 (`dfd8695`). La
+> evidencia completa y los resultados están en
+> `docs/evidencia-implementacion-s17-matriz-y-capacitaciones.md`. Queda el
+> cierre formal en los issues (#57/#58 checkboxes + comentario en #43) y la
+> deuda #1 (despliegue cloud) con su checklist en `docs/despliegue-preparacion.md`.
+> Suite tras ambos: unitaria 533/533 · e2e 67/67 · e2e-db 41/41.
+
 ## 1. Estado del sprint al cierre de la sesión
 
 - **Rama `main`**, working tree limpio. Commits del día (cabezas):

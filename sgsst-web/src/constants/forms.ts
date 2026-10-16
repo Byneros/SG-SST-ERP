@@ -338,6 +338,8 @@ export const emptyTraining: TrainingFormValues = {
   date: '',
   companyId: '',
   siteId: '',
+  instructor: '',
+  validityMonths: undefined,
 }
 
 export const emptyAnnualWorkPlan: AnnualWorkPlanFormValues = {

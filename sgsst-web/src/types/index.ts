@@ -1,6 +1,18 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SST' | 'EMPLOYEE' | 'AUDITOR' | 'DEVELOPER'
 export type IncidentStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED'
-export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'actions' | 'tasks' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type View = 'dashboard' | 'aiAssistant' | 'companies' | 'committees' | 'emergency' | 'changeRequests' | 'findings' | 'actions' | 'tasks' | 'contractors' | 'developer' | 'sites' | 'employees' | 'incidents' | 'risks' | 'riskMatrix' | 'trainings' | 'documents' | 'sgsstAudits' | 'sgsstEvaluations' | 'indicators' | 'legalCompliance' | 'annualWorkPlans' | 'plannedInspections' | 'unplannedInspections' | 'unsafeReports' | 'ppe' | 'medical' | 'reports' | 'users' | 'externalDeliveries' | 'audit'
+export type RiskGtcLevel = 'I' | 'II' | 'III' | 'IV'
+export type HazardType =
+  | 'FISICO'
+  | 'QUIMICO'
+  | 'BIOLOGICO'
+  | 'BIOMECANICO'
+  | 'PSICOSOCIAL'
+  | 'LOCATIVO'
+  | 'TECNOLOGICO'
+  | 'FENOMENOS_NATURALES'
+export type HazardControlSource = 'ADMINISTRATIVO' | 'OPERACIONAL' | 'COMPORTAMIENTO' | 'EPP'
+export type TrainingAttendeeStatus = 'ATTENDED' | 'PASSED' | 'FAILED'
 export type CompanyRiskClass = 'CLASS_I' | 'CLASS_II' | 'CLASS_III' | 'CLASS_IV' | 'CLASS_V'
 export type DocumentType = 'CC' | 'CE' | 'TI' | 'PASSPORT' | 'NIT'
 export type ContractType = 'INDEFINITE' | 'FIXED_TERM' | 'SERVICE' | 'APPRENTICESHIP' | 'TEMPORARY'
@@ -295,8 +307,71 @@ export type Training = {
   createdAt: string
   companyId: string
   siteId?: string
+  instructor?: string
+  validityMonths?: number
+  attendees?: TrainingAttendee[]
   company?: Pick<Company, 'id' | 'name' | 'nit'>
   site?: Pick<Site, 'id' | 'name' | 'code'>
+}
+
+/** Asistente de capacitación (#58): evaluación, evidencia y vencimiento. */
+export type TrainingAttendee = {
+  id: string
+  trainingId: string
+  name: string
+  score?: number
+  status: TrainingAttendeeStatus
+  expiresAt?: string
+  notes?: string
+  employeeId?: string
+  employee?: { id: string; firstName: string; lastName: string; document: string }
+  evidence?: { id: string; name: string; fileUrl: string }
+}
+
+/** Dashboard de vencimientos de certificados (#58). */
+export type TrainingExpirations = {
+  windowDays: number
+  summary: { expired: number; expiringSoon: number }
+  items: Array<TrainingAttendee & { training: Pick<Training, 'id' | 'title' | 'date'> }>
+}
+
+//----- Matriz GTC-45 estructurada (#57) -------------------------------------
+export type RiskValoracion = {
+  id: string
+  probability: number
+  severity: number
+  riskLevel: RiskGtcLevel
+}
+
+export type HazardControl = {
+  id: string
+  source: HazardControlSource
+  type?: string
+  effectiveness?: string
+}
+
+export type RiskHazardItem = {
+  id: string
+  name: string
+  hazardType: HazardType
+  valorations: RiskValoracion[]
+  controls: HazardControl[]
+  risk?: { id: string; title: string; level: RiskLevel }
+}
+
+export type RiskActivityItem = {
+  id: string
+  name: string
+  description?: string
+  hazards: RiskHazardItem[]
+}
+
+export type RiskProcessItem = {
+  id: string
+  name: string
+  description?: string
+  companyId: string
+  activities: RiskActivityItem[]
 }
 
 export type CorrectiveAction = {
@@ -1333,6 +1408,9 @@ export type TrainingFormValues = {
   date: string
   companyId: string
   siteId: string
+  /** #58: instructor y vigencia del certificado (meses) para vencimientos. */
+  instructor?: string
+  validityMonths?: number
 }
 
 export type AnnualWorkPlanStatus = 'DRAFT' | 'APPROVED' | 'IN_PROGRESS' | 'CLOSED'

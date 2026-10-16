@@ -43,6 +43,24 @@ export function TrainingDialog(props: {
             required
           />
           <TextField
+            label="Instructor / facilitador"
+            value={props.values.instructor ?? ''}
+            onChange={(event) => props.onChange({ ...props.values, instructor: event.target.value })}
+          />
+          <TextField
+            type="number"
+            label="Vigencia del certificado (meses)"
+            inputProps={{ min: 1, max: 120 }}
+            value={props.values.validityMonths ?? ''}
+            onChange={(event) =>
+              props.onChange({
+                ...props.values,
+                validityMonths: event.target.value ? Number(event.target.value) : undefined,
+              })
+            }
+            helperText="Al aprobar el asistente se deriva el vencimiento (fecha + meses)."
+          />
+          <TextField
             select
             label="Sede"
             value={props.values.siteId}

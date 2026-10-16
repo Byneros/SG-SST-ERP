@@ -16,6 +16,7 @@ const pageLoaders = {
   employees: () => import('../pages/employees/EmployeesPage'),
   incidents: () => import('../pages/incidents/IncidentsPage'),
   risks: () => import('../pages/risks/RisksPage'),
+  riskMatrix: () => import('../pages/risks/RiskMatrixPage'),
   trainings: () => import('../pages/trainings/TrainingsPage'),
   documents: () => import('../pages/documents/DocumentsPage'),
   sgsstAudits: () => import('../pages/sgsst-audits/SgsstAuditsPage'),
@@ -150,6 +151,9 @@ export const IncidentsPage = lazy(() =>
 )
 export const RisksPage = lazy(() =>
   pageLoaders.risks().then((module) => ({ default: module.RisksPage })),
+)
+export const RiskMatrixPage = lazy(() =>
+  pageLoaders.riskMatrix().then((module) => ({ default: module.RiskMatrixPage })),
 )
 export const TrainingsPage = lazy(() =>
   pageLoaders.trainings().then((module) => ({ default: module.TrainingsPage })),
