@@ -17,6 +17,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { CreateTrainingDto } from './dto/create-training.dto';
 import { UpdateTrainingDto } from './dto/update-training.dto';
+import {
+  CreateTrainingAttendeeDto,
+  UpdateTrainingAttendeeDto,
+} from './dto/training-attendee.dto';
 import { TrainingsService } from './trainings.service';
 
 @Controller('trainings')
@@ -32,6 +36,18 @@ export class TrainingsController {
     @Query('siteId') siteId?: string,
   ) {
     return this.trainingsService.findAll(user, companyId, siteId);
+  }
+
+  /** Dashboard de vencimientos de certificados (#58).
+   *  IMPORTANTE: declarado antes de @Get(':id') para que Nest no lo capture. */
+  @Get('expirations')
+  @Roles('ADMIN', 'SST', 'AUDITOR')
+  expirations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days') days?: string,
+  ) {
+    const windowDays = Math.min(Math.max(Number(days) || 30, 1), 365);
+    return this.trainingsService.expirations(user, windowDays);
   }
 
   @Get(':id')
@@ -69,5 +85,38 @@ export class TrainingsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.trainingsService.remove(user, id);
+  }
+
+  //----- asistentes (#58) -----------------------------------------------------
+  /** Alta de asistente con evaluación, evidencia y vencimiento. */
+  @Post(':id/attendees')
+  @Roles('ADMIN', 'SST')
+  createAttendee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateTrainingAttendeeDto,
+  ) {
+    return this.trainingsService.createAttendee(user, id, dto);
+  }
+
+  /** Evaluación/evidencia/vencimiento por asistente. */
+  @Patch('attendees/:attendeeId')
+  @Roles('ADMIN', 'SST')
+  updateAttendee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('attendeeId', ParseUUIDPipe) attendeeId: string,
+    @Body() dto: UpdateTrainingAttendeeDto,
+  ) {
+    return this.trainingsService.updateAttendee(user, attendeeId, dto);
+  }
+
+  /** Baja de asistente (el historial del trabajador queda fuera del training). */
+  @Delete('attendees/:attendeeId')
+  @Roles('ADMIN', 'SST')
+  removeAttendee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('attendeeId', ParseUUIDPipe) attendeeId: string,
+  ) {
+    return this.trainingsService.removeAttendee(user, attendeeId);
   }
 }

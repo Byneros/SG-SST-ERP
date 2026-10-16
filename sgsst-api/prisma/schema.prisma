@@ -184,6 +184,7 @@ model Employee {
   responsibleCommitments        CommitteeCommitment[]       @relation("CommitmentResponsible")
   emergencyBrigadeMemberships   EmergencyBrigadeMember[]
   emergencyPlanResponsibilities EmergencyPlan[]             @relation("EmergencyPlanResponsible")
+  trainingAttendees             TrainingAttendee[]
 }
 
 // Gestion del cambio (S14): solicitud de cambio con evaluacion de riesgos
@@ -551,16 +552,56 @@ model Incident {
   site        Site?          @relation(fields: [siteId], references: [id])
 }
 
+// Capacitación (#58): se amplía con asistentes, evaluación, evidencia por
+// trabajador y vencimiento del certificado (validityMonths → expiresAt por
+// asistente cuando se marca PASSED).
 model Training {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  date        DateTime
-  createdAt   DateTime @default(now())
-  companyId   String
-  siteId      String?
-  company     Company  @relation(fields: [companyId], references: [id])
-  site        Site?    @relation(fields: [siteId], references: [id])
+  id             String             @id @default(uuid())
+  title          String
+  description    String?
+  date           DateTime
+  createdAt      DateTime           @default(now())
+  companyId      String
+  siteId         String?
+  company        Company            @relation(fields: [companyId], references: [id])
+  site           Site?              @relation(fields: [siteId], references: [id])
+  instructor     String?
+  /// Meses de vigencia del certificado; define el vencimiento por asistente.
+  validityMonths Int?
+  attendees      TrainingAttendee[]
+}
+
+// Asistente de una capacitación (#58): evaluación (score/estado), evidencia
+// documental por trabajador y vencimiento del certificado. employeeId es
+// opcional para permitir asistentes externos por nombre; su borrado conserva
+// el historial (SetNull). Scope multi-empresa via training.
+model TrainingAttendee {
+  id         String                 @id @default(uuid())
+  trainingId String
+  training   Training               @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  employeeId String?
+  employee   Employee?              @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  /// Nombre congelado en la asistencia (vista/externo); obligatorio si no hay
+  /// employeeId.
+  name       String
+  score      Float?
+  status     TrainingAttendeeStatus @default(ATTENDED)
+  expiresAt  DateTime?
+  evidenceId String?
+  evidence   Document?              @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+  notes      String?
+  createdAt  DateTime               @default(now())
+
+  @@index([trainingId])
+  @@index([employeeId])
+  @@index([expiresAt])
+}
+
+/// Estado de la evaluación del asistente (numeral de evaluación de eficacia).
+enum TrainingAttendeeStatus {
+  ATTENDED
+  PASSED
+  FAILED
 }
 
 model Audit {
@@ -1193,6 +1234,7 @@ model Document {
   committeeMinutes      CommitteeMeeting[]
   changeRequestEvidence ChangeRequest[]      @relation("ChangeRequestEvidence")
   actionPlanEvidence    ActionPlan[]         @relation("ActionPlanEvidence")
+  trainingEvidence      TrainingAttendee[]
 }
 
 model DocumentVersion {

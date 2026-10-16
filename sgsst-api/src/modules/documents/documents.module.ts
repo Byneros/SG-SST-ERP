@@ -10,6 +10,6 @@ import { DocumentsStorageService } from './documents-storage.service';
   imports: [AuditModule, SitesModule],
   controllers: [DocumentsController],
   providers: [DocumentsService, DocumentsRepository, DocumentsStorageService],
-  exports: [DocumentsStorageService],
+  exports: [DocumentsStorageService, DocumentsRepository],
 })
 export class DocumentsModule {}
